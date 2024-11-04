@@ -20,8 +20,8 @@ func (c *BaseSelectHandler) PromptSearchRes(foundAnimeInfo []string) bool {
 	c.enterAltScreenBuf()
 
 	isUserSelectQuit := c.promptUserChoice()
+	defer c.exitAltScreenBuf()
 	defer c.showCursor()
-	c.exitAltScreenBuf()
 
 	return isUserSelectQuit
 }
@@ -210,7 +210,7 @@ func (c *BaseSelectHandler) formatLine(b *strings.Builder, entryLine string, opt
 		b.WriteString(strings.Repeat(" ", opts.LeftPadding))
 	}
 
-	b.WriteString(entryLine)
+	b.WriteString(strings.TrimSpace(entryLine))
 	if opts.extraSpaces > 0 {
 		b.WriteString(strings.Repeat(" ", opts.extraSpaces))
 	}
