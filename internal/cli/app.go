@@ -2,7 +2,6 @@ package cli
 
 import (
 	"anicliru/internal/api"
-	"fmt"
 )
 
 func StartApp() error {
@@ -13,9 +12,9 @@ func StartApp() error {
 		SearchMethod: "title/search",
 	}
 
-	cli := CLI{}
+	cliHand := CLIHandler{}
 
-	titleName, err := cli.PromptAnimeTitle()
+	titleName, err := cliHand.PromptAnimeTitle()
 	if err != nil {
 		return err
 	}
@@ -26,31 +25,18 @@ func StartApp() error {
 	}
 
 	if len(foundAnimeInfo.List) == 0 {
-		cli.SearchResEmptyNotify()
+		cliHand.SearchResEmptyNotify()
 		return nil
 	}
 
-	foundAnimeTitles := make([]string, 0, len(foundAnimeInfo.List))
+	decoratedAnimeTitles := decoratedAnimeTitles(foundAnimeInfo.List)
 
-	for _, animeInfo := range foundAnimeInfo.List {
-		episodeCount := len(animeInfo.Media.Episodes)
-		var episodeSuffixStr string
-		if episodeCount == 1 {
-			episodeSuffixStr = fmt.Sprintf(" (%d %s)", episodeCount, "эпизод")
-		} else if episodeCount > 1 {
-			episodeSuffixStr = fmt.Sprintf(" (%d %s)", episodeCount, "эпизодов")
-		} else {
-			episodeSuffixStr = fmt.Sprintf(" (Не доступно)")
-		}
-		foundAnimeTitles = append(foundAnimeTitles, animeInfo.Names.RU+episodeSuffixStr)
-	}
-
-	cli.titleChoice = BaseChoiceHandler{
+	cliHand.titleSelect = BaseSelectHandler{
 		cursor:         0,
-		foundAnimeInfo: foundAnimeTitles,
+		foundAnimeInfo: decoratedAnimeTitles,
 	}
 
-	cli.titleChoice.PromptSearchRes(foundAnimeTitles)
+	cliHand.titleSelect.PromptSearchRes(decoratedAnimeTitles)
 
 	return nil
 }
