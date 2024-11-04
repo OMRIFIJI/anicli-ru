@@ -122,57 +122,100 @@ func (c *BaseSelectHandler) drawInterface() {
 
 	for i, entry := range c.foundAnimeInfo {
 		//entryDecorated := c.decorateEdge(entry, termWidth)
-		if i == c.cursor {
-			entry = c.activeEntryString(entry, termWidth)
-		} else {
-			entry = fmt.Sprintf("│ %s %s  %s\n", highlightBg, highlightBgReset, entry)
-		}
+		entry = c.fmtEntryString(entry, termWidth, i == c.cursor)
 		fmt.Print(entry)
 	}
+
+	fmt.Printf("└%s┘\n", strings.Repeat("─", termWidth-2))
 }
 
-func (c *BaseSelectHandler) activeEntryString(entry string, termWidth int) string {
+func (c *BaseSelectHandler) fmtEntryString(entry string, termWidth int, active bool) string {
 	entryRune := []rune(entry)
 	entryRuneLen := len(entryRune)
 	var b strings.Builder
-	// Тут идёт хитрый трюк
-	// Обрабатываем, когда entry не помещается в одну строку на экране
-	// У первой строки отступ меньше, поэтому она отдельно от цикла пойдёт
-	fmt.Fprintf(&b, "│ %s%s▌  %s", highlightBg, highlightCursor, highlightFg)
+	// Сколько чистого текста вмещается в табличку
 	altScreenWidth := termWidth - 7
 
 	// Записываем весь entry в одну строку, если можем
 	if entryRuneLen <= altScreenWidth {
-		b.WriteString(string(entryRune[:entryRuneLen]))
-
-	    extraSpaces := altScreenWidth - entryRuneLen
-        b.WriteString(strings.Repeat(" ", extraSpaces))
-        
-        fmt.Fprintf(&b, "%s │\n", highlightBgReset)
-
-        return b.String()
+		extraSpaces := altScreenWidth - entryRuneLen
+		c.formatLine(
+			&b,
+			string(entryRune[:entryRuneLen]),
+			fmtOpts{
+				active:      active,
+				extraSpaces: extraSpaces,
+				LeftPadding: 2,
+			},
+		)
+		return b.String()
 	} else {
-		b.WriteString(string(entryRune[:altScreenWidth]))
-        fmt.Fprintf(&b, "%s │\n", highlightBgReset)
+        c.formatLine(
+			&b,
+			string(entryRune[:altScreenWidth]),
+			fmtOpts{
+				active:      active,
+				extraSpaces: 0,
+				LeftPadding: 2,
+			},
+		)
 	}
 
 	// Остальные строки entry кроме последней
 	left := altScreenWidth
 	right := left + altScreenWidth - 2
 	for right < entryRuneLen {
-		fmt.Fprintf(&b, "│ %s%s", strings.Repeat(" ", 5), highlightBg)
-		fmt.Fprintf(&b, "%s%s │\n", string(entryRune[left:right]), highlightBgReset)
+        c.formatLine(
+			&b,
+			string(entryRune[left:right]),
+			fmtOpts{
+				active:      active,
+				extraSpaces: 0,
+				LeftPadding: 4,
+			},
+		)
 		left += altScreenWidth - 2
 		right += altScreenWidth - 2
 	}
 
-	fmt.Fprintf(&b, "│ %s%s", strings.Repeat(" ", 5), highlightBg)
-
-	b.WriteString(string(entryRune[left:]))
 	// Последняя строка, надо снова заполнить пробелами
-    extraSpaces := altScreenWidth - 2 - (entryRuneLen - left)
-	b.WriteString(strings.Repeat(" ", extraSpaces))
-	b.WriteString(highlightBgReset)
-	b.WriteString(" │\n")
+	extraSpaces := altScreenWidth - 2 - (entryRuneLen - left)
+    c.formatLine(
+        &b,
+        string(entryRune[left:]),
+        fmtOpts{
+            active:      active,
+            extraSpaces: extraSpaces,
+            LeftPadding: 4,
+        },
+    )
+
 	return b.String()
+}
+
+type fmtOpts struct {
+	active      bool
+	extraSpaces int
+	LeftPadding int
+}
+
+func (c *BaseSelectHandler) formatLine(b *strings.Builder, entryLine string, opts fmtOpts) {
+	b.WriteString("│ ")
+
+	if opts.active {
+		fmt.Fprintf(b, "%s%s▌%s", highlightBg, highlightCursor, highlightFg)
+		fmt.Fprintf(b, "%s%s", strings.Repeat(" ", opts.LeftPadding), highlightFg)
+	} else {
+		fmt.Fprintf(b, "%s %s", highlightBg, highlightBgReset)
+		b.WriteString(strings.Repeat(" ", opts.LeftPadding))
+	}
+
+	b.WriteString(entryLine)
+	if opts.extraSpaces > 0 {
+		b.WriteString(strings.Repeat(" ", opts.extraSpaces))
+	}
+	if opts.active {
+		b.WriteString(highlightBgReset)
+	}
+	b.WriteString(" │\n")
 }
