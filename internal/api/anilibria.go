@@ -69,19 +69,21 @@ func (a *AnilibriaAPI) SearchTitleByName(titleName string) (*AnimeSearchResponse
 	return &searchRes, nil
 }
 
-func (a *AnimeSearchResponse) GetLink(indTitle int, keyEpisode, hls string) string {
+// Возвращает map элемент которого - это map из 3 ссылок разбитых по качеству
+func (a *AnimeSearchResponse) GetLinks(indTitle int) map[string]map[string]string {
+    episodesLinks := make(map[string]map[string]string)
 	host := a.List[indTitle].Media.Host
     if !strings.HasPrefix(host, "http"){
         host = "https://" + host
     }
-	links := a.List[indTitle].Media.Episodes[keyEpisode].HLSLinks
-	switch hls {
-	case "FHD":
-		return host + links.FHD
-	case "HD":
-		return host + links.HD
-	case "SD":
-		return host + links.SD
-	}
-	return host + links.FHD
+	episodes := a.List[indTitle].Media.Episodes
+    for key, val := range episodes {
+        linksMap := map[string]string{
+            "FHD": host + val.HLSLinks.FHD,
+            "HD": host + val.HLSLinks.HD,
+            "SD": host + val.HLSLinks.SD,
+        }
+        episodesLinks[key] = linksMap
+    }
+    return episodesLinks
 }

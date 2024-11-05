@@ -228,10 +228,10 @@ func (d *Drawer) formatLine(entryLine string, opts fmtOpts) string {
 }
 
 func (d *Drawer) makeEntryActive(entry []string) []string {
-	var b strings.Builder
 	entryActive := make([]string, 0, len(entry))
 
 	for _, entryStr := range entry {
+	    var b strings.Builder
 		entryRune := []rune(entryStr)
 		b.WriteString("│ ")
 		fmt.Fprintf(&b, "%s%s▌ %s", highlightBg, highlightCursor, highlightFg)
