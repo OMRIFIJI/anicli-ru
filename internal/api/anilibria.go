@@ -28,13 +28,13 @@ type LanguageTitles struct {
 }
 
 type MediaInfo struct {
-	Host     string    `json:"host"`
-	Episodes []Episode `json:"List"`
+	Host     string             `json:"host"`
+	Episodes map[string]Episode `json:"List"`
 }
 
 type Episode struct {
-	EpisodeNumber int        `json:"episode"`
-	HLSLinks      HLSOptions `json:"hls"`
+	Number   int        `json:"episode"`
+	HLSLinks HLSOptions `json:"hls"`
 }
 
 type HLSOptions struct {
@@ -47,7 +47,7 @@ func (a *AnilibriaAPI) SearchTitleByName(titleName string) (*AnimeSearchResponse
 	var searchRes AnimeSearchResponse
 
 	searchRequest := fmt.Sprintf(
-		"%s%s?search=%s&filter=id,names.ru,player.host,player.list&limit=25",
+		"%s%s?search=%s&filter=id,names.ru,player.host,player.list&limit=50",
 		a.BaseURL,
 		a.SearchMethod,
 		titleName,

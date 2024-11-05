@@ -8,49 +8,81 @@ import (
 	"strings"
 )
 
-type BaseSelectHandler struct {
-	cursor          int
-	foundAnimeInfo  []string
-	foundAnimeCount int
+type Cursor struct {
+	Pos    int
+	posOld int
+	state  int
+	posMax int
 }
 
-func (c *BaseSelectHandler) PromptSearchRes(foundAnimeInfo []string) bool {
-	c.foundAnimeInfo = foundAnimeInfo
-	c.foundAnimeCount = len(c.foundAnimeInfo)
-	c.enterAltScreenBuf()
+// func (c *Cursor) updateState() {
+// }
 
-	isUserSelectQuit := c.promptUserChoice()
-	defer c.exitAltScreenBuf()
-	defer c.showCursor()
-
-	return isUserSelectQuit
+type terminalSize struct {
+	width  int
+	height int
 }
 
-func (c *BaseSelectHandler) promptUserChoice() bool {
+type SelectPrompt struct {
+	Cur        Cursor
+	entryNames []string
+	entryCount int
+	entries    [][]string
+	indToDraw  []int
+	term       terminalSize
+}
+
+func (s *SelectPrompt) PromptSearchRes(entryNames []string) int {
+	s.entryNames = entryNames
+	s.entryCount = len(s.entryNames)
+
+	// Стандартные значения
+	s.Cur = Cursor{
+		Pos:    0,
+		posOld: 0,
+		state:  cursorStateNormal,
+		posMax: s.entryCount - 1,
+	}
+
+	s.enterAltScreenBuf()
+	exitCode := s.promptUserChoice()
+	defer s.exitAltScreenBuf()
+	defer s.showCursor()
+
+	return exitCode
+}
+
+func (s *SelectPrompt) promptUserChoice() int {
+	s.initInterface()
 	for {
-		c.drawInterface()
+		s.drawInterface()
 		key, _ := readKey()
-		isUserSelectQuit := c.handleChoiceInput(key)
-		if isUserSelectQuit {
-			return true
+		exitCode := s.handleChoiceInput(key)
+		if (exitCode == EnterCode) || (exitCode == QuitCode) {
+			return exitCode
 		}
 	}
 }
 
-func (c *BaseSelectHandler) handleChoiceInput(key string) bool {
+func (s *SelectPrompt) handleChoiceInput(key string) int {
 	switch key {
 	case "down":
-		if c.cursor < c.foundAnimeCount-1 {
-			c.cursor++
+		if s.Cur.Pos < s.Cur.posMax {
+			s.Cur.posOld = s.Cur.Pos
+			s.Cur.Pos++
 		}
 	case "up":
-		if c.cursor > 0 {
-			c.cursor--
+		if s.Cur.Pos > 0 {
+			s.Cur.posOld = s.Cur.Pos
+			s.Cur.Pos--
 		}
-
+	case "quit":
+		return QuitCode
+	case "enter":
+		return EnterCode
 	}
 	// Можно сказать особый случай switch
-	return key == "quit"
+	return continueCode
 }
 
 func readKey() (string, error) {
@@ -67,10 +99,14 @@ func readKey() (string, error) {
 		return "", err
 	}
 
-	if n == 1 && buf[0] == '\n' {
+	if n == 1 && (buf[0] == '\n' || buf[0] == '\r') {
 		return "enter", nil
 	}
 	if n == 1 && buf[0] == 'q' {
+		return "quit", nil
+	}
+	// Обрабатывает 'й' как 'q'
+	if n == 2 && buf[0] == 0xd0 && buf[1] == 0x99 {
 		return "quit", nil
 	}
 
@@ -85,112 +121,156 @@ func readKey() (string, error) {
 	return "", nil
 }
 
-func (c *BaseSelectHandler) enterAltScreenBuf() {
+func (s *SelectPrompt) enterAltScreenBuf() {
 	fmt.Print("\033[?1049h")
 }
 
-func (c *BaseSelectHandler) exitAltScreenBuf() {
+func (s *SelectPrompt) exitAltScreenBuf() {
 	fmt.Print("\033[?1049l")
 }
 
-func (c *BaseSelectHandler) clearScreen() {
+func (s *SelectPrompt) clearScreen() {
 	fmt.Print("\033[H\033[J")
 }
 
-func (c *BaseSelectHandler) hideCursor() {
+func (s *SelectPrompt) hideCursor() {
 	fmt.Print("\033[?25l")
 }
 
-func (c *BaseSelectHandler) showCursor() {
+func (s *SelectPrompt) showCursor() {
 	fmt.Print("\033[?25h")
 }
 
-func (c *BaseSelectHandler) drawInterface() {
-	c.clearScreen()
-	c.hideCursor()
+func (s *SelectPrompt) initInterface() {
+	termWidth, termHeight, err := term.GetSize(0)
 
-	termWidth, _, err := term.GetSize(0)
 	if err != nil {
 		panic(err)
 	}
+
 	if termWidth < 10 {
 		panic(errors.New("Your screen is too small! Less than 10 characters."))
 	}
 
-	fmt.Printf("%s%s%s\n", colorPrompt, "Выберите аниме из списка:", colorReset)
-	fmt.Printf("┌%s┐\n", strings.Repeat("─", termWidth-2))
-
-	for i, entry := range c.foundAnimeInfo {
-		//entryDecorated := c.decorateEdge(entry, termWidth)
-		entry = c.fmtEntryString(entry, termWidth, i == c.cursor)
-		fmt.Print(entry)
+	s.term = terminalSize{
+		width:  termWidth,
+		height: termHeight,
 	}
 
-	fmt.Printf("└%s┘\n", strings.Repeat("─", termWidth-2))
+	for i, entry := range s.entryNames {
+		//entryDecorated := s.decorateEdge(entry, termWidth)
+		s.entries = append(s.entries, s.fitEntryLines(entry, s.term.width, i == s.Cur.Pos))
+	}
+
+	s.indToDraw = make([]int, 0, s.term.height-3)
+
+	linesCount := 0
+	for i, entry := range s.entries {
+		s.indToDraw = append(s.indToDraw, i)
+		linesCount += len(entry)
+		if linesCount > s.term.height-3 {
+			break
+		}
+
+	}
+
+}
+func (s *SelectPrompt) drawInterface() {
+	s.clearScreen()
+	s.hideCursor()
+
+	fmt.Printf("%s%s%s\n", colorPrompt, "Выберите аниме из списка:", colorReset)
+	fmt.Printf("┌%s┐\n", strings.Repeat("─", s.term.width-2))
+
+	s.drawEntries()
+
+	fmt.Printf("└%s┘\n", strings.Repeat("─", s.term.width-2))
 }
 
-func (c *BaseSelectHandler) fmtEntryString(entry string, termWidth int, active bool) string {
+func (s *SelectPrompt) drawEntries() {
+	linesCount := 0
+	for _, i := range s.indToDraw {
+		for _, entry := range s.entries[i] {
+			fmt.Print(entry)
+			linesCount++
+			if linesCount == s.term.height-3 {
+				return
+			}
+		}
+	}
+
+}
+
+func (s *SelectPrompt) fitEntryLines(entry string, termWidth int, active bool) []string {
+	var entryStrings []string
 	entryRune := []rune(entry)
 	entryRuneLen := len(entryRune)
-	var b strings.Builder
 	// Сколько чистого текста вмещается в табличку
 	altScreenWidth := termWidth - 7
 
 	// Записываем весь entry в одну строку, если можем
 	if entryRuneLen <= altScreenWidth {
 		extraSpaces := altScreenWidth - entryRuneLen
-		c.formatLine(
-			&b,
-			string(entryRune[:entryRuneLen]),
-			fmtOpts{
-				active:      active,
-				extraSpaces: extraSpaces,
-				LeftPadding: 2,
-			},
+		entryStrings = append(
+			entryStrings,
+			s.formatLine(
+				string(entryRune[:entryRuneLen]),
+				fmtOpts{
+					active:      active,
+					extraSpaces: extraSpaces,
+					LeftPadding: 2,
+				},
+			),
 		)
-		return b.String()
+		return entryStrings
 	} else {
-        c.formatLine(
-			&b,
-			string(entryRune[:altScreenWidth]),
-			fmtOpts{
-				active:      active,
-				extraSpaces: 0,
-				LeftPadding: 2,
-			},
+		entryStrings = append(
+			entryStrings,
+			s.formatLine(
+				string(entryRune[:altScreenWidth]),
+				fmtOpts{
+					active:      active,
+					extraSpaces: 0,
+					LeftPadding: 2,
+				},
+			),
 		)
 	}
 
 	// Остальные строки entry кроме последней
 	left := altScreenWidth
 	right := left + altScreenWidth - 2
+	newLinesCount := 1
 	for right < entryRuneLen {
-        c.formatLine(
-			&b,
-			string(entryRune[left:right]),
-			fmtOpts{
-				active:      active,
-				extraSpaces: 0,
-				LeftPadding: 4,
-			},
+		entryStrings = append(entryStrings,
+			s.formatLine(
+				string(entryRune[left:right]),
+				fmtOpts{
+					active:      active,
+					extraSpaces: 0,
+					LeftPadding: 4,
+				},
+			),
 		)
+		newLinesCount += 1
 		left += altScreenWidth - 2
 		right += altScreenWidth - 2
 	}
 
 	// Последняя строка, надо снова заполнить пробелами
 	extraSpaces := altScreenWidth - 2 - (entryRuneLen - left)
-    c.formatLine(
-        &b,
-        string(entryRune[left:]),
-        fmtOpts{
-            active:      active,
-            extraSpaces: extraSpaces,
-            LeftPadding: 4,
-        },
-    )
+	entryStrings = append(entryStrings,
+		s.formatLine(
+			string(entryRune[left:]),
+			fmtOpts{
+				active:      active,
+				extraSpaces: extraSpaces,
+				LeftPadding: 4,
+			},
+		),
+	)
 
-	return b.String()
+	return entryStrings
 }
 
 type fmtOpts struct {
@@ -199,14 +279,15 @@ type fmtOpts struct {
 	LeftPadding int
 }
 
-func (c *BaseSelectHandler) formatLine(b *strings.Builder, entryLine string, opts fmtOpts) {
+func (s *SelectPrompt) formatLine(entryLine string, opts fmtOpts) string {
+	var b strings.Builder
 	b.WriteString("│ ")
 
 	if opts.active {
-		fmt.Fprintf(b, "%s%s▌%s", highlightBg, highlightCursor, highlightFg)
-		fmt.Fprintf(b, "%s%s", strings.Repeat(" ", opts.LeftPadding), highlightFg)
+		fmt.Fprintf(&b, "%s%s▌%s", highlightBg, highlightCursor, highlightFg)
+		fmt.Fprintf(&b, "%s%s", strings.Repeat(" ", opts.LeftPadding), highlightFg)
 	} else {
-		fmt.Fprintf(b, "%s %s", highlightBg, highlightBgReset)
+		fmt.Fprintf(&b, "%s %s", highlightBg, highlightBgReset)
 		b.WriteString(strings.Repeat(" ", opts.LeftPadding))
 	}
 
@@ -218,4 +299,5 @@ func (c *BaseSelectHandler) formatLine(b *strings.Builder, entryLine string, opt
 		b.WriteString(highlightBgReset)
 	}
 	b.WriteString(" │\n")
+	return b.String()
 }

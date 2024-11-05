@@ -8,11 +8,11 @@ import (
 )
 
 type CLIHandler struct {
-	titleSelect   BaseSelectHandler
-	episodeSelect BaseSelectHandler
+	TitleSelect   SelectPrompt
+	EpisodeSelect SelectPrompt
 }
 
-func (c *CLIHandler) PromptAnimeTitle() (string, error) {
+func (c *CLIHandler) PromptAnimeTitleInput() (string, error) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(colorPrompt + "Поиск по названию: " + colorReset)
 	titleName, err := reader.ReadString('\n')
