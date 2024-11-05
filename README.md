@@ -1,5 +1,6 @@
 # anicli-ru
 Интерфейс командной строки для поиска и просмотра аниме, написаный на Go.
+![Gopher](https://go.dev/blog/gopher/header.jpg)
 
 ## Зависимости
 Видео проигрываются с помощью [mpv](https://github.com/mpv-player/mpv).
