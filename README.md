@@ -1,5 +1,6 @@
 # anicli-ru
 Интерфейс командной строки для поиска и просмотра аниме, написаный на Go.
+
 <img src="https://go.dev/blog/gopher/header.jpg" alt="Gopher" width="300"/>
 
 ## Зависимости
