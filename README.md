@@ -16,6 +16,8 @@
 - [ ] Подправить костылей в коде
 
 ## Сборка
-Из директории проекта выполняем: 
-
-`go build -ldflags "-s -w" -o anicli-ru ./cmd/main.go`
+Выполняем следующие команды: 
+1. `git clone https://github.com/OMRIFIJI/anicli-ru.git`
+2. `cd anicli-ru`
+3. `go build -ldflags "-s -w" -o anicli-ru ./cmd/main.go`
+4. По желанию копируем в одну из директорий *PATH*. Например: `sudo cp anicli-ru /usr/bin`
