@@ -12,14 +12,14 @@ type Cursor struct {
 }
 
 type PromptSelect struct {
-    PromptMessage string
-	Cur        Cursor
-	entryNames []string
-	entryCount int
-	drawer     Drawer
-	entries    [][]string
-	indToDraw  []int
-	termSize   terminalSize
+	PromptMessage string
+	Cur           Cursor
+	entryNames    []string
+	entryCount    int
+	drawer        Drawer
+	entries       [][]string
+	indToDraw     []int
+	termSize      terminalSize
 }
 
 func (s *PromptSelect) Prompt(entryNames []string) bool {

@@ -219,7 +219,12 @@ func (d *Drawer) formatLine(entryLine string, opts fmtOpts) string {
 	fmt.Fprintf(&b, "%s %s", highlightBg, highlightBgReset)
 	b.WriteString(strings.Repeat(" ", opts.LeftPadding))
 
-	b.WriteString(strings.TrimSpace(entryLine))
+    // Перенос пробелов с начала строки в конец
+    trimmedLine := strings.TrimLeft(entryLine, " ")
+    movedSpaces := len(entryLine) - len(trimmedLine)
+	b.WriteString(trimmedLine)
+	b.WriteString(strings.Repeat(" ", movedSpaces))
+
 	if opts.extraSpaces > 0 {
 		b.WriteString(strings.Repeat(" ", opts.extraSpaces))
 	}
