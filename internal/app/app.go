@@ -2,7 +2,9 @@ package app
 
 import (
 	"anicliru/internal/api"
-	"anicliru/internal/cli"
+	"anicliru/internal/cli/clicontroller"
+	"anicliru/internal/cli/promptselect"
+	"anicliru/internal/cli/strdec"
 )
 
 func StartApp() error {
@@ -13,7 +15,7 @@ func StartApp() error {
 		SearchMethod: "title/search",
 	}
 
-	cliHand := cli.CLIHandler{}
+	cliHand := clicontroller.CLIController{}
 
 	titleName, err := cliHand.PromptAnimeTitleInput()
 	if err != nil {
@@ -30,20 +32,24 @@ func StartApp() error {
 		return nil
 	}
 
-
-	cliHand.TitleSelect = cli.SelectPrompt{}
-	decoratedAnimeTitles := cli.DecoratedAnimeTitles(foundAnimeInfo.List)
-	exitCode := cliHand.TitleSelect.PromptSearchRes(decoratedAnimeTitles)
-	if exitCode == cli.QuitCode {
+	cliHand.TitleSelect = promptselect.PromptSelect{
+        PromptMessage: "Выберите аниме из списка:",
+    }
+	decoratedAnimeTitles := strdec.DecoratedAnimeTitles(foundAnimeInfo.List)
+	// true если пользователь вышел через "q"
+	isExitOnQuit := cliHand.TitleSelect.Prompt(decoratedAnimeTitles)
+	if isExitOnQuit {
 		return nil
 	}
 	cursor := cliHand.TitleSelect.Cur.Pos
 	episodes := foundAnimeInfo.List[cursor].Media.Episodes
 
-    cliHand.EpisodeSelect = cli.SelectPrompt{}
-	episodesList := cli.EpisodesToStrList(episodes)
-	exitCode = cliHand.TitleSelect.PromptSearchRes(episodesList)
-	if exitCode == cli.QuitCode {
+	cliHand.EpisodeSelect = promptselect.PromptSelect{
+        PromptMessage: "Выберите серию:",
+    }
+	episodesList := strdec.EpisodesToStrList(episodes)
+	isExitOnQuit = cliHand.EpisodeSelect.Prompt(episodesList)
+	if isExitOnQuit {
 		return nil
 	}
 

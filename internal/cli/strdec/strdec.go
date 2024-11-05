@@ -1,4 +1,4 @@
-package cli
+package strdec
 
 import (
 	"anicliru/internal/api"
