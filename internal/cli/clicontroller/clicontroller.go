@@ -1,17 +1,18 @@
 package clicontroller
 
 import (
+	"anicliru/internal/cli/promptselect"
+	txtclr "anicliru/internal/cli/textcolors"
 	"bufio"
-    "os"
-    "fmt"
-    "strings"
-    "anicliru/internal/cli/promptselect"
-    txtclr "anicliru/internal/cli/textcolors"
+	"fmt"
+	"os"
+	"strings"
 )
 
 type CLIController struct {
 	TitleSelect   promptselect.PromptSelect
 	EpisodeSelect promptselect.PromptSelect
+	WatchMenu     promptselect.PromptSelect
 }
 
 func (c *CLIController) PromptAnimeTitleInput() (string, error) {

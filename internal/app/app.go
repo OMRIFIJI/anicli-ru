@@ -5,6 +5,7 @@ import (
 	"anicliru/internal/cli/clicontroller"
 	"anicliru/internal/cli/promptselect"
 	"anicliru/internal/cli/strdec"
+	"os/exec"
 )
 
 func StartApp() error {
@@ -33,25 +34,35 @@ func StartApp() error {
 	}
 
 	cliHand.TitleSelect = promptselect.PromptSelect{
-        PromptMessage: "Выберите аниме из списка:",
-    }
+		PromptMessage: "Выберите аниме из списка:",
+	}
 	decoratedAnimeTitles := strdec.DecoratedAnimeTitles(foundAnimeInfo.List)
-	// true если пользователь вышел через "q"
 	isExitOnQuit := cliHand.TitleSelect.Prompt(decoratedAnimeTitles)
 	if isExitOnQuit {
 		return nil
 	}
-	cursor := cliHand.TitleSelect.Cur.Pos
-	episodes := foundAnimeInfo.List[cursor].Media.Episodes
+	indTitle := cliHand.TitleSelect.Cur.Pos
+	episodes := foundAnimeInfo.List[indTitle].Media.Episodes
 
 	cliHand.EpisodeSelect = promptselect.PromptSelect{
-        PromptMessage: "Выберите серию:",
-    }
+		PromptMessage: "Выберите серию:",
+	}
 	episodesList := strdec.EpisodesToStrList(episodes)
 	isExitOnQuit = cliHand.EpisodeSelect.Prompt(episodesList)
 	if isExitOnQuit {
 		return nil
 	}
+    // Тут надо бы поправить
+	cursorEpisode := cliHand.EpisodeSelect.Cur.Pos
+	keyEpisode := episodesList[cursorEpisode]
+
+	url := foundAnimeInfo.GetLink(indTitle, keyEpisode, "FHD")
+	cmd := exec.Command("mpv", url)
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
 
 	return nil
 }

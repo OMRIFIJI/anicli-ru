@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type AnilibriaAPI struct {
@@ -66,4 +67,21 @@ func (a *AnilibriaAPI) SearchTitleByName(titleName string) (*AnimeSearchResponse
 		return nil, err
 	}
 	return &searchRes, nil
+}
+
+func (a *AnimeSearchResponse) GetLink(indTitle int, keyEpisode, hls string) string {
+	host := a.List[indTitle].Media.Host
+    if !strings.HasPrefix(host, "http"){
+        host = "https://" + host
+    }
+	links := a.List[indTitle].Media.Episodes[keyEpisode].HLSLinks
+	switch hls {
+	case "FHD":
+		return host + links.FHD
+	case "HD":
+		return host + links.HD
+	case "SD":
+		return host + links.SD
+	}
+	return host + links.FHD
 }
