@@ -18,7 +18,6 @@
 - [ ] Подправить костыли в коде
 
 ## Сборка
-Выполняем следующие команды: 
 1. `git clone https://github.com/OMRIFIJI/anicli-ru.git`
 2. `cd anicli-ru`
 3. `go build -ldflags "-s -w" -o anicli-ru ./cmd/main.go`
