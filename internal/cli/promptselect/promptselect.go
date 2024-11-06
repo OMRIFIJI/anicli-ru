@@ -28,7 +28,7 @@ func (s *PromptSelect) Prompt(entryNames []string) bool {
     s.setDefaultParams()
 
 	enterAltScreenBuf()
-    // Так рано defer, чтобы вернуть курсор после panic
+    // defer, чтобы вернуть курсор после panic
 	defer showCursor()
 	defer exitAltScreenBuf()
 	exitCode := s.promptUserChoice()
@@ -67,9 +67,19 @@ func (s *PromptSelect) promptUserChoice() int {
 		case enterCode, quitCode:
 			return keyCode
 		case cursorCode:
+            // Перерисовывает всё, если размер экрана меняется
+            if s.hasTermSizeChanged() {
+                s.setDefaultParams()
+                s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
+            }
 			s.drawer.drawInterface()
 		}
 	}
+}
+
+func (s *PromptSelect) hasTermSizeChanged() bool{
+    termWidth, termHeight, _ := term.GetSize(0)
+    return s.termSize.width != termWidth || s.termSize.height != termHeight 
 }
 
 func (s *PromptSelect) handleChoiceInput(key string) int {
