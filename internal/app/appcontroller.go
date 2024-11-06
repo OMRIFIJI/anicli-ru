@@ -64,7 +64,7 @@ func (ac *AppController) WatchMenuSpin(episodeLinks map[string]map[string]string
 
 func (ac *AppController) startVideo(episodeLinks map[string]map[string]string, cursorEpisode int) {
 	url := episodeLinks[strconv.Itoa(cursorEpisode)]["FHD"]
-	cmd := exec.Command("mpv", url)
+	cmd := exec.Command("mpv", " --cache=on", url)
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
