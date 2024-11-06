@@ -25,8 +25,18 @@ type PromptSelect struct {
 func (s *PromptSelect) Prompt(entryNames []string) bool {
 	s.entryNames = entryNames
 	s.entryCount = len(s.entryNames)
+    s.setDefaultParams()
 
-	// Инициализации
+	enterAltScreenBuf()
+    // Так рано defer, чтобы вернуть курсор после panic
+	defer showCursor()
+	defer exitAltScreenBuf()
+	exitCode := s.promptUserChoice()
+
+	return exitCode == quitCode
+}
+
+func (s *PromptSelect) setDefaultParams() {
 	s.Cur = Cursor{
 		Pos:    0,
 		posOld: 0,
@@ -43,13 +53,6 @@ func (s *PromptSelect) Prompt(entryNames []string) bool {
 		width:  termWidth,
 		height: termHeight,
 	}
-
-	enterAltScreenBuf()
-	exitCode := s.promptUserChoice()
-	defer exitAltScreenBuf()
-	defer showCursor()
-
-	return exitCode == quitCode
 }
 
 func (s *PromptSelect) promptUserChoice() int {
