@@ -1,8 +1,11 @@
 package promptselect
 
 import (
-	"golang.org/x/term"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/term"
 )
 
 type Cursor struct {
@@ -45,7 +48,7 @@ func (s *PromptSelect) setDefaultParams() {
 	s.drawer = Drawer{
 		cur: &s.Cur,
 	}
-	termWidth, termHeight, err := term.GetSize(0)
+	termWidth, termHeight, err := term.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
 		panic(err)
 	}
@@ -56,9 +59,12 @@ func (s *PromptSelect) setDefaultParams() {
 }
 
 func (s *PromptSelect) promptUserChoice() int {
-	s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
 	// Первая отрисовка
+	s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
 	s.drawer.drawInterface()
+    
+    go s.redrawOnTerminalResize()
+
 	for {
 		key, _ := s.readKey()
 		keyCode := s.handleChoiceInput(key)
@@ -68,18 +74,21 @@ func (s *PromptSelect) promptUserChoice() int {
 			return keyCode
 		case cursorCode:
             // Перерисовывает всё, если размер экрана меняется
-            if s.hasTermSizeChanged() {
-                s.setDefaultParams()
-                s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
-            }
 			s.drawer.drawInterface()
 		}
 	}
 }
 
-func (s *PromptSelect) hasTermSizeChanged() bool{
-    termWidth, termHeight, _ := term.GetSize(0)
-    return s.termSize.width != termWidth || s.termSize.height != termHeight 
+func (s *PromptSelect) redrawOnTerminalResize() {
+    signalChannel := make(chan os.Signal, 1)
+    signal.Notify(signalChannel, syscall.SIGWINCH)
+
+    for {
+        <-signalChannel
+        s.setDefaultParams()
+        s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
+        s.drawer.drawInterface()
+    }
 }
 
 func (s *PromptSelect) handleChoiceInput(key string) int {

@@ -11,7 +11,7 @@ func exitAltScreenBuf() {
 }
 
 func clearScreen() {
-	fmt.Print("\033[H\033[J")
+	fmt.Print("\033[H\033[2J")
 }
 
 func hideCursor() {

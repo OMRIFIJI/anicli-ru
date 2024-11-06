@@ -22,6 +22,7 @@ func (ac *AppController) PromptAnimeTitleInput() (string, error) {
 	fmt.Print(txtclr.ColorPrompt + "Поиск по названию: " + txtclr.ColorReset)
 	titleName, err := reader.ReadString('\n')
 	titleName = strings.TrimSuffix(titleName, "\n")
+	fmt.Println("Поиск аниме по вашему запросу...")
 	return titleName, err
 }
 
