@@ -48,7 +48,7 @@ func (a *AnilibriaAPI) SearchTitleByName(titleName string) (*AnimeSearchResponse
 	var searchRes AnimeSearchResponse
 
 	searchRequest := fmt.Sprintf(
-		"%s%s?search=%s&filter=id,names.ru,player.host,player.list&limit=50",
+		"%s%s?search=%s&filter=id,names.ru,player.host,player.list&limit=100",
 		a.BaseURL,
 		a.SearchMethod,
 		titleName,

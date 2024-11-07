@@ -1,15 +1,22 @@
 package promptselect
 
+type keyCode uint8
 const (
-	quitCode     = -1
-	enterCode    = 0
-	continueCode = 1
-	cursorCode   = 2
+	quitKeyCode keyCode = iota
+	enterKeyCode
+	continueKeyCode
+	upKeyCode
+	downKeyCode
+)
+
+type exitPromptCode uint8
+const (
+    onQuitExitCode exitPromptCode = iota
+    onEnterExitCode
 )
 
 const (
 	cursorScrollOffset = 2
-
 	cursorStateHigh   = 1
 	cursorStateNormal = 0
 	cursorStateLow    = -1

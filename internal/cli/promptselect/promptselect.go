@@ -1,11 +1,11 @@
 package promptselect
 
 import (
+	"golang.org/x/term"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"golang.org/x/term"
+	"unicode/utf8"
 )
 
 type Cursor struct {
@@ -18,32 +18,36 @@ type PromptSelect struct {
 	PromptMessage string
 	Cur           Cursor
 	entryNames    []string
-	entryCount    int
-	drawer        Drawer
 	entries       [][]string
+	drawer        Drawer
 	indToDraw     []int
 	termSize      terminalSize
 }
 
 func (s *PromptSelect) Prompt(entryNames []string) bool {
 	s.entryNames = entryNames
-	s.entryCount = len(s.entryNames)
 	s.setDefaultParams()
 
 	enterAltScreenBuf()
-	// defer, чтобы вернуть курсор после panic
-	defer showCursor()
 	defer exitAltScreenBuf()
-	exitCode := s.promptUserChoice()
 
-	return exitCode == quitCode
+	oldState, err := term.MakeRaw(0)
+	if err != nil {
+		panic(err)
+	}
+	defer term.Restore(0, oldState)
+
+	defer showCursor()
+	exitCodeValue := s.promptUserChoice()
+
+	return exitCodeValue == onQuitExitCode
 }
 
 func (s *PromptSelect) setDefaultParams() {
 	s.Cur = Cursor{
 		Pos:    0,
 		posOld: 0,
-		posMax: s.entryCount - 1,
+		posMax: len(s.entryNames) - 1,
 	}
 	s.drawer = Drawer{
 		cur: &s.Cur,
@@ -58,7 +62,7 @@ func (s *PromptSelect) setDefaultParams() {
 	}
 }
 
-func (s *PromptSelect) promptUserChoice() int {
+func (s *PromptSelect) promptUserChoice() exitPromptCode {
 	// Первая отрисовка
 	s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
 	s.drawer.drawInterface()
@@ -67,16 +71,14 @@ func (s *PromptSelect) promptUserChoice() int {
 	go s.redrawOnTerminalResize(quit)
 
 	for {
-		key, _ := s.readKey()
-		keyCode := s.handleChoiceInput(key)
-
-		switch keyCode {
-		case enterCode, quitCode:
-            quit <- true
-			return keyCode
-		case cursorCode:
-			// Перерисовывает всё, если размер экрана меняется
-			s.drawer.drawInterface()
+		keyCodeValue := s.readKey()
+		switch keyCodeValue {
+		case quitKeyCode:
+			return onQuitExitCode
+		case enterKeyCode:
+			return onEnterExitCode
+		default:
+			s.handleKey(keyCodeValue, quit)
 		}
 	}
 }
@@ -98,61 +100,54 @@ func (s *PromptSelect) redrawOnTerminalResize(quit chan bool) {
 	}
 }
 
-func (s *PromptSelect) handleChoiceInput(key string) int {
-	switch key {
-	case "down":
-		if s.Cur.Pos < s.Cur.posMax {
-			s.Cur.posOld = s.Cur.Pos
-			s.Cur.Pos++
-			return cursorCode
-		}
-	case "up":
-		if s.Cur.Pos > 0 {
-			s.Cur.posOld = s.Cur.Pos
-			s.Cur.Pos--
-			return cursorCode
-		}
-	case "quit":
-		return quitCode
-	case "enter":
-		return enterCode
-	}
-	// Можно сказать особый случай switch
-	return continueCode
-}
-
-func (s *PromptSelect) readKey() (string, error) {
+func (s *PromptSelect) readKey() keyCode {
 	// Терминал в raw mode
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		return "", err
-	}
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
-
 	var buf [3]byte
 	n, err := os.Stdin.Read(buf[:])
 	if err != nil {
-		return "", err
+		panic(err)
 	}
 
 	if n == 1 && (buf[0] == '\n' || buf[0] == '\r') {
-		return "enter", nil
+		return enterKeyCode
 	}
 	if n == 1 && buf[0] == 'q' {
-		return "quit", nil
+		return quitKeyCode
 	}
 	// Обрабатывает 'й' как 'q'
-	if n == 2 && buf[0] == 0xd0 && buf[1] == 0x99 {
-		return "quit", nil
+	if n == 2 {
+		r, _ := utf8.DecodeRune(buf[:])
+		if r == 'й' {
+			return quitKeyCode
+		}
 	}
-
 	if n >= 3 && buf[0] == 27 && buf[1] == 91 {
 		switch buf[2] {
 		case 65:
-			return "up", nil
+			return upKeyCode
 		case 66:
-			return "down", nil
+			return downKeyCode
 		}
 	}
-	return "", nil
+
+	return continueKeyCode
+}
+
+func (s *PromptSelect) handleKey(keyCodeValue keyCode, quit chan bool) {
+	switch keyCodeValue {
+	case downKeyCode:
+		if s.Cur.Pos < s.Cur.posMax {
+			s.Cur.posOld = s.Cur.Pos
+			s.Cur.Pos++
+		}
+		s.drawer.drawInterface()
+	case upKeyCode:
+		if s.Cur.Pos > 0 {
+			s.Cur.posOld = s.Cur.Pos
+			s.Cur.Pos--
+		}
+		s.drawer.drawInterface()
+	case enterKeyCode, quitKeyCode:
+		quit <- true
+	}
 }
