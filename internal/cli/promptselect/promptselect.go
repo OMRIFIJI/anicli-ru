@@ -74,11 +74,14 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 		keyCodeValue := s.readKey()
 		switch keyCodeValue {
 		case quitKeyCode:
+            quit <- true
 			return onQuitExitCode
 		case enterKeyCode:
+		    quit <- true
 			return onEnterExitCode
-		default:
-			s.handleKey(keyCodeValue, quit)
+		case upKeyCode, downKeyCode:
+			s.moveCursor(keyCodeValue)
+		    s.drawer.drawInterface()
 		}
 	}
 }
@@ -133,21 +136,17 @@ func (s *PromptSelect) readKey() keyCode {
 	return continueKeyCode
 }
 
-func (s *PromptSelect) handleKey(keyCodeValue keyCode, quit chan bool) {
+func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {
 	switch keyCodeValue {
 	case downKeyCode:
 		if s.Cur.Pos < s.Cur.posMax {
 			s.Cur.posOld = s.Cur.Pos
 			s.Cur.Pos++
 		}
-		s.drawer.drawInterface()
 	case upKeyCode:
 		if s.Cur.Pos > 0 {
 			s.Cur.posOld = s.Cur.Pos
 			s.Cur.Pos--
 		}
-		s.drawer.drawInterface()
-	case enterKeyCode, quitKeyCode:
-		quit <- true
 	}
 }

@@ -14,9 +14,9 @@ func RunApp() error {
 		SearchMethod: "title/search",
 	}
 
-	cliCon := AppController{}
+	appCon := AppController{}
 
-	titleName, err := cliCon.PromptAnimeTitleInput()
+	titleName, err := appCon.PromptAnimeTitleInput()
 	if err != nil {
 		return err
 	}
@@ -27,34 +27,34 @@ func RunApp() error {
 	}
 
 	if len(foundAnimeInfo.List) == 0 {
-		cliCon.SearchResEmptyNotify()
+		appCon.SearchResEmptyNotify()
 		return nil
 	}
 
-	cliCon.TitleSelect = promptselect.PromptSelect{
+	appCon.TitleSelect = promptselect.PromptSelect{
 		PromptMessage: "Выберите аниме из списка:",
 	}
 	decoratedAnimeTitles := strdec.DecoratedAnimeTitles(foundAnimeInfo.List)
-	isExitOnQuit := cliCon.TitleSelect.Prompt(decoratedAnimeTitles)
+	isExitOnQuit := appCon.TitleSelect.Prompt(decoratedAnimeTitles)
 	if isExitOnQuit {
 		return nil
 	}
-	indTitle := cliCon.TitleSelect.Cur.Pos
+	indTitle := appCon.TitleSelect.Cur.Pos
 	episodes := foundAnimeInfo.List[indTitle].Media.Episodes
 
-	cliCon.EpisodeSelect = promptselect.PromptSelect{
+	appCon.EpisodeSelect = promptselect.PromptSelect{
 		PromptMessage: "Выберите серию:",
 	}
 	episodesSlice := strdec.EpisodesToStrList(episodes)
-	isExitOnQuit = cliCon.EpisodeSelect.Prompt(episodesSlice)
+	isExitOnQuit = appCon.EpisodeSelect.Prompt(episodesSlice)
 	if isExitOnQuit {
 		return nil
 	}
 	// Тут надо бы поправить, лучше по значения map делать все-таки
-	cursorEpisode := cliCon.EpisodeSelect.Cur.Pos + 1
+	cursorEpisode := appCon.EpisodeSelect.Cur.Pos + 1
 	episodeLinks := foundAnimeInfo.GetLinks(indTitle)
     
-    cliCon.WatchMenuSpin(episodeLinks, cursorEpisode)
+    appCon.WatchMenuSpin(episodeLinks, cursorEpisode)
 
 	return nil
 }
