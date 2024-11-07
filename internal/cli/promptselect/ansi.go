@@ -21,3 +21,7 @@ func hideCursor() {
 func showCursor() {
 	fmt.Print("\033[?25h")
 }
+
+func moveCursorToNewLine() {
+	fmt.Print("\033[E")
+}

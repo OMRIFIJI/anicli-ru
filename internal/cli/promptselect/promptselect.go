@@ -28,10 +28,10 @@ type PromptSelect struct {
 func (s *PromptSelect) Prompt(entryNames []string) bool {
 	s.entryNames = entryNames
 	s.entryCount = len(s.entryNames)
-    s.setDefaultParams()
+	s.setDefaultParams()
 
 	enterAltScreenBuf()
-    // defer, чтобы вернуть курсор после panic
+	// defer, чтобы вернуть курсор после panic
 	defer showCursor()
 	defer exitAltScreenBuf()
 	exitCode := s.promptUserChoice()
@@ -62,8 +62,9 @@ func (s *PromptSelect) promptUserChoice() int {
 	// Первая отрисовка
 	s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
 	s.drawer.drawInterface()
-    
-    go s.redrawOnTerminalResize()
+
+	quit := make(chan bool, 1)
+	go s.redrawOnTerminalResize(quit)
 
 	for {
 		key, _ := s.readKey()
@@ -71,24 +72,30 @@ func (s *PromptSelect) promptUserChoice() int {
 
 		switch keyCode {
 		case enterCode, quitCode:
+            quit <- true
 			return keyCode
 		case cursorCode:
-            // Перерисовывает всё, если размер экрана меняется
+			// Перерисовывает всё, если размер экрана меняется
 			s.drawer.drawInterface()
 		}
 	}
 }
 
-func (s *PromptSelect) redrawOnTerminalResize() {
-    signalChannel := make(chan os.Signal, 1)
-    signal.Notify(signalChannel, syscall.SIGWINCH)
+func (s *PromptSelect) redrawOnTerminalResize(quit chan bool) {
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, syscall.SIGWINCH)
 
-    for {
-        <-signalChannel
-        s.setDefaultParams()
-        s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
-        s.drawer.drawInterface()
-    }
+	for {
+		<-signalChannel
+		select {
+		case <-quit:
+			return
+		default:
+			s.setDefaultParams()
+			s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
+			s.drawer.drawInterface()
+		}
+	}
 }
 
 func (s *PromptSelect) handleChoiceInput(key string) int {

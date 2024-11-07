@@ -54,14 +54,17 @@ func (d *Drawer) drawInterface() {
 	clearScreen()
 	hideCursor()
 
-	fmt.Printf("%s%s%s\n", txtclr.ColorPrompt, d.promptMessage, txtclr.ColorReset)
+	fmt.Printf("%s%s%s", txtclr.ColorPrompt, d.promptMessage, txtclr.ColorReset)
+    moveCursorToNewLine()
+
 	entryCountStr := strconv.Itoa(len(d.entriesLines))
 	repeatLineStr := strings.Repeat("─", d.termSize.width-16-len(entryCountStr))
-	fmt.Printf("┌───── Всего: %s %s┐\n", entryCountStr, repeatLineStr)
+	fmt.Printf("┌───── Всего: %s %s┐", entryCountStr, repeatLineStr)
+    moveCursorToNewLine()
 
 	d.drawEntries()
-
-	fmt.Printf("└%s┘\n", strings.Repeat("─", d.termSize.width-2))
+    
+	fmt.Printf("└%s┘", strings.Repeat("─", d.termSize.width-2))
 }
 
 func (d *Drawer) hasCursorMoved() bool {
@@ -118,11 +121,13 @@ func (d *Drawer) drawEntries() {
 	for _, entry := range d.entriesLines[d.drawHigh:d.cur.Pos] {
 		for _, line := range entry {
 			fmt.Print(line)
+            moveCursorToNewLine()
 			lineCount++
 		}
 	}
 	for _, line := range d.makeEntryActive(d.entriesLines[d.cur.Pos]) {
 		fmt.Print(line)
+        moveCursorToNewLine()
 		lineCount++
 		if lineCount >= d.termSize.height-4 {
 			return
@@ -131,6 +136,7 @@ func (d *Drawer) drawEntries() {
 	for _, entry := range d.entriesLines[d.cur.Pos+1:] {
 		for _, line := range entry {
 			fmt.Print(line)
+            moveCursorToNewLine()
 			lineCount++
 			if lineCount >= d.termSize.height-4 {
 				return
@@ -228,7 +234,7 @@ func (d *Drawer) formatLine(entryLine string, opts fmtOpts) string {
 	if opts.extraSpaces > 0 {
 		b.WriteString(strings.Repeat(" ", opts.extraSpaces))
 	}
-	b.WriteString(" │\n")
+	b.WriteString(" │")
 	return b.String()
 }
 
@@ -241,9 +247,9 @@ func (d *Drawer) makeEntryActive(entry []string) []string {
 		b.WriteString("│ ")
 		fmt.Fprintf(&b, "%s%s▌ %s", highlightBg, highlightCursor, highlightFg)
 		// Фокус с подсчётом рун
-		b.WriteString(string(entryRune[19 : len(entryRune)-3]))
+		b.WriteString(string(entryRune[19 : len(entryRune)-2]))
 		b.WriteString(highlightBgReset)
-		b.WriteString(" │\n")
+		b.WriteString(" │")
 		entryActive = append(entryActive, b.String())
 	}
 	return entryActive
