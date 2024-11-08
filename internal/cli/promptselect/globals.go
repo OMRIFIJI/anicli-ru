@@ -15,6 +15,13 @@ const (
     onEnterExitCode
 )
 
+type cursorMoveCode uint8
+const (
+    upCursorMoveCode cursorMoveCode = iota
+    downCursorMoveCode
+    noChangeCursorMoveCode
+)
+
 const (
 	cursorScrollOffset = 2
 	cursorStateHigh   = 1

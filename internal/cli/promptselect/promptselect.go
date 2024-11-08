@@ -3,8 +3,6 @@ package promptselect
 import (
 	"golang.org/x/term"
 	"os"
-	"os/signal"
-	"syscall"
 	"unicode/utf8"
 )
 
@@ -24,20 +22,11 @@ type PromptSelect struct {
 	termSize      terminalSize
 }
 
-func (s *PromptSelect) Prompt(entryNames []string) bool {
+func (s *PromptSelect) NewPrompt(entryNames []string) bool {
 	s.entryNames = entryNames
 	s.setDefaultParams()
 
-	enterAltScreenBuf()
-	defer exitAltScreenBuf()
 
-	oldState, err := term.MakeRaw(0)
-	if err != nil {
-		panic(err)
-	}
-	defer term.Restore(0, oldState)
-
-	defer showCursor()
 	exitCodeValue := s.promptUserChoice()
 
 	return exitCodeValue == onQuitExitCode
@@ -49,10 +38,8 @@ func (s *PromptSelect) setDefaultParams() {
 		posOld: 0,
 		posMax: len(s.entryNames) - 1,
 	}
-	s.drawer = Drawer{
-		cur: &s.Cur,
-	}
-	termWidth, termHeight, err := term.GetSize(int(os.Stdin.Fd()))
+
+	termWidth, termHeight, err := term.GetSize(0)
 	if err != nil {
 		panic(err)
 	}
@@ -60,48 +47,30 @@ func (s *PromptSelect) setDefaultParams() {
 		width:  termWidth,
 		height: termHeight,
 	}
+
+	s.drawer = Drawer{}
+	s.drawer.newDrawer(s.entryNames, s.termSize, s.PromptMessage, &s.Cur)
 }
 
 func (s *PromptSelect) promptUserChoice() exitPromptCode {
-	// Первая отрисовка
-	s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
-	s.drawer.drawInterface()
-
-	quit := make(chan bool, 1)
-	go s.redrawOnTerminalResize(quit)
+	keyCodeChan := make(chan keyCode, 1)
+	go s.drawer.spinDrawInterface(keyCodeChan)
 
 	for {
 		keyCodeValue := s.readKey()
+        keyCodeChan <- keyCodeValue
+
 		switch keyCodeValue {
 		case quitKeyCode:
-            quit <- true
 			return onQuitExitCode
 		case enterKeyCode:
-		    quit <- true
 			return onEnterExitCode
 		case upKeyCode, downKeyCode:
 			s.moveCursor(keyCodeValue)
-		    s.drawer.drawInterface()
 		}
 	}
 }
 
-func (s *PromptSelect) redrawOnTerminalResize(quit chan bool) {
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, syscall.SIGWINCH)
-
-	for {
-		<-signalChannel
-		select {
-		case <-quit:
-			return
-		default:
-			s.setDefaultParams()
-			s.drawer.initInterface(s.entryNames, s.termSize, s.PromptMessage)
-			s.drawer.drawInterface()
-		}
-	}
-}
 
 func (s *PromptSelect) readKey() keyCode {
 	// Терминал в raw mode

@@ -35,7 +35,7 @@ func RunApp() error {
 		PromptMessage: "Выберите аниме из списка:",
 	}
 	decoratedAnimeTitles := strdec.DecoratedAnimeTitles(foundAnimeInfo.List)
-	isExitOnQuit := appCon.TitleSelect.Prompt(decoratedAnimeTitles)
+	isExitOnQuit := appCon.TitleSelect.NewPrompt(decoratedAnimeTitles)
 	if isExitOnQuit {
 		return nil
 	}
@@ -46,7 +46,7 @@ func RunApp() error {
 		PromptMessage: "Выберите серию:",
 	}
 	episodesSlice := strdec.EpisodesToStrList(episodes)
-	isExitOnQuit = appCon.EpisodeSelect.Prompt(episodesSlice)
+	isExitOnQuit = appCon.EpisodeSelect.NewPrompt(episodesSlice)
 	if isExitOnQuit {
 		return nil
 	}
