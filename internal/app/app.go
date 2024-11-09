@@ -2,7 +2,6 @@ package app
 
 import (
 	"anicliru/internal/api"
-	"anicliru/internal/cli/promptselect"
 	"anicliru/internal/cli/strdec"
 )
 
@@ -31,28 +30,25 @@ func RunApp() error {
 		return nil
 	}
 
-	appCon.TitleSelect = promptselect.PromptSelect{
-		PromptMessage: "Выберите аниме из списка:",
-	}
+    var isExitOnQuit bool
+    var cursor int
+
 	decoratedAnimeTitles := strdec.DecoratedAnimeTitles(foundAnimeInfo.List)
-	isExitOnQuit := appCon.TitleSelect.NewPrompt(decoratedAnimeTitles)
+	isExitOnQuit, cursor = appCon.TitleSelect.NewPrompt(decoratedAnimeTitles, "Выберите аниме из списка:")
 	if isExitOnQuit {
 		return nil
 	}
-	indTitle := appCon.TitleSelect.Cur.Pos
-	episodes := foundAnimeInfo.List[indTitle].Media.Episodes
+    cursorTitle := cursor
+	episodes := foundAnimeInfo.List[cursor].Media.Episodes
 
-	appCon.EpisodeSelect = promptselect.PromptSelect{
-		PromptMessage: "Выберите серию:",
-	}
 	episodesSlice := strdec.EpisodesToStrList(episodes)
-	isExitOnQuit = appCon.EpisodeSelect.NewPrompt(episodesSlice)
+	isExitOnQuit, cursor = appCon.EpisodeSelect.NewPrompt(episodesSlice, "Выберите серию:")
 	if isExitOnQuit {
 		return nil
 	}
 	// Тут надо бы поправить, лучше по значения map делать все-таки
-	cursorEpisode := appCon.EpisodeSelect.Cur.Pos + 1
-	episodeLinks := foundAnimeInfo.GetLinks(indTitle)
+	cursorEpisode := cursor + 1
+	episodeLinks := foundAnimeInfo.GetLinks(cursorTitle)
     
     appCon.WatchMenuSpin(episodeLinks, cursorEpisode)
 

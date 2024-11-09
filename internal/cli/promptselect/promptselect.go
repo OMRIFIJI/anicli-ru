@@ -7,39 +7,26 @@ import (
 	"unicode/utf8"
 )
 
-type Cursor struct {
-	Pos    int
-	posOld int
-	posMax int
-}
-
-type PromptSelect struct {
-	PromptMessage string
-	Cur           Cursor
-	entryNames    []string
-	drawer        Drawer
-	termSize      terminalSize
-}
-
-func (s *PromptSelect) NewPrompt(entryNames []string) bool {
-	s.entryNames = entryNames
-	s.setDefaultParams()
-
+func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int)  {
+	s.init(entryNames, promptMessage)
 
 	exitCodeValue := s.promptUserChoice()
 
-	return exitCodeValue == onQuitExitCode
+	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos
 }
 
-func (s *PromptSelect) setDefaultParams() {
-	s.Cur = Cursor{
-		Pos:    0,
-		posOld: 0,
-		posMax: len(s.entryNames) - 1,
-	}
+func (s *PromptSelect) init(entryNames []string, promptMessage string) {
+    s.promptCtx = promptContext{
+        promptMessage: promptMessage,
+        entries: entryNames,
+        cur: &Cursor{
+            pos: 0,
+            posMax: len(entryNames) - 1,
+        },
+    }
 
 	s.drawer = Drawer{}
-	s.drawer.newDrawer(s.entryNames, s.PromptMessage, &s.Cur)
+	s.drawer.newDrawer(s.promptCtx)
 }
 
 func (s *PromptSelect) promptUserChoice() exitPromptCode {
@@ -55,9 +42,9 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 	hideCursor()
 	defer showCursor()
 
-    var wg sync.WaitGroup
+	var wg sync.WaitGroup
 	wg.Add(1)
-    defer wg.Wait()
+	defer wg.Wait()
 	keyCodeChan := make(chan keyCode, 1)
 	go s.drawer.spinDrawInterface(keyCodeChan, oldTermState, &wg)
 
@@ -112,14 +99,12 @@ func (s *PromptSelect) readKey() keyCode {
 func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {
 	switch keyCodeValue {
 	case downKeyCode:
-		if s.Cur.Pos < s.Cur.posMax {
-			s.Cur.posOld = s.Cur.Pos
-			s.Cur.Pos++
+		if s.promptCtx.cur.pos < s.promptCtx.cur.posMax {
+			s.promptCtx.cur.pos++
 		}
 	case upKeyCode:
-		if s.Cur.Pos > 0 {
-			s.Cur.posOld = s.Cur.Pos
-			s.Cur.Pos--
+		if s.promptCtx.cur.pos > 0 {
+			s.promptCtx.cur.pos--
 		}
 	}
 }

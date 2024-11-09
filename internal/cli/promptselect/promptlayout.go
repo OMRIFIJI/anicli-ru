@@ -13,53 +13,24 @@ import (
 	"time"
 )
 
-type terminalSize struct {
-	width  int
-	height int
-}
-
-type drawingContext struct {
-	drawHigh            int // Индекс самого первого entry видимого на экране
-	drawLow             int // Аналогично
-	displayedLinesCount int
-	virtCurPos          int
-}
-
-type fittedEntry struct {
-	lines     []string
-	globalInd int
-}
-
-type Drawer struct {
-	promptMessage string
-	entries       []string
-	fittedEntries []fittedEntry
-	termSize      terminalSize
-	cur           *Cursor
-	drawCtx       drawingContext
-	mutex         sync.Mutex
-}
-
-func (d *Drawer) newDrawer(entries []string, promptMessage string, cur *Cursor) {
-	d.promptMessage = promptMessage
-	d.entries = entries
-	d.cur = cur
-
-	d.updateTerminalSize()
-	d.fitEntries()
+func (d *Drawer) newDrawer(promptCtx promptContext) {
+	d.promptCtx = promptCtx
 
 	d.drawCtx = drawingContext{
 		drawHigh:   0,
 		virtCurPos: 0,
 	}
+	d.updateTerminalSize()
+	d.fitEntries()
+
 }
 
 func (d *Drawer) fitEntries() {
 	d.fittedEntries = nil
 	globalLinesCount := 0
-	for _, entry := range d.entries {
+	for _, entry := range d.promptCtx.entries {
 		fitEntry := fittedEntry{
-			lines:     d.fitEntryLines(entry, d.termSize.width),
+			lines:     fitEntryLines(entry, d.drawCtx.termSize.width),
 			globalInd: globalLinesCount,
 		}
 		d.fittedEntries = append(d.fittedEntries, fitEntry)
@@ -99,17 +70,17 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) {
 
 	clearScreen()
 
-	fmt.Printf("%s%s%s", txtclr.ColorPrompt, d.promptMessage, txtclr.ColorReset)
+	fmt.Printf("%s%s%s", txtclr.ColorPrompt, d.promptCtx.promptMessage, txtclr.ColorReset)
 	moveCursorToNewLine()
 
 	entryCountStr := strconv.Itoa(len(d.fittedEntries))
-	repeatLineStr := strings.Repeat("─", d.termSize.width-16-len(entryCountStr))
+	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-16-len(entryCountStr))
 	fmt.Printf("┌───── Всего: %s %s┐", entryCountStr, repeatLineStr)
 	moveCursorToNewLine()
 
 	d.drawEntries()
 
-	fmt.Printf("└%s┘", strings.Repeat("─", d.termSize.width-2))
+	fmt.Printf("└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
 }
 
 func (d *Drawer) redrawOnTerminalResize(quitChan chan bool, oldTermState *term.State, wg *sync.WaitGroup) {
@@ -140,7 +111,7 @@ func (d *Drawer) updateTerminalSize() {
 	if err != nil {
 		panic(err)
 	}
-	d.termSize = terminalSize{
+	d.drawCtx.termSize = terminalSize{
 		width:  termWidth,
 		height: termHeight,
 	}
@@ -154,9 +125,9 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) {
 	}
 
 	if keyCodeValue == upKeyCode {
-		if d.cur.Pos == 0 {
+		if d.promptCtx.cur.pos == 0 {
 			d.drawCtx.virtCurPos = 0
-		} else if d.cur.Pos < cursorScrollOffset {
+		} else if d.promptCtx.cur.pos < cursorScrollOffset {
 			d.drawCtx.virtCurPos--
 		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCurPos <= cursorScrollOffset {
 			d.drawCtx.drawHigh--
@@ -166,9 +137,9 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) {
 	}
 	// Клавиша вниз - сложнее, но полная аналогия с клавишей вверх
 	if keyCodeValue == downKeyCode {
-		if d.cur.Pos == len(d.fittedEntries)-1 {
+		if d.promptCtx.cur.pos == len(d.fittedEntries)-1 {
 			d.drawCtx.virtCurPos = d.drawCtx.drawLow - d.drawCtx.drawHigh
-		} else if d.cur.Pos > len(d.fittedEntries)-1-cursorScrollOffset {
+		} else if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
 			d.drawCtx.virtCurPos++
 		} else if d.drawCtx.drawLow < len(d.fittedEntries)-1 &&
 			d.drawCtx.virtCurPos >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
@@ -192,7 +163,7 @@ func (d *Drawer) drawEntries() {
 	// Нужно отдельно обработать строку с курсором...
 	lineCount := 0
 
-	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.cur.Pos] {
+	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {
 		for _, line := range entry.lines {
 			fmt.Print(line)
 			moveCursorToNewLine()
@@ -200,117 +171,30 @@ func (d *Drawer) drawEntries() {
 		}
 	}
 
-	selectedEntry := d.makeEntryActive(d.fittedEntries[d.cur.Pos])
+	selectedEntry := makeEntryActive(d.fittedEntries[d.promptCtx.cur.pos])
 	for _, line := range selectedEntry.lines {
 		fmt.Print(line)
 		moveCursorToNewLine()
 		lineCount++
-		if lineCount >= d.termSize.height-3 {
-			d.drawCtx.drawLow = d.cur.Pos
+		if lineCount >= d.drawCtx.termSize.height-3 {
+			d.drawCtx.drawLow = d.promptCtx.cur.pos
 			return
 		}
 	}
 
-	for i, entry := range d.fittedEntries[d.cur.Pos+1:] {
+	for i, entry := range d.fittedEntries[d.promptCtx.cur.pos+1:] {
 		for _, line := range entry.lines {
 			fmt.Print(line)
 			moveCursorToNewLine()
 			lineCount++
-			if lineCount >= d.termSize.height-3 {
-				d.drawCtx.drawLow = d.cur.Pos + 1 + i
+			if lineCount >= d.drawCtx.termSize.height-3 {
+				d.drawCtx.drawLow = d.promptCtx.cur.pos + 1 + i
 				return
 			}
 		}
 	}
 
 	d.drawCtx.drawLow = len(d.fittedEntries) - 1
-}
-
-func (d *Drawer) fitEntryLines(entry string, termWidth int) []string {
-	// Сколько текста вмещается в табличку после декорации
-	altScreenWidth := termWidth - 7
-	entryRune := []rune(entry)
-	entryRuneLen := len(entryRune)
-
-	var entryStrings []string
-
-	formatAndAppend := func(substring string, leftPadding, extraSpaces int) {
-		entryStrings = append(entryStrings,
-			d.formatLine(substring, fmtOpts{
-				extraSpaces: extraSpaces,
-				LeftPadding: leftPadding,
-			}),
-		)
-	}
-
-	// Записываем весь entry в одну строку, если можем
-	if entryRuneLen <= altScreenWidth {
-		extraSpaces := altScreenWidth - entryRuneLen
-		formatAndAppend(string(entryRune), 2, extraSpaces)
-		return entryStrings
-	}
-
-	// Если не поместилось в одну, записываем первую строку entry
-	formatAndAppend(string(entryRune[:altScreenWidth]), 2, 0)
-
-	// Остальные строки entry кроме последней
-	left := altScreenWidth
-	for right := left + altScreenWidth - 2; right < entryRuneLen; left, right = right+altScreenWidth-2, right+altScreenWidth-2 {
-		formatAndAppend(string(entryRune[left:right]), 4, 0)
-	}
-
-	// Последняя строка, надо заполнить пробелами до конца
-	extraSpaces := altScreenWidth - 2 - (entryRuneLen - left)
-	formatAndAppend(string(entryRune[left:]), 4, extraSpaces)
-
-	return entryStrings
-}
-
-type fmtOpts struct {
-	extraSpaces int
-	LeftPadding int
-}
-
-func (d *Drawer) formatLine(entryLine string, opts fmtOpts) string {
-	var b strings.Builder
-	b.WriteString("│ ")
-
-	fmt.Fprintf(&b, "%s %s", highlightBg, highlightBgReset)
-	b.WriteString(strings.Repeat(" ", opts.LeftPadding))
-
-	// Перенос пробелов с начала строки в конец
-	trimmedLine := strings.TrimLeft(entryLine, " ")
-	movedSpaces := len(entryLine) - len(trimmedLine)
-	b.WriteString(trimmedLine)
-	b.WriteString(strings.Repeat(" ", movedSpaces))
-
-	if opts.extraSpaces > 0 {
-		b.WriteString(strings.Repeat(" ", opts.extraSpaces))
-	}
-	b.WriteString(" │")
-	return b.String()
-}
-
-func (d *Drawer) makeEntryActive(entry fittedEntry) fittedEntry {
-	entryLinesActive := make([]string, 0, len(entry.lines))
-
-	for _, entryStr := range entry.lines {
-		var b strings.Builder
-		entryRune := []rune(entryStr)
-		b.WriteString("│ ")
-		fmt.Fprintf(&b, "%s%s▌ %s", highlightBg, highlightCursor, highlightFg)
-		// Фокус с подсчётом рун
-		b.WriteString(string(entryRune[19 : len(entryRune)-2]))
-		b.WriteString(highlightBgReset)
-		b.WriteString(" │")
-		entryLinesActive = append(entryLinesActive, b.String())
-	}
-
-	entryActive := fittedEntry{
-		lines:     entryLinesActive,
-		globalInd: entry.globalInd,
-	}
-	return entryActive
 }
 
 func (d *Drawer) restoreTerm(oldTermState *term.State) {

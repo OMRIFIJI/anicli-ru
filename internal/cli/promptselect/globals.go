@@ -1,6 +1,5 @@
 package promptselect
 
-type keyCode uint8
 const (
 	quitKeyCode keyCode = iota
 	enterKeyCode
@@ -9,7 +8,6 @@ const (
 	downKeyCode
 )
 
-type exitPromptCode uint8
 const (
     onQuitExitCode exitPromptCode = iota
     onEnterExitCode

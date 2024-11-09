@@ -37,14 +37,10 @@ func (ac *AppController) WatchMenuSpin(episodeLinks map[string]map[string]string
 
 	actionSlice := []string{"Следующая серия", "Предыдущая серия", "Выйти"}
 	for {
-		ac.watchMenu = promptselect.PromptSelect{
-			PromptMessage: fmt.Sprintf("Серия %d. Выберите действие:", cursorEpisode),
-		}
-		isExitOnQuit := ac.watchMenu.NewPrompt(actionSlice)
+		isExitOnQuit, cursor := ac.watchMenu.NewPrompt(actionSlice, fmt.Sprintf("Серия %d. Выберите действие:", cursorEpisode))
 		if isExitOnQuit {
 			return
 		}
-		cursor := ac.watchMenu.Cur.Pos
 		switch cursor {
 		case 0:
 			cursorEpisode++
