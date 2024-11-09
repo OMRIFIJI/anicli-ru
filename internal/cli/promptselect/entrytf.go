@@ -1,11 +1,11 @@
 package promptselect
 
 import (
-    "strings"
-    "fmt"
+	"fmt"
+	"strings"
 )
 
-func fitEntryLines(entry string, termWidth int) []string {
+func fitEntryLines(entry string, termWidth int) fittedEntry {
 	// Сколько текста вмещается в табличку после декорации
 	altScreenWidth := termWidth - 7
 	entryRune := []rune(entry)
@@ -45,7 +45,6 @@ func fitEntryLines(entry string, termWidth int) []string {
 	return entryStrings
 }
 
-
 func fitEntryLine(entryLine string, opts fmtOpts) string {
 	var b strings.Builder
 	b.WriteString("│ ")
@@ -67,9 +66,9 @@ func fitEntryLine(entryLine string, opts fmtOpts) string {
 }
 
 func makeEntryActive(entry fittedEntry) fittedEntry {
-	entryLinesActive := make([]string, 0, len(entry.lines))
+	entryLinesActive := make([]string, 0, len(entry))
 
-	for _, entryStr := range entry.lines {
+	for _, entryStr := range entry {
 		var b strings.Builder
 		entryRune := []rune(entryStr)
 		b.WriteString("│ ")
@@ -81,9 +80,5 @@ func makeEntryActive(entry fittedEntry) fittedEntry {
 		entryLinesActive = append(entryLinesActive, b.String())
 	}
 
-	entryActive := fittedEntry{
-		lines:     entryLinesActive,
-		globalInd: entry.globalInd,
-	}
-	return entryActive
+	return entryLinesActive
 }

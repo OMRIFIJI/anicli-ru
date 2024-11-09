@@ -26,6 +26,12 @@ func (s *PromptSelect) init(entryNames []string, promptMessage string) {
 		wg: &sync.WaitGroup{},
 	}
 
+	s.ch = promptChannels{
+		keyCode:  make(chan keyCode),
+		exitCode: make(chan exitPromptCode),
+		err:      make(chan error),
+	}
+
 	s.drawer = Drawer{}
 	s.drawer.newDrawer(s.promptCtx)
 }
@@ -44,34 +50,35 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 	defer showCursor()
 
 	s.promptCtx.wg.Add(1)
-	keyCodeChan := make(chan keyCode)
-	exitCodeChan := make(chan exitPromptCode)
-	go s.spinHandleInput(keyCodeChan, exitCodeChan)
 
-	errChan := make(chan error, 2)
-	go s.drawer.spinDrawInterface(keyCodeChan, errChan)
+	go s.spinHandleInput()
+
+	go s.drawer.spinDrawInterface(s.ch.keyCode, s.ch.err)
 
 	select {
-	case err := <-errChan:
+	case err := <-s.ch.err:
 		panic(err)
-	case exitCode := <-exitCodeChan:
+	case exitCode := <-s.ch.exitCode:
 		return exitCode
 	}
 }
 
-func (s *PromptSelect) spinHandleInput(keyCodeChan chan keyCode, exitCodeChan chan exitPromptCode) {
+func (s *PromptSelect) spinHandleInput() {
 	for {
-		keyCodeValue := s.readKey()
-		keyCodeChan <- keyCodeValue
+		keyCodeValue, err := s.readKey()
+		if err != nil {
+			s.ch.err <- err
+		}
+		s.ch.keyCode <- keyCodeValue
 
 		switch keyCodeValue {
 		case quitKeyCode:
 			s.promptCtx.wg.Wait()
-			exitCodeChan <- onQuitExitCode
+			s.ch.exitCode <- onQuitExitCode
 			return
 		case enterKeyCode:
 			s.promptCtx.wg.Wait()
-			exitCodeChan <- onEnterExitCode
+			s.ch.exitCode <- onEnterExitCode
 			return
 		case upKeyCode, downKeyCode:
 			s.moveCursor(keyCodeValue)
@@ -79,34 +86,37 @@ func (s *PromptSelect) spinHandleInput(keyCodeChan chan keyCode, exitCodeChan ch
 	}
 }
 
-func (s *PromptSelect) readKey() keyCode {
+func (s *PromptSelect) readKey() (keyCode, error) {
 	// Терминал в raw mode
 	var buf [3]byte
-	n, _ := os.Stdin.Read(buf[:])
+	n, err := os.Stdin.Read(buf[:])
+	if err != nil {
+		return noActionKeyCode, err
+	}
 
 	if n == 1 && (buf[0] == '\n' || buf[0] == '\r') {
-		return enterKeyCode
+		return enterKeyCode, nil
 	}
 	if n == 1 && buf[0] == 'q' {
-		return quitKeyCode
+		return quitKeyCode, nil
 	}
 	// Обрабатывает 'й' как 'q'
 	if n == 2 {
 		r, _ := utf8.DecodeRune(buf[:])
 		if r == 'й' {
-			return quitKeyCode
+			return quitKeyCode, nil
 		}
 	}
 	if n >= 3 && buf[0] == 27 && buf[1] == 91 {
 		switch buf[2] {
 		case 65:
-			return upKeyCode
+			return upKeyCode, nil
 		case 66:
-			return downKeyCode
+			return downKeyCode, nil
 		}
 	}
 
-	return noActionKeyCode
+	return noActionKeyCode, nil
 }
 
 func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {

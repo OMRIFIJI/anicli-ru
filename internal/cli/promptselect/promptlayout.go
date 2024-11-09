@@ -22,7 +22,7 @@ func (d *Drawer) newDrawer(promptCtx promptContext) error {
 		virtCurPos: 0,
 	}
 
-	d.ch = drawingChannels{
+	d.ch = drawerChannels{
 		quitSpin:   make(chan bool, 1),
 		quitRedraw: make(chan bool, 1),
 	}
@@ -37,14 +37,9 @@ func (d *Drawer) newDrawer(promptCtx promptContext) error {
 
 func (d *Drawer) fitEntries() {
 	d.fittedEntries = nil
-	globalLinesCount := 0
 	for _, entry := range d.promptCtx.entries {
-		fitEntry := fittedEntry{
-			lines:     fitEntryLines(entry, d.drawCtx.termSize.width),
-			globalInd: globalLinesCount,
-		}
+		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width)
 		d.fittedEntries = append(d.fittedEntries, fitEntry)
-		globalLinesCount += len(fitEntry.lines)
 	}
 }
 
@@ -63,7 +58,7 @@ func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error)
 		}
 	}()
 
-	// первый отрисовка интерфейса до нажатия клавиш
+	// первая отрисовка интерфейса до нажатия клавиш
 	if err := d.drawInterface(noActionKeyCode, false); err != nil {
 		d.ch.quitRedraw <- true
 		errChan <- err
@@ -91,7 +86,6 @@ func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error)
 			return
 		}
 	}
-
 }
 
 func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
@@ -215,7 +209,7 @@ func (d *Drawer) drawEntries() {
 	lineCount := 0
 
 	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {
-		for _, line := range entry.lines {
+		for _, line := range entry {
 			fmt.Print(line)
 			moveCursorToNewLine()
 			lineCount++
@@ -223,7 +217,7 @@ func (d *Drawer) drawEntries() {
 	}
 
 	selectedEntry := makeEntryActive(d.fittedEntries[d.promptCtx.cur.pos])
-	for _, line := range selectedEntry.lines {
+	for _, line := range selectedEntry {
 		fmt.Print(line)
 		moveCursorToNewLine()
 		lineCount++
@@ -234,7 +228,7 @@ func (d *Drawer) drawEntries() {
 	}
 
 	for i, entry := range d.fittedEntries[d.promptCtx.cur.pos+1:] {
-		for _, line := range entry.lines {
+		for _, line := range entry {
 			fmt.Print(line)
 			moveCursorToNewLine()
 			lineCount++
@@ -246,10 +240,4 @@ func (d *Drawer) drawEntries() {
 	}
 
 	d.drawCtx.drawLow = len(d.fittedEntries) - 1
-}
-
-func (d *Drawer) restoreTerm(oldTermState *term.State) {
-	exitAltScreenBuf()
-	term.Restore(0, oldTermState)
-	showCursor()
 }

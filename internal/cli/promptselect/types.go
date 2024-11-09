@@ -4,6 +4,7 @@ import "sync"
 
 type keyCode uint8
 type exitPromptCode uint8
+type fittedEntry []string
 
 type fmtOpts struct {
 	extraSpaces int
@@ -14,6 +15,13 @@ type PromptSelect struct {
 	promptCtx promptContext
 	drawer    Drawer
 	termSize  terminalSize
+	ch        promptChannels
+}
+
+type promptChannels struct {
+	keyCode  chan keyCode
+	exitCode chan exitPromptCode
+	err      chan error
 }
 
 type promptContext struct {
@@ -38,10 +46,10 @@ type Drawer struct {
 	promptCtx     promptContext
 	drawCtx       drawingContext
 	mutex         sync.Mutex
-	ch            drawingChannels
+	ch            drawerChannels
 }
 
-type drawingChannels struct {
+type drawerChannels struct {
 	quitSpin   chan bool
 	quitRedraw chan bool
 }
@@ -52,9 +60,4 @@ type drawingContext struct {
 	displayedLinesCount int
 	virtCurPos          int
 	termSize            terminalSize
-}
-
-type fittedEntry struct {
-	lines     []string
-	globalInd int
 }
