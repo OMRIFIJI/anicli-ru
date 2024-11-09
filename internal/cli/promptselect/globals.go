@@ -4,7 +4,7 @@ type keyCode uint8
 const (
 	quitKeyCode keyCode = iota
 	enterKeyCode
-	continueKeyCode
+	noActionKeyCode
 	upKeyCode
 	downKeyCode
 )
@@ -13,13 +13,6 @@ type exitPromptCode uint8
 const (
     onQuitExitCode exitPromptCode = iota
     onEnterExitCode
-)
-
-type cursorMoveCode uint8
-const (
-    upCursorMoveCode cursorMoveCode = iota
-    downCursorMoveCode
-    noChangeCursorMoveCode
 )
 
 const (
@@ -34,4 +27,8 @@ const (
 	highlightFg      = "\033[37m"
 	highlightCursor  = "\033[34m"
 	highlightBgReset = "\033[0m"
+)
+
+const (
+    resizeDebounceMs = 20
 )

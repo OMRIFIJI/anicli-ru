@@ -3,6 +3,7 @@ package promptselect
 import (
 	"golang.org/x/term"
 	"os"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -16,9 +17,7 @@ type PromptSelect struct {
 	PromptMessage string
 	Cur           Cursor
 	entryNames    []string
-	entries       [][]string
 	drawer        Drawer
-	indToDraw     []int
 	termSize      terminalSize
 }
 
@@ -39,26 +38,32 @@ func (s *PromptSelect) setDefaultParams() {
 		posMax: len(s.entryNames) - 1,
 	}
 
-	termWidth, termHeight, err := term.GetSize(0)
-	if err != nil {
-		panic(err)
-	}
-	s.termSize = terminalSize{
-		width:  termWidth,
-		height: termHeight,
-	}
-
 	s.drawer = Drawer{}
-	s.drawer.newDrawer(s.entryNames, s.termSize, s.PromptMessage, &s.Cur)
+	s.drawer.newDrawer(s.entryNames, s.PromptMessage, &s.Cur)
 }
 
 func (s *PromptSelect) promptUserChoice() exitPromptCode {
+	enterAltScreenBuf()
+	defer exitAltScreenBuf()
+
+	oldTermState, err := term.MakeRaw(0)
+	if err != nil {
+		panic(err)
+	}
+	defer term.Restore(0, oldTermState)
+
+	hideCursor()
+	defer showCursor()
+
+    var wg sync.WaitGroup
+	wg.Add(1)
+    defer wg.Wait()
 	keyCodeChan := make(chan keyCode, 1)
-	go s.drawer.spinDrawInterface(keyCodeChan)
+	go s.drawer.spinDrawInterface(keyCodeChan, oldTermState, &wg)
 
 	for {
 		keyCodeValue := s.readKey()
-        keyCodeChan <- keyCodeValue
+		keyCodeChan <- keyCodeValue
 
 		switch keyCodeValue {
 		case quitKeyCode:
@@ -70,7 +75,6 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 		}
 	}
 }
-
 
 func (s *PromptSelect) readKey() keyCode {
 	// Терминал в raw mode
@@ -102,7 +106,7 @@ func (s *PromptSelect) readKey() keyCode {
 		}
 	}
 
-	return continueKeyCode
+	return noActionKeyCode
 }
 
 func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {

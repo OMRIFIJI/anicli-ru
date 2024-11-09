@@ -1,6 +1,8 @@
 package promptselect
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func enterAltScreenBuf() {
 	fmt.Print("\033[?1049h")
