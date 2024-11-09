@@ -5,16 +5,15 @@ import "sync"
 type keyCode uint8
 type exitPromptCode uint8
 
-
 type fmtOpts struct {
 	extraSpaces int
 	LeftPadding int
 }
 
 type PromptSelect struct {
-	promptCtx     promptContext
-	drawer        Drawer
-	termSize      terminalSize
+	promptCtx promptContext
+	drawer    Drawer
+	termSize  terminalSize
 }
 
 type promptContext struct {
@@ -33,7 +32,6 @@ type terminalSize struct {
 	width  int
 	height int
 }
-
 
 type Drawer struct {
 	fittedEntries []fittedEntry
@@ -54,4 +52,3 @@ type fittedEntry struct {
 	lines     []string
 	globalInd int
 }
-

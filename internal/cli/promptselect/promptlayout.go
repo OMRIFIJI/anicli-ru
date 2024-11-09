@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -38,16 +37,18 @@ func (d *Drawer) fitEntries() {
 	}
 }
 
-func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, oldTermState *term.State, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, oldTermState *term.State) {
+	defer d.promptCtx.wg.Done()
 	defer d.restoreTerm(oldTermState)
 
 	// первый отрисовка интерфейса до нажатия клавиш
 	d.drawInterface(noActionKeyCode, false)
 
-	wg.Add(1)
-	quitRedrawOnResizeChan := make(chan bool, 1)
-	go d.redrawOnTerminalResize(quitRedrawOnResizeChan, oldTermState, wg)
+	d.promptCtx.wg.Add(1)
+    
+    quitChan := make(chan bool)
+	go d.redrawOnTerminalResize(quitChan, oldTermState)
+	defer d.promptCtx.wg.Done()
 
 	for {
 		keyCodeValue := <-keyCodeChan
@@ -55,7 +56,6 @@ func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, oldTermState *term.
 		case upKeyCode, downKeyCode:
 			d.drawInterface(keyCodeValue, false)
 		case enterKeyCode, quitKeyCode:
-			quitRedrawOnResizeChan <- true
 			return
 		}
 	}
@@ -83,8 +83,8 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) {
 	fmt.Printf("└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
 }
 
-func (d *Drawer) redrawOnTerminalResize(quitChan chan bool, oldTermState *term.State, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (d *Drawer) redrawOnTerminalResize(quitChan chan bool, oldTermState *term.State) {
+	defer d.promptCtx.wg.Done()
 	defer d.restoreTerm(oldTermState)
 
 	signalChan := make(chan os.Signal, 1)
@@ -121,7 +121,7 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) {
 	if onResize {
 		d.updateTerminalSize()
 		d.fitEntries()
-
+        return
 	}
 
 	if keyCodeValue == upKeyCode {
@@ -151,16 +151,6 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) {
 }
 
 func (d *Drawer) drawEntries() {
-	/*
-		fmt.Printf("Virtual cursor pose: %d", d.drawCtx.virtCurPos)
-		moveCursorToNewLine()
-		fmt.Printf("draw Low: %d", d.drawCtx.drawLow)
-		moveCursorToNewLine()
-		fmt.Printf("draw High: %d", d.drawCtx.drawHigh)
-		moveCursorToNewLine()
-	*/
-
-	// Нужно отдельно обработать строку с курсором...
 	lineCount := 0
 
 	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {

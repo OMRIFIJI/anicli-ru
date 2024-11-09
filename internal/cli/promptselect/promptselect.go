@@ -1,10 +1,10 @@
 package promptselect
 
 import (
-	"golang.org/x/term"
 	"os"
 	"sync"
 	"unicode/utf8"
+	"golang.org/x/term"
 )
 
 func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int)  {
@@ -23,6 +23,7 @@ func (s *PromptSelect) init(entryNames []string, promptMessage string) {
             pos: 0,
             posMax: len(entryNames) - 1,
         },
+        wg: &sync.WaitGroup{},
     }
 
 	s.drawer = Drawer{}
@@ -42,11 +43,10 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 	hideCursor()
 	defer showCursor()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
+	s.promptCtx.wg.Add(1)
+	defer s.promptCtx.wg.Wait()
 	keyCodeChan := make(chan keyCode, 1)
-	go s.drawer.spinDrawInterface(keyCodeChan, oldTermState, &wg)
+	go s.drawer.spinDrawInterface(keyCodeChan, oldTermState)
 
 	for {
 		keyCodeValue := s.readKey()
