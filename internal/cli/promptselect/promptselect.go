@@ -1,13 +1,13 @@
 package promptselect
 
 import (
+	"golang.org/x/term"
 	"os"
 	"sync"
 	"unicode/utf8"
-	"golang.org/x/term"
 )
 
-func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int)  {
+func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int) {
 	s.init(entryNames, promptMessage)
 
 	exitCodeValue := s.promptUserChoice()
@@ -16,15 +16,15 @@ func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (boo
 }
 
 func (s *PromptSelect) init(entryNames []string, promptMessage string) {
-    s.promptCtx = promptContext{
-        promptMessage: promptMessage,
-        entries: entryNames,
-        cur: &Cursor{
-            pos: 0,
-            posMax: len(entryNames) - 1,
-        },
-        wg: &sync.WaitGroup{},
-    }
+	s.promptCtx = promptContext{
+		promptMessage: promptMessage,
+		entries:       entryNames,
+		cur: &Cursor{
+			pos:    0,
+			posMax: len(entryNames) - 1,
+		},
+		wg: &sync.WaitGroup{},
+	}
 
 	s.drawer = Drawer{}
 	s.drawer.newDrawer(s.promptCtx)
@@ -44,19 +44,35 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 	defer showCursor()
 
 	s.promptCtx.wg.Add(1)
-	defer s.promptCtx.wg.Wait()
-	keyCodeChan := make(chan keyCode, 1)
-	go s.drawer.spinDrawInterface(keyCodeChan, oldTermState)
+	keyCodeChan := make(chan keyCode)
+	exitCodeChan := make(chan exitPromptCode)
+	go s.spinHandleInput(keyCodeChan, exitCodeChan)
 
+	errChan := make(chan error, 2)
+	go s.drawer.spinDrawInterface(keyCodeChan, errChan)
+
+	select {
+	case err := <-errChan:
+		panic(err)
+	case exitCode := <-exitCodeChan:
+		return exitCode
+	}
+}
+
+func (s *PromptSelect) spinHandleInput(keyCodeChan chan keyCode, exitCodeChan chan exitPromptCode) {
 	for {
 		keyCodeValue := s.readKey()
 		keyCodeChan <- keyCodeValue
 
 		switch keyCodeValue {
 		case quitKeyCode:
-			return onQuitExitCode
+			s.promptCtx.wg.Wait()
+			exitCodeChan <- onQuitExitCode
+			return
 		case enterKeyCode:
-			return onEnterExitCode
+			s.promptCtx.wg.Wait()
+			exitCodeChan <- onEnterExitCode
+			return
 		case upKeyCode, downKeyCode:
 			s.moveCursor(keyCodeValue)
 		}
@@ -66,10 +82,7 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 func (s *PromptSelect) readKey() keyCode {
 	// Терминал в raw mode
 	var buf [3]byte
-	n, err := os.Stdin.Read(buf[:])
-	if err != nil {
-		panic(err)
-	}
+	n, _ := os.Stdin.Read(buf[:])
 
 	if n == 1 && (buf[0] == '\n' || buf[0] == '\r') {
 		return enterKeyCode

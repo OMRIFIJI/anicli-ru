@@ -30,3 +30,8 @@ const (
 const (
     resizeDebounceMs = 20
 )
+
+const (
+    minimalTermHeight = 6
+    minimalTermWidth = 25
+)

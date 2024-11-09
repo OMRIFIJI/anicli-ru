@@ -38,6 +38,12 @@ type Drawer struct {
 	promptCtx     promptContext
 	drawCtx       drawingContext
 	mutex         sync.Mutex
+	ch            drawingChannels
+}
+
+type drawingChannels struct {
+	quitSpin   chan bool
+	quitRedraw chan bool
 }
 
 type drawingContext struct {

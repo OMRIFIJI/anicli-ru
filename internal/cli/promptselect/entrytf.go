@@ -34,7 +34,7 @@ func fitEntryLines(entry string, termWidth int) []string {
 
 	// Остальные строки entry кроме последней
 	left := altScreenWidth
-	for right := left + altScreenWidth - 2; right < entryRuneLen; left, right = right+altScreenWidth-2, right+altScreenWidth-2 {
+	for right := left + altScreenWidth - 2; right < entryRuneLen; left, right = left+altScreenWidth-2, right+altScreenWidth-2 {
 		formatAndAppend(string(entryRune[left:right]), 4, 0)
 	}
 

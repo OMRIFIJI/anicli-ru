@@ -2,26 +2,37 @@ package promptselect
 
 import (
 	txtclr "anicliru/internal/cli/textcolors"
+	"errors"
 	"fmt"
-	"golang.org/x/term"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/term"
 )
 
-func (d *Drawer) newDrawer(promptCtx promptContext) {
+func (d *Drawer) newDrawer(promptCtx promptContext) error {
 	d.promptCtx = promptCtx
 
 	d.drawCtx = drawingContext{
 		drawHigh:   0,
 		virtCurPos: 0,
 	}
-	d.updateTerminalSize()
+
+	d.ch = drawingChannels{
+		quitSpin:   make(chan bool, 1),
+		quitRedraw: make(chan bool, 1),
+	}
+
+	if err := d.updateTerminalSize(); err != nil {
+		return err
+	}
 	d.fitEntries()
 
+	return nil
 }
 
 func (d *Drawer) fitEntries() {
@@ -37,36 +48,59 @@ func (d *Drawer) fitEntries() {
 	}
 }
 
-func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, oldTermState *term.State) {
+func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error) {
 	defer d.promptCtx.wg.Done()
-	defer d.restoreTerm(oldTermState)
+	defer func() {
+		if r := recover(); r != nil {
+			var err error
+			if recoveredErr, ok := r.(error); ok {
+				err = recoveredErr
+			} else {
+				err = errors.New("Неизвестная ошибка в графике.")
+			}
+			d.ch.quitRedraw <- true
+			errChan <- err
+		}
+	}()
 
 	// первый отрисовка интерфейса до нажатия клавиш
-	d.drawInterface(noActionKeyCode, false)
+	if err := d.drawInterface(noActionKeyCode, false); err != nil {
+		d.ch.quitRedraw <- true
+		errChan <- err
+		return
+	}
 
 	d.promptCtx.wg.Add(1)
-    
-    quitChan := make(chan bool)
-	go d.redrawOnTerminalResize(quitChan, oldTermState)
-	defer d.promptCtx.wg.Done()
+	go d.redrawOnTerminalResize(errChan)
 
 	for {
-		keyCodeValue := <-keyCodeChan
-		switch keyCodeValue {
-		case upKeyCode, downKeyCode:
-			d.drawInterface(keyCodeValue, false)
-		case enterKeyCode, quitKeyCode:
+		select {
+		case keyCodeValue := <-keyCodeChan:
+			switch keyCodeValue {
+			case upKeyCode, downKeyCode:
+				if err := d.drawInterface(keyCodeValue, false); err != nil {
+					d.ch.quitRedraw <- true
+					errChan <- err
+					return
+				}
+			case enterKeyCode, quitKeyCode:
+				d.ch.quitRedraw <- true
+				return
+			}
+		case <-d.ch.quitSpin:
 			return
 		}
 	}
 
 }
 
-func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) {
+func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	d.updateDrawParams(keyCodeValue, onResize)
+	if err := d.updateDrawParams(keyCodeValue, onResize); err != nil {
+		return err
+	}
 
 	clearScreen()
 
@@ -81,11 +115,23 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) {
 	d.drawEntries()
 
 	fmt.Printf("└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
+	return nil
 }
 
-func (d *Drawer) redrawOnTerminalResize(quitChan chan bool, oldTermState *term.State) {
+func (d *Drawer) redrawOnTerminalResize(errChan chan error) {
 	defer d.promptCtx.wg.Done()
-	defer d.restoreTerm(oldTermState)
+	defer func() {
+		if r := recover(); r != nil {
+			var err error
+			if recoveredErr, ok := r.(error); ok {
+				err = recoveredErr
+			} else {
+				err = errors.New("Неизвестная ошибка в графике.")
+			}
+			d.ch.quitSpin <- true
+			errChan <- err
+		}
+	}()
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGWINCH)
@@ -94,10 +140,15 @@ func (d *Drawer) redrawOnTerminalResize(quitChan chan bool, oldTermState *term.S
 		d.debounce()
 
 		select {
-		case <-quitChan:
+		case <-d.ch.quitRedraw:
 			return
 		case <-signalChan:
-			d.drawInterface(noActionKeyCode, true)
+			if err := d.drawInterface(noActionKeyCode, true); err != nil {
+				println("Err channel fill")
+				d.ch.quitSpin <- true
+				errChan <- err
+				return
+			}
 		}
 	}
 }
@@ -106,22 +157,31 @@ func (d *Drawer) debounce() {
 	time.Sleep(resizeDebounceMs * time.Millisecond)
 }
 
-func (d *Drawer) updateTerminalSize() {
+func (d *Drawer) updateTerminalSize() error {
 	termWidth, termHeight, err := term.GetSize(0)
 	if err != nil {
-		panic(err)
+		return err
+	}
+	if termWidth < minimalTermWidth || termHeight < minimalTermHeight {
+		errorStr := "Размер терминала слишком маленький!\n"
+		errorStr += fmt.Sprintf("Минимальный размер: (%dx%d).", minimalTermWidth, minimalTermHeight)
+		return errors.New(errorStr)
 	}
 	d.drawCtx.termSize = terminalSize{
 		width:  termWidth,
 		height: termHeight,
 	}
+
+	return nil
 }
 
-func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) {
+func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 	if onResize {
-		d.updateTerminalSize()
+		if err := d.updateTerminalSize(); err != nil {
+			return err
+		}
 		d.fitEntries()
-        return
+		return nil
 	}
 
 	if keyCodeValue == upKeyCode {
@@ -148,6 +208,7 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) {
 			d.drawCtx.virtCurPos++
 		}
 	}
+	return nil
 }
 
 func (d *Drawer) drawEntries() {
