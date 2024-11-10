@@ -181,10 +181,7 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 	if keyCodeValue == upKeyCode {
 		if d.promptCtx.cur.pos == 0 {
 			d.drawCtx.virtCurPos = 0
-		} else if d.drawCtx.drawHigh - d.drawCtx.drawLow <= cursorScrollOffset {
-            d.drawCtx.virtCurPos--
-            d.drawCtx.drawHigh--
-        } else if d.promptCtx.cur.pos < cursorScrollOffset {
+		} else if d.promptCtx.cur.pos < cursorScrollOffset {
 			d.drawCtx.virtCurPos--
 		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCurPos <= cursorScrollOffset {
 			d.drawCtx.drawHigh--
@@ -196,10 +193,7 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 	if keyCodeValue == downKeyCode {
 		if d.promptCtx.cur.pos == len(d.fittedEntries)-1 {
 			d.drawCtx.virtCurPos = d.drawCtx.drawLow - d.drawCtx.drawHigh
-		} else if d.drawCtx.drawHigh - d.drawCtx.drawLow <= cursorScrollOffset {
-            d.drawCtx.virtCurPos++
-            d.drawCtx.drawHigh++
-        } else if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
+		} else if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
 			d.drawCtx.virtCurPos++
 		} else if d.drawCtx.drawLow < len(d.fittedEntries)-1 &&
 			d.drawCtx.virtCurPos >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
