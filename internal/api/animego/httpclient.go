@@ -1,4 +1,4 @@
-package common
+package animego
 
 import (
 	"net/http"

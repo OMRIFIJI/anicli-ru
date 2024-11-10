@@ -1,9 +1,8 @@
 package animego
 
 import (
-	"anicliru/internal/parser/animego/htmlparser"
-	"anicliru/internal/parser/common"
-	"anicliru/internal/types"
+	"anicliru/internal/api/animego/htmlparser"
+    "anicliru/internal/api/types"
 	"errors"
 	"strings"
 )
@@ -30,7 +29,7 @@ func (a *AnimeGo) FindAnimeByTitle(title string) ([]types.Anime, error) {
 }
 
 func (a *AnimeGo) init(title string) {
-	a.client = common.InitHttpClient()
+	a.client = InitHttpClient()
 	a.url = URL{
 		base: "https://animego.org/",
 		suff: URLSuffixes{

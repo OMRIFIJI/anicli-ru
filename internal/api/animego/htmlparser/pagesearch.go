@@ -1,7 +1,7 @@
 package htmlparser
 
 import (
-	"anicliru/internal/types"
+	"anicliru/internal/api/types"
 	"golang.org/x/net/html"
 	"io"
 	"strings"
@@ -47,5 +47,5 @@ func GetAnimes(r io.Reader) ([]types.Anime, error) {
 		}
 	}
 
-    return animeSlice[1:], nil
+	return animeSlice[1:], nil
 }

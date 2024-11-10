@@ -1,7 +1,7 @@
 package animego
 
 import (
-	"anicliru/internal/types"
+	"anicliru/internal/api/types"
 	"net/http"
 )
 
@@ -15,8 +15,8 @@ type URLSuffixes struct {
 }
 
 type AnimeGo struct {
-	client  http.Client
-	url     URL
-    animes  []types.Anime
-	title   string
+	client http.Client
+	url    URL
+	animes []types.Anime
+	title  string
 }
