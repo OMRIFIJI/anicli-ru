@@ -2,12 +2,13 @@ package main
 
 import (
 	"anicliru/internal/app"
-	"log"
+	"fmt"
 )
 
 func main() {
-	if err := app.RunApp(); err != nil {
-		log.Fatal(err)
+    a := app.App{}
+	if err := a.RunApp(); err != nil {
+		fmt.Println(err)
 	}
 	return
 }

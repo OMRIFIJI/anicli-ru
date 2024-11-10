@@ -1,16 +1,16 @@
-package api
+package common
 
 import (
 	"net/http"
 	"time"
 )
 
-func InitHttpClient() *http.Client {
+func InitHttpClient() http.Client {
 	tr := &http.Transport{
 		MaxIdleConns:       10,
 		IdleConnTimeout:    60 * time.Second,
-		DisableCompression: false,
+		DisableCompression: true,
 	}
-	client := &http.Client{Transport: tr}
+	client := http.Client{Transport: tr}
 	return client
 }

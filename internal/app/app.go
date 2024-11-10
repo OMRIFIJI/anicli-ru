@@ -2,55 +2,67 @@ package app
 
 import (
 	"anicliru/internal/api"
-	"anicliru/internal/cli/strdec"
+	"anicliru/internal/cli/loading"
+	promptsearch "anicliru/internal/cli/prompt/search"
+	"anicliru/internal/cli/prompt/select"
+	"sync"
 )
 
-func RunApp() error {
-	client := api.InitHttpClient()
-	anilibriaAPI := api.AnilibriaAPI{
-		Client:       client,
-		BaseURL:      "https://api.anilibria.tv/v3/",
-		SearchMethod: "title/search",
-	}
+type App struct {
+	searchInput string
+	api         api.API
+	prompt      promptselect.PromptSelect
+	quitChan    chan bool
+	wg          *sync.WaitGroup
+}
 
-	appCon := AppController{}
-
-	titleName, err := appCon.PromptAnimeTitleInput()
-	if err != nil {
+func (a *App) RunApp() error {
+	a.init()
+	if err := a.defaultAppPipe(); err != nil {
 		return err
 	}
-
-	foundAnimeInfo, err := anilibriaAPI.SearchTitleByName(titleName)
-	if err != nil {
-		return err
-	}
-
-	if len(foundAnimeInfo.List) == 0 {
-		appCon.SearchResEmptyNotify()
-		return nil
-	}
-
-    var isExitOnQuit bool
-    var cursor int
-
-	decoratedAnimeTitles := strdec.DecoratedAnimeTitles(foundAnimeInfo.List)
-	isExitOnQuit, cursor = appCon.TitleSelect.NewPrompt(decoratedAnimeTitles, "Выберите аниме из списка:")
-	if isExitOnQuit {
-		return nil
-	}
-    cursorTitle := cursor
-	episodes := foundAnimeInfo.List[cursor].Media.Episodes
-
-	episodesSlice := strdec.EpisodesToStrList(episodes)
-	isExitOnQuit, cursor = appCon.EpisodeSelect.NewPrompt(episodesSlice, "Выберите серию:")
-	if isExitOnQuit {
-		return nil
-	}
-	// Тут надо бы поправить, лучше по значения map делать все-таки
-	cursorEpisode := cursor + 1
-	episodeLinks := foundAnimeInfo.GetLinks(cursorTitle)
-    
-    appCon.WatchMenuSpin(episodeLinks, cursorEpisode)
 
 	return nil
+}
+
+func (a *App) init() {
+	a.quitChan = make(chan bool)
+	a.wg = &sync.WaitGroup{}
+}
+
+func (a *App) defaultAppPipe() error {
+	a.getTitleFromUser()
+
+	if err := a.findAnime(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) getTitleFromUser() {
+	searchInput, err := promptsearch.PromptSearchInput()
+	if err != nil {
+		panic(err)
+	}
+	a.searchInput = searchInput
+}
+
+func (a *App) startLoading() {
+	a.wg.Add(1)
+	go loading.DisplayLoading(a.quitChan, a.wg)
+}
+
+func (a *App) stopLoading() {
+	a.quitChan <- true
+	a.wg.Wait()
+}
+
+func (a *App) findAnime() error {
+	a.startLoading()
+
+	err := a.api.FindAnimeByTitle(a.searchInput)
+	a.stopLoading()
+
+	return err
 }

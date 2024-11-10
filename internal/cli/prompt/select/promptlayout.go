@@ -1,7 +1,7 @@
 package promptselect
 
 import (
-	txtclr "anicliru/internal/cli/textcolors"
+    "anicliru/internal/cli/ansi"
 	"errors"
 	"fmt"
 	"os"
@@ -96,15 +96,15 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 		return err
 	}
 
-	clearScreen()
+	ansi.ClearScreen()
 
-	fmt.Printf("%s%s%s", txtclr.ColorPrompt, d.promptCtx.promptMessage, txtclr.ColorReset)
-	moveCursorToNewLine()
+	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.promptCtx.promptMessage, ansi.ColorReset)
+	ansi.MoveCursorToNewLine()
 
 	entryCountStr := strconv.Itoa(len(d.fittedEntries))
 	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-16-len(entryCountStr))
 	fmt.Printf("┌───── Всего: %s %s┐", entryCountStr, repeatLineStr)
-	moveCursorToNewLine()
+	ansi.MoveCursorToNewLine()
 
 	d.drawEntries()
 
@@ -217,7 +217,7 @@ func (d *Drawer) drawEntries() {
 	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {
 		for _, line := range entry {
 			fmt.Print(line)
-			moveCursorToNewLine()
+			ansi.MoveCursorToNewLine()
 			lineCount++
 		}
 	}
@@ -225,7 +225,7 @@ func (d *Drawer) drawEntries() {
 	selectedEntry := makeEntryActive(d.fittedEntries[d.promptCtx.cur.pos])
 	for _, line := range selectedEntry {
 		fmt.Print(line)
-		moveCursorToNewLine()
+		ansi.MoveCursorToNewLine()
 		lineCount++
 		if lineCount >= d.drawCtx.termSize.height-3 {
 			d.drawCtx.drawLow = d.promptCtx.cur.pos
@@ -236,7 +236,7 @@ func (d *Drawer) drawEntries() {
 	for i, entry := range d.fittedEntries[d.promptCtx.cur.pos+1:] {
 		for _, line := range entry {
 			fmt.Print(line)
-			moveCursorToNewLine()
+			ansi.MoveCursorToNewLine()
 			lineCount++
 			if lineCount >= d.drawCtx.termSize.height-3 {
 				d.drawCtx.drawLow = d.promptCtx.cur.pos + 1 + i

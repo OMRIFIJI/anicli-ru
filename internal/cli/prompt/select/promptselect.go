@@ -1,6 +1,7 @@
 package promptselect
 
 import (
+    "anicliru/internal/cli/ansi"
 	"golang.org/x/term"
 	"os"
 	"sync"
@@ -37,8 +38,8 @@ func (s *PromptSelect) init(entryNames []string, promptMessage string) {
 }
 
 func (s *PromptSelect) promptUserChoice() exitPromptCode {
-	enterAltScreenBuf()
-	defer exitAltScreenBuf()
+	ansi.EnterAltScreenBuf()
+	defer ansi.ExitAltScreenBuf()
 
 	oldTermState, err := term.MakeRaw(0)
 	if err != nil {
@@ -46,8 +47,8 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 	}
 	defer term.Restore(0, oldTermState)
 
-	hideCursor()
-	defer showCursor()
+	ansi.HideCursor()
+	defer ansi.ShowCursor()
 
 	s.promptCtx.wg.Add(1)
 
