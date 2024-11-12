@@ -1,4 +1,4 @@
-package htmlparser
+package parser
 
 import (
 	"anicliru/internal/api/types"
@@ -11,7 +11,7 @@ func isAnimeHref(href string) bool {
 	return strings.HasPrefix(href, "https://animego.org/anime")
 }
 
-func getAnime(n *html.Node) *types.Anime {
+func parseAnime(n *html.Node) *types.Anime {
 	var href, title string
 	for _, attr := range n.Attr {
 		if attr.Key == "href" && isAnimeHref(attr.Val) {
@@ -21,9 +21,16 @@ func getAnime(n *html.Node) *types.Anime {
 			title = attr.Val
 		}
 	}
-	if len(href) > 0 && len(title) > 0 {
+
+	idInd := strings.LastIndex(href, "-") + 1
+	if idInd <= 0 || idInd >= len(href) {
+		return nil
+	}
+
+	if len(title) > 0 {
+		id := href[idInd:]
 		return &types.Anime{
-			Link:  href,
+			Id:    id,
 			Title: title,
 		}
 	} else {
@@ -31,7 +38,7 @@ func getAnime(n *html.Node) *types.Anime {
 	}
 }
 
-func GetAnimes(r io.Reader) ([]types.Anime, error) {
+func ParseAnimes(r io.Reader) ([]types.Anime, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return nil, err
@@ -40,12 +47,12 @@ func GetAnimes(r io.Reader) ([]types.Anime, error) {
 	var animeSlice []types.Anime
 	for n := range doc.Descendants() {
 		if n.Type == html.ElementNode && n.Data == "a" {
-			anime := getAnime(n)
+			anime := parseAnime(n)
 			if anime != nil {
 				animeSlice = append(animeSlice, *anime)
 			}
 		}
 	}
 
-	return animeSlice[1:], nil
+	return animeSlice, nil
 }

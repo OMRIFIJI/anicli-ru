@@ -16,18 +16,22 @@ type App struct {
 	wg          *sync.WaitGroup
 }
 
-func (a *App) RunApp() error {
-	a.init()
-	if err := a.defaultAppPipe(); err != nil {
-		return err
-	}
-
-	return nil
+func NewApp() *App {
+    a := App{}
+    a.init()
+	return &a
 }
 
 func (a *App) init() {
 	a.quitChan = make(chan bool)
 	a.wg = &sync.WaitGroup{}
+}
+
+func (a *App) RunApp() error {
+	if err := a.defaultAppPipe(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *App) defaultAppPipe() error {
@@ -61,7 +65,7 @@ func (a *App) stopLoading() {
 func (a *App) findAnime() error {
 	a.startLoading()
 
-	err := a.api.FindAnimeByTitle(a.searchInput)
+	err := a.api.FindAnimesByTitle(a.searchInput)
 	a.stopLoading()
 
 	return err

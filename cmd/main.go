@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-    a := app.App{}
+    a := app.NewApp()
 	if err := a.RunApp(); err != nil {
 		fmt.Println(err)
 	}

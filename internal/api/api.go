@@ -3,32 +3,25 @@ package api
 import (
 	"anicliru/internal/api/animego"
 	"anicliru/internal/api/types"
-	"errors"
+	"sync"
 )
 
 type API struct {
-	parser      types.Parser
-	animesFound []types.Anime
+	animes []types.Anime
+	wg     sync.WaitGroup
 }
 
-func (api *API) FindAnimeByTitle(title string) error {
-	api.parser = &animego.AnimeGo{}
+func (api *API) FindAnimesByTitle(title string) error {
+	client := animego.NewAnimeGoClient(
+		animego.WithTitle(title),
+	)
 
-	animesFound, err := api.parser.FindAnimeByTitle(title)
+	animes, err := client.FindAnimesByTitle()
 	if err != nil {
 		return err
 	}
-
-	// на == nil не менять
-	if len(animesFound) == 0 {
-		return errors.New("По вашему запросу ничего не нашлось.")
+	for _, anime := range animes {
+		println(anime.Id, anime.Title)
 	}
-	api.animesFound = animesFound
-
-	for _, anime := range api.animesFound {
-		print("Название аниме: " + anime.Title + ", ")
-		print("ссылка: " + anime.Link + ".\n")
-	}
-
-	return err
+	return nil
 }

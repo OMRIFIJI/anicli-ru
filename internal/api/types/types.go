@@ -1,20 +1,25 @@
 package types
 
-type EpisodeLinks map[EpisodeQuality]EpisodeLink
-type EpisodeQuality string
-type PlayerName string
-type EpisodeLink string
+type Episode struct {
+	Id int
+	// Структура: озвучка -> плеер -> качество видео -> ссылка на видео
+	Link map[string]map[string]map[string]*string
+}
 
 type Anime struct {
-	Link     string
+	Id       string
 	Title    string
-	Episodes []Episode
+	Episodes map[int]Episode
 }
 
-type Episode interface {
-    GetLink(EpisodeQuality, PlayerName) string
+type NotFoundError struct {
+	Msg string
 }
 
-type Parser interface {
-	FindAnimeByTitle(title string) ([]Anime, error)
+func (e *NotFoundError) Error() string { return e.Msg }
+
+type NoConnectionError struct {
+	Msg string
 }
+
+func (e *NoConnectionError) Error() string { return e.Msg }
