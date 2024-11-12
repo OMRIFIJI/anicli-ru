@@ -27,10 +27,13 @@ func parseAnime(n *html.Node) *types.Anime {
 		return nil
 	}
 
+	unameInd := strings.LastIndex(href, "/") + 1
 	if len(title) > 0 {
 		id := href[idInd:]
+        uname := href[unameInd:]
 		return &types.Anime{
 			Id:    id,
+            Uname: uname,
 			Title: title,
 		}
 	} else {
@@ -38,18 +41,18 @@ func parseAnime(n *html.Node) *types.Anime {
 	}
 }
 
-func ParseAnimes(r io.Reader) ([]types.Anime, error) {
+func ParseAnimes(r io.Reader) ([]*types.Anime, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var animeSlice []types.Anime
+	var animeSlice []*types.Anime
 	for n := range doc.Descendants() {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			anime := parseAnime(n)
 			if anime != nil {
-				animeSlice = append(animeSlice, *anime)
+				animeSlice = append(animeSlice, anime)
 			}
 		}
 	}

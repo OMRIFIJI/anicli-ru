@@ -2,9 +2,12 @@ package app
 
 import (
 	"anicliru/internal/api"
+	"anicliru/internal/api/types"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	"anicliru/internal/cli/prompt/select"
+	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -29,7 +32,13 @@ func (a *App) init() {
 
 func (a *App) RunApp() error {
 	if err := a.defaultAppPipe(); err != nil {
-		return err
+        animeError := &types.AnimeError{}
+        // Не удалось обработать часть аниме
+        if errors.As(err, &animeError){
+            fmt.Print(err)
+        } else {
+            return err
+        }
 	}
 	return nil
 }

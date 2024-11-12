@@ -68,13 +68,15 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != 200 {
-		noConError := types.NoConnectionError{
+		noConError := types.HttpError{
 			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
 		}
 		return nil, &noConError
 	}
-	defer res.Body.Close()
+
 
 	animes, err := parser.ParseAnimes(res.Body)
 	if err != nil {
@@ -88,22 +90,89 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 		return nil, &notFoundError
 	}
 
+	errChan := make(chan error, len(animes))
 	for i := 0; i < len(animes); i++ {
 		a.wg.Add(1)
-		go a.findEpisodeIds(&animes[i])
+		go a.findEpisodeInfo(&animes[i], errChan)
 	}
-	a.wg.Wait()
 
-	return animes, nil
+
+	go func() {
+		a.wg.Wait()
+		close(errChan)
+	}()
+
+    errMsg := ""
+	for err := range errChan {
+		if err != nil {
+            errMsg += err.Error() + "\n"
+		}
+	}
+
+	var animesFiltered []types.Anime
+	for _, anime := range animes {
+		if anime != nil {
+			animesFiltered = append(animesFiltered, *anime)
+		}
+	}
+    
+    if errMsg == "" {
+	    return animesFiltered, nil
+    } else {
+        composedErr := types.AnimeError{
+            Msg: errMsg,
+        }
+	    return animesFiltered, &composedErr
+    }
 }
 
-func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) {
+func (a *AnimeGoClient) findEpisodeInfo(anime **types.Anime, errChan chan error) {
 	defer a.wg.Done()
 
+	animeErr := types.AnimeError{
+        Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
+	}
+
+	if err := a.findEpisodeIds(*anime); err != nil {
+		errChan <- &animeErr
+        *anime = nil
+		return
+	}
+
+	if err := a.findEpisodeCount(*anime); err != nil {
+        println("EpisodeCountErr!")
+		errChan <- &animeErr
+        *anime = nil
+		return
+	}
+}
+
+func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
+	res, err := a.client.Get(a.url.base + a.url.animeSuf + anime.Uname)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return err
+	}
+
+    episodeCount, err := parser.ParseEpisodeCount(res.Body)
+    if err != nil {
+        println("Error in: " + anime.Title + "\n")
+        return err
+    }
+    anime.TotalEpCount = episodeCount
+
+	return nil
+}
+
+func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 	animeURL := a.url.base + a.url.animeSuf + anime.Id + "/" + a.url.playerSuf
 	req, err := http.NewRequest("GET", animeURL, nil)
 	if err != nil {
-		return
+		return err
 	}
 	for key, val := range a.headers {
 		req.Header.Add(key, val)
@@ -111,18 +180,20 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) {
 
 	res, err := a.client.Do(req)
 	if err != nil {
-		return
+		return err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != 200 {
-		return
+		return err
 	}
 
 	epIdMap, lastEpNum, err := parser.ParseEpisodes(res.Body)
 	if err != nil {
-		return
+		return err
 	}
 
-	// В онгоингах часто сайт может говорить, что доступно на 1 эпизод больше
+	// В онгоингах часто сайт может говорить, что доступно на 1 эпизод больше, чем есть
 	if !a.isValidEpisodeId(epIdMap[lastEpNum]) {
 		delete(epIdMap, lastEpNum)
 	}
@@ -134,6 +205,7 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) {
 			Link: nil,
 		}
 	}
+	return nil
 }
 
 func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
@@ -151,12 +223,12 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	if err != nil {
 		return false
 	}
-    defer res.Body.Close()
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		return false
 	}
 
-    isValid := parser.IsValid(res.Body)
-    return isValid
+	isValid := parser.IsValid(res.Body)
+	return isValid
 }

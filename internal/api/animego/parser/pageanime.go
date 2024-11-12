@@ -3,6 +3,8 @@ package parser
 import (
 	"anicliru/internal/api/types"
 	"encoding/json"
+	"errors"
+	"golang.org/x/net/html"
 	"io"
 	"regexp"
 	"strconv"
@@ -52,8 +54,7 @@ func ParseEpisodes(r io.Reader) (map[int]int, int, error) {
 }
 
 func IsValid(r io.Reader) bool {
-
-    in, err := io.ReadAll(r)
+	in, err := io.ReadAll(r)
 	if err != nil {
 		return false
 	}
@@ -63,6 +64,77 @@ func IsValid(r io.Reader) bool {
 		return false
 	}
 
-    trimmed := strings.Trim(result.Content, " \t\n")
-    return trimmed == ""
+	trimmed := strings.Trim(result.Content, " \t\n")
+	return trimmed == ""
+}
+
+func ParseEpisodeCount(r io.Reader) (int, error) {
+	doc, err := html.Parse(r)
+	if err != nil {
+		return 0, err
+	}
+
+	occurrences := findElements(doc, "dd", "col-6 col-sm-8 mb-1")
+	if len(occurrences) == 0 {
+		return 0, errors.New("Не удалось найти тег с эпизодами")
+	}
+
+	// Если фильм
+	firstDD := occurrences[0]
+	for c := firstDD.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode && c.Data == "Фильм" {
+			return 1, nil
+		}
+	}
+
+	// Если многосерийный
+	if len(occurrences) < 2 {
+		return 0, errors.New("Не удалось найти тег с эпизодами")
+	}
+
+	secondDD := occurrences[1]
+	return extractNumber(secondDD)
+}
+
+func extractNumber(n *html.Node) (int, error) {
+	var textNodeContent string
+	var spanContent string
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode && c.Parent.Data != "span" {
+			textNodeContent = strings.TrimSpace(c.Data)
+		}
+		if c.Type == html.ElementNode && c.Data == "span" && c.FirstChild != nil {
+			spanContent = strings.TrimSpace(c.FirstChild.Data)
+		}
+	}
+
+    numberSpan, errSpan := strconv.Atoi(spanContent)
+    numberText, errText := strconv.Atoi(textNodeContent)
+    // Если онгоинг, то число лежит в span
+    if errSpan == nil {
+        return numberSpan, nil
+    }
+    // Если аниме полностью вышло, то просто текст
+    if errText == nil {
+        return numberText, nil
+    }
+    return 0, nil
+}
+
+func findElements(n *html.Node, tag, class string) []*html.Node {
+	var result []*html.Node
+	if n.Type == html.ElementNode && n.Data == tag {
+		for _, attr := range n.Attr {
+			if attr.Key == "class" && attr.Val == class {
+				result = append(result, n)
+				break
+			}
+		}
+	}
+	// Recursively search child nodes
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		result = append(result, findElements(c, tag, class)...)
+	}
+	return result
 }

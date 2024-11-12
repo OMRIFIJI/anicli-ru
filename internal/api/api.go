@@ -17,11 +17,16 @@ func (api *API) FindAnimesByTitle(title string) error {
 	)
 
 	animes, err := client.FindAnimesByTitle()
+    api.animes = animes
+
+    for _, anime := range animes {
+        println()
+		println(anime.Id, anime.Uname, anime.Title, anime.TotalEpCount)
+	}
 	if err != nil {
 		return err
 	}
-	for _, anime := range animes {
-		println(anime.Id, anime.Title)
-	}
+	
+
 	return nil
 }
