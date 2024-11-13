@@ -2,9 +2,8 @@ package app
 
 import (
 	"anicliru/internal/api"
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/types"
-	"anicliru/internal/cli/loading"
-	promptsearch "anicliru/internal/cli/prompt/search"
 	"anicliru/internal/cli/prompt/select"
 	"errors"
 	"fmt"
@@ -31,8 +30,10 @@ func (a *App) init() {
 }
 
 func (a *App) RunApp() error {
+    apilog.Init()
+
 	if err := a.defaultAppPipe(); err != nil {
-        animeError := &types.AnimeError{}
+        var animeError *types.AnimeError
         // Не удалось обработать часть аниме
         if errors.As(err, &animeError){
             fmt.Print(err)
@@ -51,31 +52,4 @@ func (a *App) defaultAppPipe() error {
 	}
 
 	return nil
-}
-
-func (a *App) getTitleFromUser() {
-	searchInput, err := promptsearch.PromptSearchInput()
-	if err != nil {
-		panic(err)
-	}
-	a.searchInput = searchInput
-}
-
-func (a *App) startLoading() {
-	a.wg.Add(1)
-	go loading.DisplayLoading(a.quitChan, a.wg)
-}
-
-func (a *App) stopLoading() {
-	a.quitChan <- true
-	a.wg.Wait()
-}
-
-func (a *App) findAnime() error {
-	a.startLoading()
-
-	err := a.api.FindAnimesByTitle(a.searchInput)
-	a.stopLoading()
-
-	return err
 }

@@ -15,7 +15,7 @@ type AnimeGoJson struct {
 	Content string `json:"content"`
 }
 
-func ParseEpisodes(r io.Reader) (map[int]int, int, error) {
+func ParseSeriesEpisodes(r io.Reader) (map[int]int, int, error) {
 	episodeIdMap := make(map[int]int)
 	in, err := io.ReadAll(r)
 	if err != nil {
@@ -27,8 +27,17 @@ func ParseEpisodes(r io.Reader) (map[int]int, int, error) {
 		return nil, 0, err
 	}
 
-	re := regexp.MustCompile(`data-episode="(\d+)" *\n* *data-id="(\d+)"`)
-	matches := re.FindAllStringSubmatch(result.Content, -1)
+	reCheck := regexp.MustCompile("Видео недоступно на территории")
+	match := reCheck.FindString(result.Content)
+	if len(match) != 0 {
+		err := &types.RegionBlockError{
+			Msg: "Не доступно на территории РФ",
+		}
+		return nil, 0, err
+	}
+
+	reEp := regexp.MustCompile(`data-episode="(\d+)" *\n* *data-id="(\d+)"`)
+	matches := reEp.FindAllStringSubmatch(result.Content, -1)
 
 	var lastEpisodeNum int
 	for _, match := range matches {
@@ -44,6 +53,7 @@ func ParseEpisodes(r io.Reader) (map[int]int, int, error) {
 	}
 
 	if len(episodeIdMap) == 0 {
+
 		err := types.NotFoundError{
 			Msg: "Нет информации ни об одной серии.",
 		}
@@ -51,6 +61,25 @@ func ParseEpisodes(r io.Reader) (map[int]int, int, error) {
 	}
 
 	return episodeIdMap, lastEpisodeNum, nil
+}
+
+func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {
+	in, err := io.ReadAll(r)
+	if err != nil {
+		return false, err
+	}
+
+	var result AnimeGoJson
+	if err := json.Unmarshal(in, &result); err != nil {
+		return false, err
+	}
+
+	reCheck := regexp.MustCompile("Видео недоступно на территории")
+	match := reCheck.FindString(result.Content)
+	if len(match) != 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
 func IsValid(r io.Reader) bool {
@@ -68,32 +97,31 @@ func IsValid(r io.Reader) bool {
 	return trimmed == ""
 }
 
-func ParseEpisodeCount(r io.Reader) (int, error) {
+func ParseMediaStatus(r io.Reader) (epCount int, isFilm bool, err error) {
 	doc, err := html.Parse(r)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	occurrences := findElements(doc, "dd", "col-6 col-sm-8 mb-1")
 	if len(occurrences) == 0 {
-		return 0, errors.New("Не удалось найти тег с эпизодами")
+		return 0, false, errors.New("Не удалось найти тег с эпизодами")
 	}
 
-	// Если фильм
 	firstDD := occurrences[0]
 	for c := firstDD.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.TextNode && c.Data == "Фильм" {
-			return 1, nil
+			return 1, true, nil
 		}
 	}
 
-	// Если многосерийный
 	if len(occurrences) < 2 {
-		return 0, errors.New("Не удалось найти тег с эпизодами")
+		return 0, false, errors.New("Не удалось найти тег с эпизодами")
 	}
 
 	secondDD := occurrences[1]
-	return extractNumber(secondDD)
+	episodeCount, err := extractNumber(secondDD)
+	return episodeCount, false, err
 }
 
 func extractNumber(n *html.Node) (int, error) {
@@ -109,17 +137,17 @@ func extractNumber(n *html.Node) (int, error) {
 		}
 	}
 
-    numberSpan, errSpan := strconv.Atoi(spanContent)
-    numberText, errText := strconv.Atoi(textNodeContent)
-    // Если онгоинг, то число лежит в span
-    if errSpan == nil {
-        return numberSpan, nil
-    }
-    // Если аниме полностью вышло, то просто текст
-    if errText == nil {
-        return numberText, nil
-    }
-    return 0, nil
+	numberSpan, errSpan := strconv.Atoi(spanContent)
+	numberText, errText := strconv.Atoi(textNodeContent)
+	// Если онгоинг, то число лежит в span
+	if errSpan == nil {
+		return numberSpan, nil
+	}
+	// Если аниме полностью вышло, то просто текст
+	if errText == nil {
+		return numberText, nil
+	}
+	return 0, nil
 }
 
 func findElements(n *html.Node, tag, class string) []*html.Node {

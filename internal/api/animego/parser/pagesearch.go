@@ -41,18 +41,18 @@ func parseAnime(n *html.Node) *types.Anime {
 	}
 }
 
-func ParseAnimes(r io.Reader) ([]*types.Anime, error) {
+func ParseAnimes(r io.Reader) ([]types.Anime, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var animeSlice []*types.Anime
+	var animeSlice []types.Anime
 	for n := range doc.Descendants() {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			anime := parseAnime(n)
 			if anime != nil {
-				animeSlice = append(animeSlice, anime)
+				animeSlice = append(animeSlice, *anime)
 			}
 		}
 	}

@@ -3,6 +3,7 @@ package animego
 import (
 	"anicliru/internal/api/animego/parser"
 	"anicliru/internal/api/types"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -77,7 +78,6 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 		return nil, &noConError
 	}
 
-
 	animes, err := parser.ParseAnimes(res.Body)
 	if err != nil {
 		return nil, err
@@ -93,61 +93,68 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	errChan := make(chan error, len(animes))
 	for i := 0; i < len(animes); i++ {
 		a.wg.Add(1)
-		go a.findEpisodeInfo(&animes[i], errChan)
+		go a.findMediaInfo(&animes[i], errChan)
 	}
-
 
 	go func() {
 		a.wg.Wait()
 		close(errChan)
 	}()
 
-    errMsg := ""
+	errMsg := ""
 	for err := range errChan {
 		if err != nil {
-            errMsg += err.Error() + "\n"
+			errMsg += err.Error() + "\n"
 		}
 	}
 
-	var animesFiltered []types.Anime
-	for _, anime := range animes {
-		if anime != nil {
-			animesFiltered = append(animesFiltered, *anime)
+	if errMsg == "" {
+		return animes, nil
+	} else {
+		composedErr := &types.AnimeError{
+			Msg: errMsg,
 		}
+		return animes, composedErr
 	}
-    
-    if errMsg == "" {
-	    return animesFiltered, nil
-    } else {
-        composedErr := types.AnimeError{
-            Msg: errMsg,
-        }
-	    return animesFiltered, &composedErr
-    }
 }
 
-func (a *AnimeGoClient) findEpisodeInfo(anime **types.Anime, errChan chan error) {
+func (a *AnimeGoClient) findMediaInfo(anime *types.Anime, errChan chan error) {
 	defer a.wg.Done()
 
-	animeErr := types.AnimeError{
-        Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
+	animeErr := &types.AnimeError{
+		Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
 	}
 
-	if err := a.findEpisodeIds(*anime); err != nil {
-		errChan <- &animeErr
-        *anime = nil
+	if err := a.findMediaStatus(anime); err != nil {
+		errChan <- animeErr
+		anime.IsAvailable = false
 		return
 	}
 
-	if err := a.findEpisodeCount(*anime); err != nil {
-        println("EpisodeCountErr!")
-		errChan <- &animeErr
-        *anime = nil
+    // Фильмы могут не иметь информации об их id
+    if anime.IsFilm {
+        err := a.findFilmRegionBlock(anime)
+        if err != nil {
+            anime.IsAvailable = false
+        }
+        return
+    }
+
+	if err := a.findEpisodeIds(anime); err != nil {
+        var blockError *types.RegionBlockError
+		if errors.As(err, &blockError) {
+			anime.IsRegionBlock = true
+		} else {
+            errChan <- animeErr
+        }
+		anime.IsAvailable = false
 		return
 	}
+
+	anime.IsRegionBlock = false
 }
 
-func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
+func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
 	res, err := a.client.Get(a.url.base + a.url.animeSuf + anime.Uname)
 	if err != nil {
 		return err
@@ -158,12 +165,35 @@ func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 		return err
 	}
 
-    episodeCount, err := parser.ParseEpisodeCount(res.Body)
-    if err != nil {
-        println("Error in: " + anime.Title + "\n")
-        return err
+	isRegionBlock, err := parser.ParseFilmRegionBlock(res.Body)
+	if err != nil {
+		return err
+	}
+    anime.IsRegionBlock = isRegionBlock
+    if isRegionBlock {
+        anime.IsAvailable = false
     }
-    anime.TotalEpCount = episodeCount
+    return nil
+}
+
+func (a *AnimeGoClient) findMediaStatus(anime *types.Anime) error {
+	res, err := a.client.Get(a.url.base + a.url.animeSuf + anime.Uname)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return err
+	}
+
+	episodeCount, isFilm, err := parser.ParseMediaStatus(res.Body)
+	if err != nil {
+		return err
+	}
+
+	anime.IsFilm = isFilm
+	anime.TotalEpCount = episodeCount
 
 	return nil
 }
@@ -188,7 +218,7 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 		return err
 	}
 
-	epIdMap, lastEpNum, err := parser.ParseEpisodes(res.Body)
+	epIdMap, lastEpNum, err := parser.ParseSeriesEpisodes(res.Body)
 	if err != nil {
 		return err
 	}

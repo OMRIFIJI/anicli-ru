@@ -7,11 +7,14 @@ type Episode struct {
 }
 
 type Anime struct {
-	Id           string
-	Uname        string
-	Title        string
-	Episodes     map[int]Episode
-	TotalEpCount int
+	Id            string
+	Uname         string
+	Title         string
+	Episodes      map[int]Episode
+	TotalEpCount  int
+	IsFilm        bool
+	IsRegionBlock bool
+	IsAvailable   bool
 }
 
 type NotFoundError struct {
@@ -23,9 +26,14 @@ type HttpError struct {
 }
 
 type AnimeError struct {
-    Msg string
+	Msg string
 }
 
-func (e *NotFoundError) Error() string { return e.Msg }
-func (e *HttpError) Error() string     { return e.Msg }
-func (e *AnimeError) Error() string     { return e.Msg }
+type RegionBlockError struct {
+	Msg string
+}
+
+func (e *NotFoundError) Error() string    { return e.Msg }
+func (e *HttpError) Error() string        { return e.Msg }
+func (e *AnimeError) Error() string       { return e.Msg }
+func (e *RegionBlockError) Error() string { return e.Msg }
