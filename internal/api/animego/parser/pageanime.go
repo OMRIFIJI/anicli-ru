@@ -53,7 +53,6 @@ func ParseSeriesEpisodes(r io.Reader) (map[int]int, int, error) {
 	}
 
 	if len(episodeIdMap) == 0 {
-
 		err := types.NotFoundError{
 			Msg: "Нет информации ни об одной серии.",
 		}
@@ -71,6 +70,7 @@ func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {
 
 	var result AnimeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
+        println("Error parse")
 		return false, err
 	}
 

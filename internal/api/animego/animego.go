@@ -2,6 +2,7 @@ package animego
 
 import (
 	"anicliru/internal/api/animego/parser"
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/types"
 	"errors"
 	"net/http"
@@ -80,6 +81,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 
 	animes, err := parser.ParseAnimes(res.Body)
 	if err != nil {
+		apilog.ErrorLog.Printf("Html parse fail. %s\n", err)
 		return nil, err
 	}
 
@@ -131,32 +133,42 @@ func (a *AnimeGoClient) findMediaInfo(anime *types.Anime, errChan chan error) {
 		return
 	}
 
-    // Фильмы могут не иметь информации об их id
-    if anime.IsFilm {
-        err := a.findFilmRegionBlock(anime)
-        if err != nil {
-            anime.IsAvailable = false
-        }
-        return
-    }
+	// Фильмы могут не иметь информации об их id
+	if anime.IsFilm {
+		err := a.findFilmRegionBlock(anime)
+		anime.IsAvailable = err == nil
+		return
+	}
 
+	// Для сериалов соберем id
 	if err := a.findEpisodeIds(anime); err != nil {
-        var blockError *types.RegionBlockError
+		var blockError *types.RegionBlockError
 		if errors.As(err, &blockError) {
 			anime.IsRegionBlock = true
 		} else {
-            errChan <- animeErr
-        }
+			errChan <- animeErr
+		}
 		anime.IsAvailable = false
 		return
 	}
 
 	anime.IsRegionBlock = false
+	anime.IsAvailable = true
 }
 
 func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
-	res, err := a.client.Get(a.url.base + a.url.animeSuf + anime.Uname)
+	animeURL := a.url.base + a.url.animeSuf + anime.Id + "/" + a.url.playerSuf
+	req, err := http.NewRequest("GET", animeURL, nil)
 	if err != nil {
+		return err
+	}
+	for key, val := range a.headers {
+		req.Header.Add(key, val)
+	}
+
+	res, err := a.client.Do(req)
+	if err != nil {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return err
 	}
 	defer res.Body.Close()
@@ -167,13 +179,14 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
 
 	isRegionBlock, err := parser.ParseFilmRegionBlock(res.Body)
 	if err != nil {
+		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
-    anime.IsRegionBlock = isRegionBlock
-    if isRegionBlock {
-        anime.IsAvailable = false
-    }
-    return nil
+	anime.IsRegionBlock = isRegionBlock
+	if isRegionBlock {
+		anime.IsAvailable = false
+	}
+	return nil
 }
 
 func (a *AnimeGoClient) findMediaStatus(anime *types.Anime) error {
@@ -189,6 +202,7 @@ func (a *AnimeGoClient) findMediaStatus(anime *types.Anime) error {
 
 	episodeCount, isFilm, err := parser.ParseMediaStatus(res.Body)
 	if err != nil {
+		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
 
@@ -210,16 +224,19 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 
 	res, err := a.client.Do(req)
 	if err != nil {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return err
 	}
 
 	epIdMap, lastEpNum, err := parser.ParseSeriesEpisodes(res.Body)
 	if err != nil {
+		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
 
@@ -251,11 +268,13 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 
 	res, err := a.client.Do(req)
 	if err != nil {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return false
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return false
 	}
 

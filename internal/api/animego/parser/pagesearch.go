@@ -30,10 +30,10 @@ func parseAnime(n *html.Node) *types.Anime {
 	unameInd := strings.LastIndex(href, "/") + 1
 	if len(title) > 0 {
 		id := href[idInd:]
-        uname := href[unameInd:]
+		uname := href[unameInd:]
 		return &types.Anime{
 			Id:    id,
-            Uname: uname,
+			Uname: uname,
 			Title: title,
 		}
 	} else {

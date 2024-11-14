@@ -3,6 +3,7 @@ package api
 import (
 	"anicliru/internal/api/animego"
 	"anicliru/internal/api/types"
+    "sort"
 	"sync"
 )
 
@@ -19,14 +20,22 @@ func (api *API) FindAnimesByTitle(title string) error {
 	animes, err := client.FindAnimesByTitle()
     api.animes = animes
 
-    for _, anime := range animes {
-        println()
-		println(anime.Id, anime.Uname, anime.Title, anime.TotalEpCount)
-	}
+
 	if err != nil {
 		return err
 	}
-	
+
+    sort.SliceStable(api.animes, func(i, j int) bool {
+		return api.animes[i].IsAvailable && !api.animes[j].IsAvailable
+	})
+    
+    for _, anime := range api.animes {
+		println(anime.Title, anime.IsAvailable, anime.IsRegionBlock)
+	}
 
 	return nil
+}
+
+func (api *API) GetAnimeTitlesWrapped() {
+    
 }
