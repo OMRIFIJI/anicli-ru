@@ -5,12 +5,13 @@ import (
 	promptsearch "anicliru/internal/cli/prompt/search"
 )
 
-func (a *App) getTitleFromUser() {
+func (a *App) getTitleFromUser() error {
 	searchInput, err := promptsearch.PromptSearchInput()
 	if err != nil {
-		panic(err)
+        return err
 	}
 	a.searchInput = searchInput
+    return nil
 }
 
 func (a *App) startLoading() {
@@ -25,9 +26,9 @@ func (a *App) stopLoading() {
 
 func (a *App) findAnime() error {
 	a.startLoading()
+	defer a.stopLoading()
 
 	err := a.api.FindAnimesByTitle(a.searchInput)
-	a.stopLoading()
 
 	return err
 }

@@ -3,10 +3,8 @@ package app
 import (
 	"anicliru/internal/api"
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/types"
+	clilog "anicliru/internal/cli/log"
 	"anicliru/internal/cli/prompt/select"
-	"errors"
-	"fmt"
 	"sync"
 )
 
@@ -19,8 +17,8 @@ type App struct {
 }
 
 func NewApp() *App {
-    a := App{}
-    a.init()
+	a := App{}
+	a.init()
 	return &a
 }
 
@@ -30,22 +28,19 @@ func (a *App) init() {
 }
 
 func (a *App) RunApp() error {
-    apilog.Init()
+	apilog.Init()
+    clilog.Init()
 
 	if err := a.defaultAppPipe(); err != nil {
-        var animeError *types.AnimeError
-        // Не удалось обработать часть аниме
-        if errors.As(err, &animeError){
-            fmt.Print(err)
-        } else {
-            return err
-        }
+		return err
 	}
 	return nil
 }
 
 func (a *App) defaultAppPipe() error {
-	a.getTitleFromUser()
+	if err := a.getTitleFromUser(); err != nil {
+		return err
+	}
 
 	if err := a.findAnime(); err != nil {
 		return err

@@ -8,12 +8,12 @@ import (
 	"unicode/utf8"
 )
 
-func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int) {
+func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int, error) {
 	s.init(entryNames, promptMessage)
 
-	exitCodeValue := s.promptUserChoice()
+	exitCodeValue, err := s.promptUserChoice()
 
-	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos
+	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos, err
 }
 
 func (s *PromptSelect) init(entryNames []string, promptMessage string) {
@@ -37,13 +37,13 @@ func (s *PromptSelect) init(entryNames []string, promptMessage string) {
 	s.drawer.newDrawer(s.promptCtx)
 }
 
-func (s *PromptSelect) promptUserChoice() exitPromptCode {
+func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	ansi.EnterAltScreenBuf()
 	defer ansi.ExitAltScreenBuf()
 
 	oldTermState, err := term.MakeRaw(0)
 	if err != nil {
-		panic(err)
+        return onErrorExitCode, err
 	}
 	defer term.Restore(0, oldTermState)
 
@@ -58,9 +58,9 @@ func (s *PromptSelect) promptUserChoice() exitPromptCode {
 
 	select {
 	case err := <-s.ch.err:
-		panic(err)
+        return onErrorExitCode, err
 	case exitCode := <-s.ch.exitCode:
-		return exitCode
+		return exitCode, err
 	}
 }
 

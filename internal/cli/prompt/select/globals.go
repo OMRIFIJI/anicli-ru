@@ -11,6 +11,7 @@ const (
 const (
     onQuitExitCode exitPromptCode = iota
     onEnterExitCode
+    onErrorExitCode
 )
 
 const (
