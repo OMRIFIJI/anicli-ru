@@ -42,12 +42,10 @@ type terminalSize struct {
 }
 
 type drawer struct {
-	fittedEntries []fittedEntry
-	fittedPrompt  string
-	promptCtx     promptContext
-	drawCtx       drawingContext
-	mutex         sync.Mutex
-	ch            drawerChannels
+	promptCtx promptContext
+	drawCtx   drawingContext
+	mutex     sync.Mutex
+	ch        drawerChannels
 }
 
 type drawerChannels struct {
@@ -56,9 +54,10 @@ type drawerChannels struct {
 }
 
 type drawingContext struct {
-	drawHigh            int // Индекс самого первого entry видимого на экране
-	drawLow             int // Аналогично
-	displayedLinesCount int
-	virtCurPos          int
-	termSize            terminalSize
+	fittedEntries []fittedEntry
+	fittedPrompt  string
+	drawHigh      int // Индекс самого первого entry видимого на экране
+	drawLow       int // Аналогично
+	virtCurPos    int
+	termSize      terminalSize
 }
