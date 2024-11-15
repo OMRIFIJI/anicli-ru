@@ -1,7 +1,8 @@
 package promptselect
 
 import (
-    "anicliru/internal/cli/ansi"
+	"anicliru/internal/cli/ansi"
+	clilog "anicliru/internal/cli/log"
 	"errors"
 	"fmt"
 	"os"
@@ -14,7 +15,8 @@ import (
 	"golang.org/x/term"
 )
 
-func (d *Drawer) newDrawer(promptCtx promptContext) error {
+func newDrawer(promptCtx promptContext) (*drawer, error) {
+	d := &drawer{}
 	d.promptCtx = promptCtx
 
 	d.drawCtx = drawingContext{
@@ -28,14 +30,15 @@ func (d *Drawer) newDrawer(promptCtx promptContext) error {
 	}
 
 	if err := d.updateTerminalSize(); err != nil {
-		return err
+		return nil, err
 	}
+	d.fitPrompt()
 	d.fitEntries()
 
-	return nil
+	return d, nil
 }
 
-func (d *Drawer) fitEntries() {
+func (d *drawer) fitEntries() {
 	d.fittedEntries = nil
 	for _, entry := range d.promptCtx.entries {
 		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width)
@@ -43,7 +46,18 @@ func (d *Drawer) fitEntries() {
 	}
 }
 
-func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error) {
+func (d *drawer) fitPrompt() {
+	runePrompt := []rune(d.promptCtx.promptMessage)
+	promptLen := len(runePrompt)
+	decorateBoxWidth := d.drawCtx.termSize.width - 2*borderSize
+	if promptLen > decorateBoxWidth {
+		d.fittedPrompt = string(runePrompt[:decorateBoxWidth-3]) + "..."
+	} else {
+		d.fittedPrompt = d.promptCtx.promptMessage
+	}
+}
+
+func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error) {
 	defer d.promptCtx.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
@@ -88,7 +102,7 @@ func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error)
 	}
 }
 
-func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
+func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -98,11 +112,11 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 
 	ansi.ClearScreen()
 
-	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.promptCtx.promptMessage, ansi.ColorReset)
+	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.fittedPrompt, ansi.ColorReset)
 	ansi.MoveCursorToNewLine()
 
 	entryCountStr := strconv.Itoa(len(d.fittedEntries))
-	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-16-len(entryCountStr))
+	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-len(entryCountStr))
 	fmt.Printf("┌───── Всего: %s %s┐", entryCountStr, repeatLineStr)
 	ansi.MoveCursorToNewLine()
 
@@ -112,7 +126,7 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	return nil
 }
 
-func (d *Drawer) redrawOnTerminalResize(errChan chan error) {
+func (d *drawer) redrawOnTerminalResize(errChan chan error) {
 	defer d.promptCtx.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
@@ -147,17 +161,20 @@ func (d *Drawer) redrawOnTerminalResize(errChan chan error) {
 	}
 }
 
-func (d *Drawer) debounce() {
+func (d *drawer) debounce() {
 	time.Sleep(resizeDebounceMs * time.Millisecond)
 }
 
-func (d *Drawer) updateTerminalSize() error {
+func (d *drawer) updateTerminalSize() error {
 	termWidth, termHeight, err := term.GetSize(0)
 	if err != nil {
 		return err
 	}
+
+	entryCountStr := strconv.Itoa(len(d.fittedEntries))
+	minimalTermWidth := decorateTextWidth + len(entryCountStr)
 	if termWidth < minimalTermWidth || termHeight < minimalTermHeight {
-		errorStr := "Размер терминала слишком маленький!\n"
+		errorStr := "Терминал слишком маленький!\n"
 		errorStr += fmt.Sprintf("Минимальный размер: (%dx%d).", minimalTermWidth, minimalTermHeight)
 		return errors.New(errorStr)
 	}
@@ -169,11 +186,12 @@ func (d *Drawer) updateTerminalSize() error {
 	return nil
 }
 
-func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
+func (d *drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 	if onResize {
 		if err := d.updateTerminalSize(); err != nil {
 			return err
 		}
+		d.fitPrompt()
 		d.fitEntries()
 		return nil
 	}
@@ -181,10 +199,12 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 	if keyCodeValue == upKeyCode {
 		if d.promptCtx.cur.pos == 0 {
 			d.drawCtx.virtCurPos = 0
-		} else if d.drawCtx.drawHigh - d.drawCtx.drawLow <= cursorScrollOffset {
-            d.drawCtx.virtCurPos--
-            d.drawCtx.drawHigh--
-        } else if d.promptCtx.cur.pos < cursorScrollOffset {
+		} else if d.drawCtx.drawLow-d.drawCtx.drawHigh <= cursorScrollOffset { // случай маленького окна
+			if d.promptCtx.cur.pos < cursorScrollOffset {
+				d.drawCtx.virtCurPos--
+			}
+			d.drawCtx.drawHigh--
+		} else if d.promptCtx.cur.pos < cursorScrollOffset {
 			d.drawCtx.virtCurPos--
 		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCurPos <= cursorScrollOffset {
 			d.drawCtx.drawHigh--
@@ -196,10 +216,12 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 	if keyCodeValue == downKeyCode {
 		if d.promptCtx.cur.pos == len(d.fittedEntries)-1 {
 			d.drawCtx.virtCurPos = d.drawCtx.drawLow - d.drawCtx.drawHigh
-		} else if d.drawCtx.drawHigh - d.drawCtx.drawLow <= cursorScrollOffset {
-            d.drawCtx.virtCurPos++
-            d.drawCtx.drawHigh++
-        } else if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
+		} else if d.drawCtx.drawLow-d.drawCtx.drawHigh <= cursorScrollOffset {
+			if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
+				d.drawCtx.virtCurPos++
+			}
+			d.drawCtx.drawHigh++
+		} else if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
 			d.drawCtx.virtCurPos++
 		} else if d.drawCtx.drawLow < len(d.fittedEntries)-1 &&
 			d.drawCtx.virtCurPos >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
@@ -208,10 +230,18 @@ func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
 			d.drawCtx.virtCurPos++
 		}
 	}
+
+	if d.drawCtx.virtCurPos < 0 {
+		clilog.ErrorLog.Println("Virt cur pos error!")
+	}
+	if d.drawCtx.drawHigh < 0 {
+		clilog.ErrorLog.Println("Draw high error!")
+	}
+
 	return nil
 }
 
-func (d *Drawer) drawEntries() {
+func (d *drawer) drawEntries() {
 	lineCount := 0
 
 	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {

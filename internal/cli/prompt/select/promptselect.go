@@ -1,22 +1,27 @@
 package promptselect
 
 import (
-    "anicliru/internal/cli/ansi"
+	"anicliru/internal/cli/ansi"
 	"golang.org/x/term"
 	"os"
 	"sync"
 	"unicode/utf8"
 )
 
-func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int, error) {
-	s.init(entryNames, promptMessage)
+func NewPrompt(entryNames []string, promptMessage string) (*PromptSelect, error) {
+	var s PromptSelect
+    if err := s.init(entryNames, promptMessage); err != nil{
+        return nil, err
+    }
+	return &s, nil
+}
 
+func (s *PromptSelect) SpinPrompt() (bool, int, error) {
 	exitCodeValue, err := s.promptUserChoice()
-
 	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos, err
 }
 
-func (s *PromptSelect) init(entryNames []string, promptMessage string) {
+func (s *PromptSelect) init(entryNames []string, promptMessage string) error {
 	s.promptCtx = promptContext{
 		promptMessage: promptMessage,
 		entries:       entryNames,
@@ -33,8 +38,12 @@ func (s *PromptSelect) init(entryNames []string, promptMessage string) {
 		err:      make(chan error),
 	}
 
-	s.drawer = Drawer{}
-	s.drawer.newDrawer(s.promptCtx)
+    drawer, err := newDrawer(s.promptCtx)
+    if err != nil {
+        return err
+    }
+	s.drawer = drawer
+    return nil
 }
 
 func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
@@ -43,7 +52,7 @@ func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 
 	oldTermState, err := term.MakeRaw(0)
 	if err != nil {
-        return onErrorExitCode, err
+		return onErrorExitCode, err
 	}
 	defer term.Restore(0, oldTermState)
 
@@ -58,7 +67,7 @@ func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 
 	select {
 	case err := <-s.ch.err:
-        return onErrorExitCode, err
+		return onErrorExitCode, err
 	case exitCode := <-s.ch.exitCode:
 		return exitCode, err
 	}

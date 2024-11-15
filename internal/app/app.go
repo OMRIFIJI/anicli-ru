@@ -4,14 +4,12 @@ import (
 	"anicliru/internal/api"
 	apilog "anicliru/internal/api/log"
 	clilog "anicliru/internal/cli/log"
-	"anicliru/internal/cli/prompt/select"
 	"sync"
 )
 
 type App struct {
 	searchInput string
 	api         api.API
-	prompt      promptselect.PromptSelect
 	quitChan    chan bool
 	wg          *sync.WaitGroup
 }
@@ -45,6 +43,10 @@ func (a *App) defaultAppPipe() error {
 	if err := a.findAnime(); err != nil {
 		return err
 	}
+
+    if err := a.selectAnime(); err != nil {
+        return err
+    }
 
 	return nil
 }

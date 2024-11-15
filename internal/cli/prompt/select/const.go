@@ -33,6 +33,7 @@ const (
 )
 
 const (
-    minimalTermHeight = 6
-    minimalTermWidth = 25
+    minimalTermHeight = 4
+    decorateTextWidth = 16
+    borderSize = 1
 )

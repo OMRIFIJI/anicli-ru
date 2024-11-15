@@ -12,7 +12,6 @@ type Anime struct {
 	Title         string
 	Episodes      map[int]Episode
 	TotalEpCount  int
-	IsFilm        bool
 	IsRegionBlock bool
 	IsAvailable   bool
 }

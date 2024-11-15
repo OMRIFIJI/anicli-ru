@@ -13,7 +13,7 @@ type fmtOpts struct {
 
 type PromptSelect struct {
 	promptCtx promptContext
-	drawer    Drawer
+	drawer    *drawer
 	termSize  terminalSize
 	ch        promptChannels
 }
@@ -41,8 +41,9 @@ type terminalSize struct {
 	height int
 }
 
-type Drawer struct {
+type drawer struct {
 	fittedEntries []fittedEntry
+	fittedPrompt  string
 	promptCtx     promptContext
 	drawCtx       drawingContext
 	mutex         sync.Mutex

@@ -70,7 +70,6 @@ func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {
 
 	var result AnimeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
-        println("Error parse")
 		return false, err
 	}
 
@@ -94,34 +93,34 @@ func IsValid(r io.Reader) bool {
 	}
 
 	trimmed := strings.Trim(result.Content, " \t\n")
-	return trimmed == ""
+	return trimmed != ""
 }
 
-func ParseMediaStatus(r io.Reader) (epCount int, isFilm bool, err error) {
+func ParseEpisodeCount(r io.Reader) (epCount int, err error) {
 	doc, err := html.Parse(r)
 	if err != nil {
-		return 0, false, err
+		return 0, err
 	}
 
 	occurrences := findElements(doc, "dd", "col-6 col-sm-8 mb-1")
 	if len(occurrences) == 0 {
-		return 0, false, errors.New("Не удалось найти тег с эпизодами")
+		return 0, errors.New("Не удалось найти тег с эпизодами")
 	}
 
 	firstDD := occurrences[0]
 	for c := firstDD.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.TextNode && c.Data == "Фильм" {
-			return 1, true, nil
+			return 1, nil
 		}
 	}
 
 	if len(occurrences) < 2 {
-		return 0, false, errors.New("Не удалось найти тег с эпизодами")
+		return 0, errors.New("Не удалось найти тег с эпизодами")
 	}
 
 	secondDD := occurrences[1]
 	episodeCount, err := extractNumber(secondDD)
-	return episodeCount, false, err
+	return episodeCount, err
 }
 
 func extractNumber(n *html.Node) (int, error) {

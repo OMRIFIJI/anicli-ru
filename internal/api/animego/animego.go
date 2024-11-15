@@ -127,14 +127,14 @@ func (a *AnimeGoClient) findMediaInfo(anime *types.Anime, errChan chan error) {
 		Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
 	}
 
-	if err := a.findMediaStatus(anime); err != nil {
+	if err := a.findEpisodeCount(anime); err != nil {
 		errChan <- animeErr
 		anime.IsAvailable = false
 		return
 	}
 
 	// Фильмы могут не иметь информации об их id
-	if anime.IsFilm {
+	if anime.TotalEpCount == 1 {
 		err := a.findFilmRegionBlock(anime)
 		anime.IsAvailable = err == nil
 		return
@@ -189,7 +189,7 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
 	return nil
 }
 
-func (a *AnimeGoClient) findMediaStatus(anime *types.Anime) error {
+func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 	res, err := a.client.Get(a.url.base + a.url.animeSuf + anime.Uname)
 	if err != nil {
 		return err
@@ -200,13 +200,11 @@ func (a *AnimeGoClient) findMediaStatus(anime *types.Anime) error {
 		return err
 	}
 
-	episodeCount, isFilm, err := parser.ParseMediaStatus(res.Body)
+	episodeCount, err := parser.ParseEpisodeCount(res.Body)
 	if err != nil {
 		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
-
-	anime.IsFilm = isFilm
 	anime.TotalEpCount = episodeCount
 
 	return nil
@@ -255,6 +253,7 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 	return nil
 }
 
+
 func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	episodeIdStr := strconv.Itoa(episodeId)
 	animeURL := a.url.base + a.url.animeSuf + a.url.episodeSuf + episodeIdStr
@@ -279,5 +278,6 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	}
 
 	isValid := parser.IsValid(res.Body)
+
 	return isValid
 }
