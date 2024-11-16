@@ -27,12 +27,12 @@ type promptChannels struct {
 type promptContext struct {
 	promptMessage string
 	entries       []string
-	cur           *Cursor
+	cur           int
 	wg            *sync.WaitGroup
 }
 
 type Cursor struct {
-	pos    int
+	pos int
 }
 
 type terminalSize struct {
@@ -57,6 +57,6 @@ type drawingContext struct {
 	fittedPrompt  string
 	drawHigh      int // Индекс самого первого entry видимого на экране
 	drawLow       int // Аналогично
-	virtCurPos    int
+	virtCur    int
 	termSize      terminalSize
 }

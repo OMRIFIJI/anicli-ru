@@ -154,8 +154,8 @@ func (a *AnimeGoClient) findMediaInfo(anime **types.Anime, errChan chan *types.P
 		if !errors.As(err, &blockError) {
 			apilog.ErrorLog.Printf("Parse error. %s %s\n", (*anime).Title, err)
 			errChan <- animeErr
-			*anime = nil
 		}
+		*anime = nil
 		return
 	}
 }

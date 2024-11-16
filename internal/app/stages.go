@@ -1,6 +1,8 @@
 package app
 
 import (
+	"anicliru/internal/animefmt"
+	"anicliru/internal/api/types"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
@@ -25,26 +27,26 @@ func (a *App) stopLoading() {
 	a.wg.Wait()
 }
 
-func (a *App) findAnime() error {
+func (a *App) findAnimes() ([]types.Anime, error) {
 	a.startLoading()
 	defer a.stopLoading()
 
-	err := a.api.FindAnimesByTitle(a.searchInput)
-
-	return err
+	animes, err := a.api.FindAnimesByTitle(a.searchInput)
+	return animes, err
 }
 
-func (a *App) selectAnime() error {
-	animeEntries := a.api.GetAnimeTitlesWrapped()
+func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
+	animeEntries := animefmt.GetWrappedAnimeTitles(animes)
     promptMessage := "Выберите аниме из списка:"
     prompt, err := promptselect.NewPrompt(animeEntries, promptMessage)
     if err != nil {
-        return err
-    }
-	_, _, err = prompt.SpinPrompt()
-    if err != nil {
-        return err
+        return nil, false, err
     }
 
-    return nil
+    isExitOnQuit, cur, err := prompt.SpinPrompt()
+    if err != nil {
+        return nil, false, err
+    }
+
+    return &animes[cur], isExitOnQuit, err
 }

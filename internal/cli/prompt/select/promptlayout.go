@@ -19,7 +19,7 @@ func newDrawer(promptCtx promptContext) (*drawer, error) {
 
 	d.drawCtx = drawingContext{
 		drawHigh:   0,
-		virtCurPos: 0,
+		virtCur: 0,
 	}
 
 	d.ch = drawerChannels{
@@ -84,7 +84,19 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error)
 		select {
 		case keyCodeValue := <-keyCodeChan:
 			switch keyCodeValue {
-			case upKeyCode, downKeyCode:
+			case upKeyCode:
+                if d.promptCtx.cur > 0 {
+                    d.promptCtx.cur--
+                }
+				if err := d.drawInterface(keyCodeValue, false); err != nil {
+					d.ch.quitRedraw <- true
+					errChan <- err
+					return
+				}
+            case downKeyCode:
+                if d.promptCtx.cur < len(d.promptCtx.entries)-1 {
+                    d.promptCtx.cur++
+                }
 				if err := d.drawInterface(keyCodeValue, false); err != nil {
 					d.ch.quitRedraw <- true
 					errChan <- err
@@ -213,9 +225,9 @@ func (d *drawer) correctDrawHigh() {
         lineCount += len(line)
         if lineCount >= d.drawCtx.termSize.height - 3 {
             // Если курсор за пределами экрана
-            if newDrawLow - d.drawCtx.drawHigh < d.drawCtx.virtCurPos {
+            if newDrawLow - d.drawCtx.drawHigh < d.drawCtx.virtCur {
                 // Сдвигаем вниз, чтобы компенсировать прыжок курсора
-                d.drawCtx.drawHigh += d.drawCtx.virtCurPos - (newDrawLow - d.drawCtx.drawHigh)
+                d.drawCtx.drawHigh += d.drawCtx.virtCur - (newDrawLow - d.drawCtx.drawHigh)
             }
             return
         }
@@ -226,53 +238,53 @@ func (d *drawer) correctDrawHigh() {
 
 func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {
 	if keyCodeValue == upKeyCode {
-		if d.promptCtx.cur.pos == 0 {
-			d.drawCtx.virtCurPos = 0
+		if d.promptCtx.cur == 0 {
+			d.drawCtx.virtCur = 0
 			d.drawCtx.drawHigh = 0
-		} else if d.drawCtx.virtCurPos == 0 {
+		} else if d.drawCtx.virtCur == 0 {
 			d.drawCtx.drawHigh--
 		} else {
-			d.drawCtx.virtCurPos--
+			d.drawCtx.virtCur--
 		}
 	}
 
 	if keyCodeValue == downKeyCode {
-		if d.promptCtx.cur.pos == len(d.drawCtx.fittedEntries)-1 {
-			d.drawCtx.virtCurPos = d.drawCtx.drawLow - d.drawCtx.drawHigh
+		if d.promptCtx.cur == len(d.drawCtx.fittedEntries)-1 {
+			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
 			if d.drawCtx.drawLow < len(d.drawCtx.fittedEntries)-1 {
 				d.drawCtx.drawHigh++
 			}
-		} else if d.drawCtx.virtCurPos == d.drawCtx.drawLow-d.drawCtx.drawHigh {
+		} else if d.drawCtx.virtCur == d.drawCtx.drawLow-d.drawCtx.drawHigh {
 			d.drawCtx.drawHigh++
 		} else {
-			d.drawCtx.virtCurPos++
+			d.drawCtx.virtCur++
 		}
 	}
 }
 
 func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
 	if keyCodeValue == upKeyCode {
-		if d.promptCtx.cur.pos == 0 {
-			d.drawCtx.virtCurPos = 0
-		} else if d.promptCtx.cur.pos < cursorScrollOffset {
-			d.drawCtx.virtCurPos--
-		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCurPos <= cursorScrollOffset {
+		if d.promptCtx.cur == 0 {
+			d.drawCtx.virtCur = 0
+		} else if d.promptCtx.cur < cursorScrollOffset {
+			d.drawCtx.virtCur--
+		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCur <= cursorScrollOffset {
 			d.drawCtx.drawHigh--
 		} else {
-			d.drawCtx.virtCurPos--
+			d.drawCtx.virtCur--
 		}
 	}
 	// Клавиша вниз - сложнее, но полная аналогия с клавишей вверх
 	if keyCodeValue == downKeyCode {
-		if d.promptCtx.cur.pos == len(d.drawCtx.fittedEntries)-1 {
-			d.drawCtx.virtCurPos = d.drawCtx.drawLow - d.drawCtx.drawHigh
-		} else if d.promptCtx.cur.pos > len(d.drawCtx.fittedEntries)-1-cursorScrollOffset {
-			d.drawCtx.virtCurPos++
+		if d.promptCtx.cur == len(d.drawCtx.fittedEntries)-1 {
+			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
+		} else if d.promptCtx.cur > len(d.drawCtx.fittedEntries)-1-cursorScrollOffset {
+			d.drawCtx.virtCur++
 		} else if d.drawCtx.drawLow < len(d.drawCtx.fittedEntries)-1 &&
-			d.drawCtx.virtCurPos >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
+			d.drawCtx.virtCur >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
 			d.drawCtx.drawHigh++
 		} else {
-			d.drawCtx.virtCurPos++
+			d.drawCtx.virtCur++
 		}
 	}
 
@@ -281,7 +293,7 @@ func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
 func (d *drawer) drawEntries() {
 	lineCount := 0
 
-	for _, entry := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {
+	for _, entry := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur] {
 		for _, line := range entry {
 			fmt.Print(line)
 			ansi.MoveCursorToNewLine()
@@ -289,24 +301,24 @@ func (d *drawer) drawEntries() {
 		}
 	}
 
-	selectedEntry := makeEntryActive(d.drawCtx.fittedEntries[d.promptCtx.cur.pos])
+	selectedEntry := makeEntryActive(d.drawCtx.fittedEntries[d.promptCtx.cur])
 	for _, line := range selectedEntry {
 		fmt.Print(line)
 		ansi.MoveCursorToNewLine()
 		lineCount++
 		if lineCount >= d.drawCtx.termSize.height-3 {
-			d.drawCtx.drawLow = d.promptCtx.cur.pos
+			d.drawCtx.drawLow = d.promptCtx.cur
 			return
 		}
 	}
 
-	for i, entry := range d.drawCtx.fittedEntries[d.promptCtx.cur.pos+1:] {
+	for i, entry := range d.drawCtx.fittedEntries[d.promptCtx.cur+1:] {
 		for _, line := range entry {
 			fmt.Print(line)
 			ansi.MoveCursorToNewLine()
 			lineCount++
 			if lineCount >= d.drawCtx.termSize.height-3 {
-				d.drawCtx.drawLow = d.promptCtx.cur.pos + 1 + i
+				d.drawCtx.drawLow = d.promptCtx.cur + 1 + i
 				return
 			}
 		}

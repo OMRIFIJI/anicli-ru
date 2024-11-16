@@ -20,15 +20,13 @@ func NewPrompt(entryNames []string, promptMessage string) (*PromptSelect, error)
 
 func (s *PromptSelect) SpinPrompt() (bool, int, error) {
 	exitCodeValue, err := s.promptUserChoice()
-	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos, err
+	return exitCodeValue == onQuitExitCode, s.promptCtx.cur, err
 }
 
 func (s *PromptSelect) init(entries []string, promptMessage string) error {
 	s.promptCtx = promptContext{
 		promptMessage: promptMessage,
-		cur: &Cursor{
-			pos: 0,
-		},
+		cur: 0,
 		wg: &sync.WaitGroup{},
 	}
 
@@ -138,12 +136,12 @@ func (s *PromptSelect) readKey() (keyCode, error) {
 func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {
 	switch keyCodeValue {
 	case downKeyCode:
-		if s.promptCtx.cur.pos < len(s.promptCtx.entries)-1 {
-			s.promptCtx.cur.pos++
+		if s.promptCtx.cur < len(s.promptCtx.entries)-1 {
+			s.promptCtx.cur++
 		}
 	case upKeyCode:
-		if s.promptCtx.cur.pos > 0 {
-			s.promptCtx.cur.pos--
+		if s.promptCtx.cur > 0 {
+			s.promptCtx.cur--
 		}
 	}
 }

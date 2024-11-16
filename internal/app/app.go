@@ -20,7 +20,7 @@ func NewApp() *App {
 }
 
 func (a *App) init() {
-    apilog.Init()
+	apilog.Init()
 	a.quitChan = make(chan bool)
 	a.wg = &sync.WaitGroup{}
 }
@@ -39,13 +39,21 @@ func (a *App) defaultAppPipe() error {
 		return err
 	}
 
-	if err := a.findAnime(); err != nil {
+	animes, err := a.findAnimes()
+	if err != nil {
 		return err
 	}
 
-    if err := a.selectAnime(); err != nil {
-        return err
-    }
+	anime, isExitOnQuit, err := a.selectAnime(animes)
+	if err != nil {
+		return err
+	}
+	if isExitOnQuit {
+		return nil
+	}
+    animes = nil
+
+	print(anime.Title)
 
 	return nil
 }
