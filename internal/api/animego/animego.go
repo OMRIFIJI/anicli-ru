@@ -92,7 +92,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 		return nil, &notFoundError
 	}
 
-	errChan := make(chan error, len(animes))
+	errChan := make(chan *types.ParseError, len(animes))
 	for i := 0; i < len(animes); i++ {
 		a.wg.Add(1)
 		go a.findMediaInfo(&animes[i], errChan)
@@ -100,60 +100,64 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 
 	go func() {
 		a.wg.Wait()
-		close(errChan)
+        close(errChan)
 	}()
 
-	errMsg := ""
+	var errSlice []error
 	for err := range errChan {
-		if err != nil {
-			errMsg += err.Error() + "\n"
+		errSlice = append(errSlice, err)
+	}
+	errorComposed := errors.Join(errSlice...)
+
+	var animesAvailable []types.Anime
+	for _, anime := range animes {
+		if anime != nil {
+			animesAvailable = append(animesAvailable, *anime)
 		}
 	}
 
-	if errMsg == "" {
-		return animes, nil
-	} else {
-		composedErr := &types.AnimeError{
-			Msg: errMsg,
+    if len(animes) == 0 {
+		NotAvailableError := types.NotAvailableError{
+			Msg: "По вашему запросу нет доступных аниме.",
 		}
-		return animes, composedErr
+		return nil, &NotAvailableError
 	}
+
+	return animesAvailable, errorComposed
 }
 
-func (a *AnimeGoClient) findMediaInfo(anime *types.Anime, errChan chan error) {
+func (a *AnimeGoClient) findMediaInfo(anime **types.Anime, errChan chan *types.ParseError) {
 	defer a.wg.Done()
 
-	animeErr := &types.AnimeError{
+	animeErr := &types.ParseError{
 		Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
 	}
 
-	if err := a.findEpisodeCount(anime); err != nil {
+	if err := a.findEpisodeCount(*anime); err != nil {
 		errChan <- animeErr
-		anime.IsAvailable = false
+		*anime = nil
 		return
 	}
 
 	// Фильмы могут не иметь информации об их id
-	if anime.TotalEpCount == 1 {
-		err := a.findFilmRegionBlock(anime)
-		anime.IsAvailable = err == nil
-		return
-	}
-
-	// Для сериалов соберем id
-	if err := a.findEpisodeIds(anime); err != nil {
-		var blockError *types.RegionBlockError
-		if errors.As(err, &blockError) {
-			anime.IsRegionBlock = true
-		} else {
+	if (*anime).TotalEpCount == 1 {
+		if err := a.findFilmRegionBlock(*anime); err != nil {
 			errChan <- animeErr
+			*anime = nil
+			return
 		}
-		anime.IsAvailable = false
 		return
 	}
 
-	anime.IsRegionBlock = false
-	anime.IsAvailable = true
+	if err := a.findEpisodeIds(*anime); err != nil {
+		var blockError *types.RegionBlockError
+		if !errors.As(err, &blockError) {
+			apilog.ErrorLog.Printf("Parse error. %s %s\n", (*anime).Title, err)
+			errChan <- animeErr
+			*anime = nil
+		}
+		return
+	}
 }
 
 func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
@@ -182,10 +186,14 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
 		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
-	anime.IsRegionBlock = isRegionBlock
+
 	if isRegionBlock {
-		anime.IsAvailable = false
+		err := &types.RegionBlockError{
+			Msg: "Не доступно на территории РФ",
+		}
+		return err
 	}
+
 	return nil
 }
 
@@ -234,7 +242,6 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 
 	epIdMap, lastEpNum, err := parser.ParseSeriesEpisodes(res.Body)
 	if err != nil {
-		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
 
@@ -252,7 +259,6 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 	}
 	return nil
 }
-
 
 func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	episodeIdStr := strconv.Itoa(episodeId)

@@ -33,7 +33,6 @@ type promptContext struct {
 
 type Cursor struct {
 	pos    int
-	posMax int
 }
 
 type terminalSize struct {

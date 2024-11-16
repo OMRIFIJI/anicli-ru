@@ -2,17 +2,19 @@ package promptselect
 
 import (
 	"anicliru/internal/cli/ansi"
-	"golang.org/x/term"
+	"fmt"
 	"os"
 	"sync"
 	"unicode/utf8"
+
+	"golang.org/x/term"
 )
 
 func NewPrompt(entryNames []string, promptMessage string) (*PromptSelect, error) {
 	var s PromptSelect
-    if err := s.init(entryNames, promptMessage); err != nil{
-        return nil, err
-    }
+	if err := s.init(entryNames, promptMessage); err != nil {
+		return nil, err
+	}
 	return &s, nil
 }
 
@@ -21,15 +23,19 @@ func (s *PromptSelect) SpinPrompt() (bool, int, error) {
 	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos, err
 }
 
-func (s *PromptSelect) init(entryNames []string, promptMessage string) error {
+func (s *PromptSelect) init(entries []string, promptMessage string) error {
 	s.promptCtx = promptContext{
 		promptMessage: promptMessage,
-		entries:       entryNames,
 		cur: &Cursor{
-			pos:    0,
-			posMax: len(entryNames) - 1,
+			pos: 0,
 		},
 		wg: &sync.WaitGroup{},
+	}
+
+    // Добавление нумерации
+    s.promptCtx.entries = make([]string, 0, len(entries))
+	for i := 0; i < len(entries); i++ {
+		s.promptCtx.entries = append(s.promptCtx.entries, fmt.Sprintf("%d %s", i+1, entries[i]))
 	}
 
 	s.ch = promptChannels{
@@ -38,12 +44,12 @@ func (s *PromptSelect) init(entryNames []string, promptMessage string) error {
 		err:      make(chan error),
 	}
 
-    drawer, err := newDrawer(s.promptCtx)
-    if err != nil {
-        return err
-    }
+	drawer, err := newDrawer(s.promptCtx)
+	if err != nil {
+		return err
+	}
 	s.drawer = drawer
-    return nil
+	return nil
 }
 
 func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
@@ -132,7 +138,7 @@ func (s *PromptSelect) readKey() (keyCode, error) {
 func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {
 	switch keyCodeValue {
 	case downKeyCode:
-		if s.promptCtx.cur.pos < s.promptCtx.cur.posMax {
+		if s.promptCtx.cur.pos < len(s.promptCtx.entries)-1 {
 			s.promptCtx.cur.pos++
 		}
 	case upKeyCode:

@@ -3,7 +3,6 @@ package app
 import (
 	"anicliru/internal/api"
 	apilog "anicliru/internal/api/log"
-	clilog "anicliru/internal/cli/log"
 	"sync"
 )
 
@@ -21,13 +20,13 @@ func NewApp() *App {
 }
 
 func (a *App) init() {
+    apilog.Init()
 	a.quitChan = make(chan bool)
 	a.wg = &sync.WaitGroup{}
 }
 
 func (a *App) RunApp() error {
 	apilog.Init()
-    clilog.Init()
 
 	if err := a.defaultAppPipe(); err != nil {
 		return err

@@ -12,11 +12,13 @@ type Anime struct {
 	Title         string
 	Episodes      map[int]Episode
 	TotalEpCount  int
-	IsRegionBlock bool
-	IsAvailable   bool
 }
 
 type NotFoundError struct {
+	Msg string
+}
+
+type NotAvailableError struct {
 	Msg string
 }
 
@@ -24,7 +26,7 @@ type HttpError struct {
 	Msg string
 }
 
-type AnimeError struct {
+type ParseError struct {
 	Msg string
 }
 
@@ -33,6 +35,7 @@ type RegionBlockError struct {
 }
 
 func (e *NotFoundError) Error() string    { return e.Msg }
+func (e *NotAvailableError) Error() string    { return e.Msg }
 func (e *HttpError) Error() string        { return e.Msg }
-func (e *AnimeError) Error() string       { return e.Msg }
+func (e *ParseError) Error() string       { return e.Msg }
 func (e *RegionBlockError) Error() string { return e.Msg }

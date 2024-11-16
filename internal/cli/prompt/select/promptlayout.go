@@ -2,16 +2,15 @@ package promptselect
 
 import (
 	"anicliru/internal/cli/ansi"
-	clilog "anicliru/internal/cli/log"
 	"errors"
 	"fmt"
-	"golang.org/x/term"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/term"
 )
 
 func newDrawer(promptCtx promptContext) (*drawer, error) {
@@ -39,8 +38,8 @@ func newDrawer(promptCtx promptContext) (*drawer, error) {
 
 func (d *drawer) fitEntries() {
 	d.drawCtx.fittedEntries = nil
-	for _, entry := range d.promptCtx.entries {
-		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width)
+	for i, entry := range d.promptCtx.entries {
+		fitEntry := fitEntryLines(entry, i, d.drawCtx.termSize.width)
 		d.drawCtx.fittedEntries = append(d.drawCtx.fittedEntries, fitEntry)
 	}
 }
@@ -114,9 +113,9 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
 	ansi.MoveCursorToNewLine()
 
-	entryCountStr := strconv.Itoa(len(d.drawCtx.fittedEntries))
-	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-len(entryCountStr))
-	fmt.Printf("┌───── Всего: %s %s┐", entryCountStr, repeatLineStr)
+    entryCount := len(d.drawCtx.fittedEntries)
+	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
+	fmt.Printf("┌───── Всего: %d %s┐", entryCount, repeatLineStr)
 	ansi.MoveCursorToNewLine()
 
 	d.drawEntries()
@@ -170,8 +169,8 @@ func (d *drawer) updateTerminalSize() error {
 		return err
 	}
 
-	entryCountStr := strconv.Itoa(len(d.drawCtx.fittedEntries))
-	minimalTermWidth := decorateTextWidth + len(entryCountStr)
+	entryCount := len(d.drawCtx.fittedEntries)
+	minimalTermWidth := decorateTextWidth + charLenOfInt(entryCount)
 	if termWidth < minimalTermWidth || termHeight < minimalTermHeight {
 		errorStr := "Терминал слишком маленький!\n"
 		errorStr += fmt.Sprintf("Минимальный размер: (%dx%d).", minimalTermWidth, minimalTermHeight)
@@ -186,14 +185,6 @@ func (d *drawer) updateTerminalSize() error {
 }
 
 func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
-
-	clilog.ErrorLog.Printf(
-		"Draw high: %d\nDraw low: %d\nVirt pos: %d\nReal Pos: %d",
-		d.drawCtx.drawHigh,
-		d.drawCtx.drawLow,
-		d.drawCtx.virtCurPos,
-		d.promptCtx.cur.pos,
-	)
 	if onResize {
 		if err := d.updateTerminalSize(); err != nil {
 			return err
@@ -209,7 +200,28 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 		d.bigWindowKeyHandle(keyCodeValue)
 	}
 
+    // При переключении между маленьким и большим окном курсор может улететь вниз
+    d.correctDrawHigh()
+
 	return nil
+}
+
+func (d *drawer) correctDrawHigh() {
+    newDrawLow := d.drawCtx.drawHigh
+    lineCount := 0
+    for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
+        lineCount += len(line)
+        if lineCount >= d.drawCtx.termSize.height - 3 {
+            // Если курсор за пределами экрана
+            if newDrawLow - d.drawCtx.drawHigh < d.drawCtx.virtCurPos {
+                // Сдвигаем вниз, чтобы компенсировать прыжок курсора
+                d.drawCtx.drawHigh += d.drawCtx.virtCurPos - (newDrawLow - d.drawCtx.drawHigh)
+            }
+            return
+        }
+        newDrawLow++
+    } 
+    return
 }
 
 func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {

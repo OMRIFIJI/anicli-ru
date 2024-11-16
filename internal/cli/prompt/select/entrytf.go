@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func fitEntryLines(entry string, termWidth int) fittedEntry {
+func fitEntryLines(entry string, index, termWidth int) fittedEntry {
 	// Сколько текста вмещается в табличку после декорации
 	altScreenWidth := termWidth - 7
 	entryRune := []rune(entry)
@@ -35,12 +35,12 @@ func fitEntryLines(entry string, termWidth int) fittedEntry {
 	// Остальные строки entry кроме последней
 	left := altScreenWidth
 	for right := left + altScreenWidth - 2; right < entryRuneLen; left, right = left+altScreenWidth-2, right+altScreenWidth-2 {
-		formatAndAppend(string(entryRune[left:right]), 4, 0)
+		formatAndAppend(string(entryRune[left:right]), 3+charLenOfInt(index+1), 0)
 	}
 
 	// Последняя строка, надо заполнить пробелами до конца
-	extraSpaces := altScreenWidth - 2 - (entryRuneLen - left)
-	formatAndAppend(string(entryRune[left:]), 4, extraSpaces)
+	extraSpaces := altScreenWidth - (entryRuneLen - left) - 1 - charLenOfInt(index+1)
+	formatAndAppend(string(entryRune[left:]), 3+charLenOfInt(index+1), extraSpaces)
 
 	return entryStrings
 }
