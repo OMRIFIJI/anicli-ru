@@ -1,6 +1,7 @@
 package promptselect
 
 import (
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/cli/ansi"
 	"context"
 	"errors"
@@ -63,19 +64,6 @@ func (d *drawer) fitPrompt() {
 }
 
 func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context, cancel context.CancelCauseFunc) {
-	defer func() {
-		if r := recover(); r != nil {
-			var err error
-			if recoveredErr, ok := r.(error); ok {
-				err = recoveredErr
-			} else {
-				err = errors.New("Неизвестная ошибка в графике.")
-			}
-			cancel(err)
-			return
-		}
-	}()
-
 	// первая отрисовка интерфейса до нажатия клавиш
 	if err := d.drawInterface(noActionKeyCode, false); err != nil {
 		cancel(err)
@@ -87,17 +75,20 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		d.spinRedrawOnTerminalResize(ctx, cancel)
+		d.spinRedrawOnResize(ctx, cancel)
 	}()
 	defer wg.Wait()
+    defer apilog.ErrorLog.Println("Main draw exit")
+	defer d.recoverWithCancel(cancel, keyCodeChan)
 
 	for {
 		select {
 		case keyCodeValue := <-keyCodeChan:
+			apilog.ErrorLog.Println("Key reaction in Spin")
 			err := d.handleKeyInput(keyCodeValue)
 			if err != nil {
 				cancel(err)
-                return
+				return
 			}
 		case <-ctx.Done():
 			return
@@ -112,16 +103,20 @@ func (d *drawer) handleKeyInput(keyCodeValue keyCode) error {
 		if err := d.drawInterface(keyCodeValue, false); err != nil {
 			return err
 		}
-    }
+	}
 	return nil
 }
 
 func (d *drawer) moveCursor(keyCodeValue keyCode) {
-	if keyCodeValue == upKeyCode && d.promptCtx.cur > 0 {
-		d.promptCtx.cur--
-	}
-	if keyCodeValue == downKeyCode && d.promptCtx.cur < len(d.promptCtx.entries)-1 {
-		d.promptCtx.cur++
+	switch keyCodeValue {
+	case downKeyCode:
+		if d.promptCtx.cur < len(d.promptCtx.entries)-1 {
+			d.promptCtx.cur++
+		}
+	case upKeyCode:
+		if d.promptCtx.cur > 0 {
+			d.promptCtx.cur--
+		}
 	}
 }
 
@@ -149,19 +144,8 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	return nil
 }
 
-func (d *drawer) spinRedrawOnTerminalResize(ctx context.Context, cancel context.CancelCauseFunc) {
-	defer func() {
-		if r := recover(); r != nil {
-			var err error
-			if recoveredErr, ok := r.(error); ok {
-				err = recoveredErr
-			} else {
-				err = errors.New("Неизвестная ошибка в графике.")
-			}
-			cancel(err)
-			return
-		}
-	}()
+func (d *drawer) spinRedrawOnResize(ctx context.Context, cancel context.CancelCauseFunc) {
+	defer d.recoverWithCancel(cancel, nil)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGWINCH)
@@ -335,4 +319,21 @@ func (d *drawer) drawEntries() {
 	}
 
 	d.drawCtx.drawLow = len(d.drawCtx.fittedEntries) - 1
+}
+
+func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc, keyCodeChan chan keyCode) {
+	if r := recover(); r != nil {
+		var err error
+		if recoveredErr, ok := r.(error); ok {
+			err = recoveredErr
+		} else {
+			err = errors.New("Неизвестная ошибка в графике.")
+		}
+		apilog.ErrorLog.Println("Panic in spin")
+		cancel(err)
+
+        if keyCodeChan != nil {
+            close(keyCodeChan)
+        }
+	}
 }

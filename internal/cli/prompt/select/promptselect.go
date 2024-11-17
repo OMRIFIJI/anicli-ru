@@ -1,12 +1,14 @@
 package promptselect
 
 import (
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/cli/ansi"
 	"context"
-	"golang.org/x/term"
 	"os"
 	"sync"
 	"unicode/utf8"
+
+	"golang.org/x/term"
 )
 
 func NewPrompt(entryNames []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
@@ -88,6 +90,7 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 }
 
 func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
+    defer apilog.ErrorLog.Println("spin Input exit")
 	for {
 		select {
 		case <-ctx.Done():
@@ -98,7 +101,6 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 				cancel(err)
                 return
 			}
-			p.ch.keyCode <- keyCodeValue
 
 			switch keyCodeValue {
 			case quitKeyCode:
@@ -108,6 +110,7 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 				p.ch.exitCode <- onEnterExitCode
 				return
 			case upKeyCode, downKeyCode:
+                p.ch.keyCode <- keyCodeValue
 				p.moveCursor(keyCodeValue)
 			}
 		}
