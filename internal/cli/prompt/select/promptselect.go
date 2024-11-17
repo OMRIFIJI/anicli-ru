@@ -1,7 +1,6 @@
 package promptselect
 
 import (
-	apilog "anicliru/internal/api/log"
 	"anicliru/internal/cli/ansi"
 	"context"
 	"os"
@@ -90,7 +89,6 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 }
 
 func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
-    defer apilog.ErrorLog.Println("spin Input exit")
 	for {
 		select {
 		case <-ctx.Done():

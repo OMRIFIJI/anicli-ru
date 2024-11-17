@@ -1,7 +1,6 @@
 package promptselect
 
 import (
-	apilog "anicliru/internal/api/log"
 	"anicliru/internal/cli/ansi"
 	"context"
 	"errors"
@@ -78,13 +77,12 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context
 		d.spinRedrawOnResize(ctx, cancel)
 	}()
 	defer wg.Wait()
-    defer apilog.ErrorLog.Println("Main draw exit")
-	defer d.recoverWithCancel(cancel, keyCodeChan)
+    defer close(keyCodeChan)
+	defer d.recoverWithCancel(cancel)
 
 	for {
 		select {
 		case keyCodeValue := <-keyCodeChan:
-			apilog.ErrorLog.Println("Key reaction in Spin")
 			err := d.handleKeyInput(keyCodeValue)
 			if err != nil {
 				cancel(err)
@@ -145,7 +143,7 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 }
 
 func (d *drawer) spinRedrawOnResize(ctx context.Context, cancel context.CancelCauseFunc) {
-	defer d.recoverWithCancel(cancel, nil)
+	defer d.recoverWithCancel(cancel)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGWINCH)
@@ -197,6 +195,8 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 		}
 		d.fitPrompt()
 		d.fitEntries()
+		// Если выбран нижний вариант, и высота уменьшена
+		d.correctOnRedraw()
 		return nil
 	}
 
@@ -210,6 +210,24 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 	d.correctDrawHigh()
 
 	return nil
+}
+
+func (d *drawer) correctOnRedraw() {
+	newDrawLow := d.drawCtx.drawHigh
+	lineCount := 0
+	for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
+		lineCount += len(line)
+		if lineCount >= d.drawCtx.termSize.height-3 {
+			// Если курсор за пределами экрана
+			if newDrawLow-d.drawCtx.drawHigh < d.drawCtx.virtCur {
+                d.drawCtx.drawHigh++
+				d.drawCtx.virtCur--
+			}
+			return
+		}
+		newDrawLow++
+	}
+	return
 }
 
 func (d *drawer) correctDrawHigh() {
@@ -321,7 +339,7 @@ func (d *drawer) drawEntries() {
 	d.drawCtx.drawLow = len(d.drawCtx.fittedEntries) - 1
 }
 
-func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc, keyCodeChan chan keyCode) {
+func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {
 	if r := recover(); r != nil {
 		var err error
 		if recoveredErr, ok := r.(error); ok {
@@ -329,11 +347,6 @@ func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc, keyCodeChan c
 		} else {
 			err = errors.New("Неизвестная ошибка в графике.")
 		}
-		apilog.ErrorLog.Println("Panic in spin")
 		cancel(err)
-
-        if keyCodeChan != nil {
-            close(keyCodeChan)
-        }
 	}
 }
