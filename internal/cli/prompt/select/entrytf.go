@@ -5,11 +5,24 @@ import (
 	"strings"
 )
 
-func fitEntryLines(entry string, index, termWidth int) fittedEntry {
+type indexOptions struct {
+	index     int
+	showIndex bool
+}
+
+func fitEntryLines(entry string, termWidth int, indOpt indexOptions) fittedEntry {
 	// Сколько текста вмещается в табличку после декорации
-	altScreenWidth := termWidth - 7
+	entryLineWidth := termWidth - 7
 	entryRune := []rune(entry)
 	entryRuneLen := len(entryRune)
+
+    var indexPadding int
+	if indOpt.showIndex {
+        indexCharSize := charLenOfInt(indOpt.index + 1)
+        indexPadding = indexCharSize + 1
+	} else {
+        indexPadding = 0
+    }
 
 	var entryStrings []string
 
@@ -23,24 +36,24 @@ func fitEntryLines(entry string, index, termWidth int) fittedEntry {
 	}
 
 	// Записываем весь entry в одну строку, если можем
-	if entryRuneLen <= altScreenWidth {
-		extraSpaces := altScreenWidth - entryRuneLen
+	if entryRuneLen <= entryLineWidth {
+		extraSpaces := entryLineWidth - entryRuneLen
 		formatAndAppend(string(entryRune), 2, extraSpaces)
 		return entryStrings
 	}
 
 	// Если не поместилось в одну, записываем первую строку entry
-	formatAndAppend(string(entryRune[:altScreenWidth]), 2, 0)
+	formatAndAppend(string(entryRune[:entryLineWidth]), 2, 0)
 
 	// Остальные строки entry кроме последней
-	left := altScreenWidth
-	for right := left + altScreenWidth - 2; right < entryRuneLen; left, right = left+altScreenWidth-2, right+altScreenWidth-2 {
-		formatAndAppend(string(entryRune[left:right]), 3+charLenOfInt(index+1), 0)
+	left := entryLineWidth
+	for right := left + entryLineWidth - indexPadding; right < entryRuneLen; left, right = left+entryLineWidth-indexPadding, right+entryLineWidth-indexPadding {
+		formatAndAppend(string(entryRune[left:right]), 2+indexPadding, 0)
 	}
 
 	// Последняя строка, надо заполнить пробелами до конца
-	extraSpaces := altScreenWidth - (entryRuneLen - left) - 1 - charLenOfInt(index+1)
-	formatAndAppend(string(entryRune[left:]), 3+charLenOfInt(index+1), extraSpaces)
+	extraSpaces := entryLineWidth - (entryRuneLen - left) - indexPadding
+	formatAndAppend(string(entryRune[left:]), 2+indexPadding, extraSpaces)
 
 	return entryStrings
 }

@@ -2,7 +2,6 @@ package promptselect
 
 import (
 	"anicliru/internal/cli/ansi"
-	"fmt"
 	"os"
 	"sync"
 	"unicode/utf8"
@@ -10,47 +9,45 @@ import (
 	"golang.org/x/term"
 )
 
-func NewPrompt(entryNames []string, promptMessage string) (*PromptSelect, error) {
-	var s PromptSelect
-	if err := s.init(entryNames, promptMessage); err != nil {
+func NewPrompt(entryNames []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
+	var p PromptSelect
+	if err := p.newBase(entryNames, promptMessage, showIndex); err != nil {
 		return nil, err
 	}
-	return &s, nil
+	return &p, nil
 }
 
-func (s *PromptSelect) SpinPrompt() (bool, int, error) {
-	exitCodeValue, err := s.promptUserChoice()
-	return exitCodeValue == onQuitExitCode, s.promptCtx.cur, err
+func (p *PromptSelect) SpinPrompt() (bool, int, error) {
+	exitCodeValue, err := p.promptUserChoice()
+	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
 }
 
-func (s *PromptSelect) init(entries []string, promptMessage string) error {
-	s.promptCtx = promptContext{
+func (p *PromptSelect) newBase(entries []string, promptMessage string, showIndex bool) error {
+    promptCtx := promptContext{
 		promptMessage: promptMessage,
+        entries: entries,
 		cur: 0,
 		wg: &sync.WaitGroup{},
 	}
 
-    // Добавление нумерации
-    s.promptCtx.entries = make([]string, 0, len(entries))
-	for i := 0; i < len(entries); i++ {
-		s.promptCtx.entries = append(s.promptCtx.entries, fmt.Sprintf("%d %s", i+1, entries[i]))
-	}
+    p.promptCtx = promptCtx
 
-	s.ch = promptChannels{
+	p.ch = promptChannels{
 		keyCode:  make(chan keyCode),
 		exitCode: make(chan exitPromptCode),
 		err:      make(chan error),
 	}
 
-	drawer, err := newDrawer(s.promptCtx)
-	if err != nil {
-		return err
-	}
-	s.drawer = drawer
+    drawer, err := newDrawer(promptCtx, showIndex)
+    if err != nil {
+        return err
+    }
+    p.drawer = drawer
+
 	return nil
 }
 
-func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
+func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	ansi.EnterAltScreenBuf()
 	defer ansi.ExitAltScreenBuf()
 
@@ -63,44 +60,44 @@ func (s *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	ansi.HideCursor()
 	defer ansi.ShowCursor()
 
-	s.promptCtx.wg.Add(1)
+	p.promptCtx.wg.Add(1)
 
-	go s.spinHandleInput()
+	go p.spinHandleInput()
 
-	go s.drawer.spinDrawInterface(s.ch.keyCode, s.ch.err)
+	go p.drawer.spinDrawInterface(p.ch.keyCode, p.ch.err)
 
 	select {
-	case err := <-s.ch.err:
+	case err := <-p.ch.err:
 		return onErrorExitCode, err
-	case exitCode := <-s.ch.exitCode:
+	case exitCode := <-p.ch.exitCode:
 		return exitCode, err
 	}
 }
 
-func (s *PromptSelect) spinHandleInput() {
+func (p *PromptSelect) spinHandleInput() {
 	for {
-		keyCodeValue, err := s.readKey()
+		keyCodeValue, err := p.readKey()
 		if err != nil {
-			s.ch.err <- err
+			p.ch.err <- err
 		}
-		s.ch.keyCode <- keyCodeValue
+		p.ch.keyCode <- keyCodeValue
 
 		switch keyCodeValue {
 		case quitKeyCode:
-			s.promptCtx.wg.Wait()
-			s.ch.exitCode <- onQuitExitCode
+			p.promptCtx.wg.Wait()
+			p.ch.exitCode <- onQuitExitCode
 			return
 		case enterKeyCode:
-			s.promptCtx.wg.Wait()
-			s.ch.exitCode <- onEnterExitCode
+			p.promptCtx.wg.Wait()
+			p.ch.exitCode <- onEnterExitCode
 			return
 		case upKeyCode, downKeyCode:
-			s.moveCursor(keyCodeValue)
+			p.moveCursor(keyCodeValue)
 		}
 	}
 }
 
-func (s *PromptSelect) readKey() (keyCode, error) {
+func (p *PromptSelect) readKey() (keyCode, error) {
 	// Терминал в raw mode
 	var buf [3]byte
 	n, err := os.Stdin.Read(buf[:])
@@ -133,15 +130,15 @@ func (s *PromptSelect) readKey() (keyCode, error) {
 	return noActionKeyCode, nil
 }
 
-func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {
+func (p *PromptSelect) moveCursor(keyCodeValue keyCode) {
 	switch keyCodeValue {
 	case downKeyCode:
-		if s.promptCtx.cur < len(s.promptCtx.entries)-1 {
-			s.promptCtx.cur++
+		if p.promptCtx.cur < len(p.promptCtx.entries)-1 {
+			p.promptCtx.cur++
 		}
 	case upKeyCode:
-		if s.promptCtx.cur > 0 {
-			s.promptCtx.cur--
+		if p.promptCtx.cur > 0 {
+			p.promptCtx.cur--
 		}
 	}
 }

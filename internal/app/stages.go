@@ -37,16 +37,17 @@ func (a *App) findAnimes() ([]types.Anime, error) {
 
 func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
 	animeEntries := animefmt.GetWrappedAnimeTitles(animes)
-    promptMessage := "Выберите аниме из списка:"
-    prompt, err := promptselect.NewPrompt(animeEntries, promptMessage)
-    if err != nil {
-        return nil, false, err
-    }
+	promptMessage := "Выберите аниме из списка:"
 
-    isExitOnQuit, cur, err := prompt.SpinPrompt()
-    if err != nil {
-        return nil, false, err
-    }
+	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true)
+	if err != nil {
+		return nil, false, err
+	}
 
-    return &animes[cur], isExitOnQuit, err
+	isExitOnQuit, cur, err := prompt.SpinPrompt()
+	if err != nil {
+		return nil, false, err
+	}
+
+	return &animes[cur], isExitOnQuit, err
 }

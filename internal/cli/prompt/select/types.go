@@ -53,10 +53,11 @@ type drawerChannels struct {
 }
 
 type drawingContext struct {
+    showIndex bool
 	fittedEntries []fittedEntry
 	fittedPrompt  string
 	drawHigh      int // Индекс самого первого entry видимого на экране
 	drawLow       int // Аналогично
-	virtCur    int
+	virtCur       int
 	termSize      terminalSize
 }

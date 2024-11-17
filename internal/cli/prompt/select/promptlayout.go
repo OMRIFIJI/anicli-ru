@@ -13,13 +13,20 @@ import (
 	"golang.org/x/term"
 )
 
-func newDrawer(promptCtx promptContext) (*drawer, error) {
+func newDrawer(promptCtx promptContext, showIndex bool) (*drawer, error) {
 	d := &drawer{}
 	d.promptCtx = promptCtx
 
+	if showIndex {
+		for i := 0; i < len(d.promptCtx.entries); i++ {
+			d.promptCtx.entries[i] = fmt.Sprintf("%d %s", i+1, d.promptCtx.entries[i])
+		}
+	}
+
 	d.drawCtx = drawingContext{
-		drawHigh:   0,
-		virtCur: 0,
+		drawHigh:  0,
+		virtCur:   0,
+		showIndex: showIndex,
 	}
 
 	d.ch = drawerChannels{
@@ -38,8 +45,11 @@ func newDrawer(promptCtx promptContext) (*drawer, error) {
 
 func (d *drawer) fitEntries() {
 	d.drawCtx.fittedEntries = nil
+	indOpt := indexOptions{showIndex: d.drawCtx.showIndex}
+
 	for i, entry := range d.promptCtx.entries {
-		fitEntry := fitEntryLines(entry, i, d.drawCtx.termSize.width)
+		indOpt.index = i
+		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width, indOpt)
 		d.drawCtx.fittedEntries = append(d.drawCtx.fittedEntries, fitEntry)
 	}
 }
@@ -85,18 +95,18 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error)
 		case keyCodeValue := <-keyCodeChan:
 			switch keyCodeValue {
 			case upKeyCode:
-                if d.promptCtx.cur > 0 {
-                    d.promptCtx.cur--
-                }
+				if d.promptCtx.cur > 0 {
+					d.promptCtx.cur--
+				}
 				if err := d.drawInterface(keyCodeValue, false); err != nil {
 					d.ch.quitRedraw <- true
 					errChan <- err
 					return
 				}
-            case downKeyCode:
-                if d.promptCtx.cur < len(d.promptCtx.entries)-1 {
-                    d.promptCtx.cur++
-                }
+			case downKeyCode:
+				if d.promptCtx.cur < len(d.promptCtx.entries)-1 {
+					d.promptCtx.cur++
+				}
 				if err := d.drawInterface(keyCodeValue, false); err != nil {
 					d.ch.quitRedraw <- true
 					errChan <- err
@@ -125,7 +135,7 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
 	ansi.MoveCursorToNewLine()
 
-    entryCount := len(d.drawCtx.fittedEntries)
+	entryCount := len(d.drawCtx.fittedEntries)
 	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
 	fmt.Printf("┌───── Всего: %d %s┐", entryCount, repeatLineStr)
 	ansi.MoveCursorToNewLine()
@@ -212,28 +222,28 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 		d.bigWindowKeyHandle(keyCodeValue)
 	}
 
-    // При переключении между маленьким и большим окном курсор может улететь вниз
-    d.correctDrawHigh()
+	// При переключении между маленьким и большим окном курсор может улететь вниз
+	d.correctDrawHigh()
 
 	return nil
 }
 
 func (d *drawer) correctDrawHigh() {
-    newDrawLow := d.drawCtx.drawHigh
-    lineCount := 0
-    for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
-        lineCount += len(line)
-        if lineCount >= d.drawCtx.termSize.height - 3 {
-            // Если курсор за пределами экрана
-            if newDrawLow - d.drawCtx.drawHigh < d.drawCtx.virtCur {
-                // Сдвигаем вниз, чтобы компенсировать прыжок курсора
-                d.drawCtx.drawHigh += d.drawCtx.virtCur - (newDrawLow - d.drawCtx.drawHigh)
-            }
-            return
-        }
-        newDrawLow++
-    } 
-    return
+	newDrawLow := d.drawCtx.drawHigh
+	lineCount := 0
+	for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
+		lineCount += len(line)
+		if lineCount >= d.drawCtx.termSize.height-3 {
+			// Если курсор за пределами экрана
+			if newDrawLow-d.drawCtx.drawHigh < d.drawCtx.virtCur {
+				// Сдвигаем вниз, чтобы компенсировать прыжок курсора
+				d.drawCtx.drawHigh += d.drawCtx.virtCur - (newDrawLow - d.drawCtx.drawHigh)
+			}
+			return
+		}
+		newDrawLow++
+	}
+	return
 }
 
 func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {
