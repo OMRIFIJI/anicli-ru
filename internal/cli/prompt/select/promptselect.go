@@ -33,7 +33,7 @@ func (p *PromptSelect) newBase(entries []string, promptMessage string, showIndex
 	p.promptCtx = promptCtx
 
 	p.ch = promptChannels{
-		keyCode:  make(chan keyCode),
+		keyCode:  make(chan keyCode, 2),
 		exitCode: make(chan exitPromptCode),
 	}
 

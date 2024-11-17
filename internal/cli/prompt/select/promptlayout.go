@@ -77,7 +77,6 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context
 		d.spinRedrawOnResize(ctx, cancel)
 	}()
 	defer wg.Wait()
-    defer close(keyCodeChan)
 	defer d.recoverWithCancel(cancel)
 
 	for {
