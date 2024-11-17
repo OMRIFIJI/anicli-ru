@@ -23,7 +23,7 @@ func (a *App) startLoading() {
 }
 
 func (a *App) stopLoading() {
-	a.quitChan <- true
+	a.quitChan <- struct{}{}
 	a.wg.Wait()
 }
 

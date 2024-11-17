@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func DisplayLoading(quitChan chan bool, wg *sync.WaitGroup) {
+func DisplayLoading(quitChan chan struct{}, wg *sync.WaitGroup) {
 	flowerPhases := []string{"", "*", "❀", "🌸"}
 	phasesCount := len(flowerPhases)
 	bloomLen := len(flowerPhases[phasesCount-1])
@@ -69,5 +69,4 @@ func DisplayLoading(quitChan chan bool, wg *sync.WaitGroup) {
 			fmt.Print(loadingStr)
 		}
 	}
-
 }

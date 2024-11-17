@@ -9,7 +9,7 @@ import (
 type App struct {
 	searchInput string
 	api         api.API
-	quitChan    chan bool
+	quitChan    chan struct{}
 	wg          *sync.WaitGroup
 }
 
@@ -21,7 +21,7 @@ func NewApp() *App {
 
 func (a *App) init() {
 	apilog.Init()
-	a.quitChan = make(chan bool)
+	a.quitChan = make(chan struct{})
 	a.wg = &sync.WaitGroup{}
 }
 
