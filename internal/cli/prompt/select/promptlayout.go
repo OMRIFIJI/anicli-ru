@@ -2,11 +2,13 @@ package promptselect
 
 import (
 	"anicliru/internal/cli/ansi"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -27,11 +29,6 @@ func newDrawer(promptCtx promptContext, showIndex bool) (*drawer, error) {
 		drawHigh:  0,
 		virtCur:   0,
 		showIndex: showIndex,
-	}
-
-	d.ch = drawerChannels{
-		quitSpin:   make(chan bool, 1),
-		quitRedraw: make(chan bool, 1),
 	}
 
 	if err := d.updateTerminalSize(); err != nil {
@@ -65,8 +62,7 @@ func (d *drawer) fitPrompt() {
 	}
 }
 
-func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error) {
-	defer d.promptCtx.wg.Done()
+func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context, cancel context.CancelCauseFunc) {
 	defer func() {
 		if r := recover(); r != nil {
 			var err error
@@ -75,50 +71,57 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error)
 			} else {
 				err = errors.New("Неизвестная ошибка в графике.")
 			}
-			d.ch.quitRedraw <- true
-			errChan <- err
+			cancel(err)
+			return
 		}
 	}()
 
 	// первая отрисовка интерфейса до нажатия клавиш
 	if err := d.drawInterface(noActionKeyCode, false); err != nil {
-		d.ch.quitRedraw <- true
-		errChan <- err
+		cancel(err)
 		return
 	}
 
-	d.promptCtx.wg.Add(1)
-	go d.redrawOnTerminalResize(errChan)
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		d.spinRedrawOnTerminalResize(ctx, cancel)
+	}()
+	defer wg.Wait()
 
 	for {
 		select {
 		case keyCodeValue := <-keyCodeChan:
-			switch keyCodeValue {
-			case upKeyCode:
-				if d.promptCtx.cur > 0 {
-					d.promptCtx.cur--
-				}
-				if err := d.drawInterface(keyCodeValue, false); err != nil {
-					d.ch.quitRedraw <- true
-					errChan <- err
-					return
-				}
-			case downKeyCode:
-				if d.promptCtx.cur < len(d.promptCtx.entries)-1 {
-					d.promptCtx.cur++
-				}
-				if err := d.drawInterface(keyCodeValue, false); err != nil {
-					d.ch.quitRedraw <- true
-					errChan <- err
-					return
-				}
-			case enterKeyCode, quitKeyCode:
-				d.ch.quitRedraw <- true
-				return
+			err := d.handleKeyInput(keyCodeValue)
+			if err != nil {
+				cancel(err)
+                return
 			}
-		case <-d.ch.quitSpin:
+		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func (d *drawer) handleKeyInput(keyCodeValue keyCode) error {
+	switch keyCodeValue {
+	case upKeyCode, downKeyCode:
+		d.moveCursor(keyCodeValue)
+		if err := d.drawInterface(keyCodeValue, false); err != nil {
+			return err
+		}
+    }
+	return nil
+}
+
+func (d *drawer) moveCursor(keyCodeValue keyCode) {
+	if keyCodeValue == upKeyCode && d.promptCtx.cur > 0 {
+		d.promptCtx.cur--
+	}
+	if keyCodeValue == downKeyCode && d.promptCtx.cur < len(d.promptCtx.entries)-1 {
+		d.promptCtx.cur++
 	}
 }
 
@@ -146,8 +149,7 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	return nil
 }
 
-func (d *drawer) redrawOnTerminalResize(errChan chan error) {
-	defer d.promptCtx.wg.Done()
+func (d *drawer) spinRedrawOnTerminalResize(ctx context.Context, cancel context.CancelCauseFunc) {
 	defer func() {
 		if r := recover(); r != nil {
 			var err error
@@ -156,8 +158,8 @@ func (d *drawer) redrawOnTerminalResize(errChan chan error) {
 			} else {
 				err = errors.New("Неизвестная ошибка в графике.")
 			}
-			d.ch.quitSpin <- true
-			errChan <- err
+			cancel(err)
+			return
 		}
 	}()
 
@@ -168,13 +170,11 @@ func (d *drawer) redrawOnTerminalResize(errChan chan error) {
 		d.debounce()
 
 		select {
-		case <-d.ch.quitRedraw:
+		case <-ctx.Done():
 			return
 		case <-signalChan:
 			if err := d.drawInterface(noActionKeyCode, true); err != nil {
-				println("Err channel fill")
-				d.ch.quitSpin <- true
-				errChan <- err
+				cancel(err)
 				return
 			}
 		}

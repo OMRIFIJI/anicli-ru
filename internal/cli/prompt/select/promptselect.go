@@ -2,11 +2,11 @@ package promptselect
 
 import (
 	"anicliru/internal/cli/ansi"
+	"context"
+	"golang.org/x/term"
 	"os"
 	"sync"
 	"unicode/utf8"
-
-	"golang.org/x/term"
 )
 
 func NewPrompt(entryNames []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
@@ -23,26 +23,24 @@ func (p *PromptSelect) SpinPrompt() (bool, int, error) {
 }
 
 func (p *PromptSelect) newBase(entries []string, promptMessage string, showIndex bool) error {
-    promptCtx := promptContext{
+	promptCtx := promptContext{
 		promptMessage: promptMessage,
-        entries: entries,
-		cur: 0,
-		wg: &sync.WaitGroup{},
+		entries:       entries,
+		cur:           0,
 	}
 
-    p.promptCtx = promptCtx
+	p.promptCtx = promptCtx
 
 	p.ch = promptChannels{
 		keyCode:  make(chan keyCode),
 		exitCode: make(chan exitPromptCode),
-		err:      make(chan error),
 	}
 
-    drawer, err := newDrawer(promptCtx, showIndex)
-    if err != nil {
-        return err
-    }
-    p.drawer = drawer
+	drawer, err := newDrawer(promptCtx, showIndex)
+	if err != nil {
+		return err
+	}
+	p.drawer = drawer
 
 	return nil
 }
@@ -60,45 +58,63 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	ansi.HideCursor()
 	defer ansi.ShowCursor()
 
-	p.promptCtx.wg.Add(1)
+	backgroundCtx := context.Background()
+	ctx, cancel := context.WithCancelCause(backgroundCtx)
 
-	go p.spinHandleInput()
+    wg := sync.WaitGroup{}
 
-	go p.drawer.spinDrawInterface(p.ch.keyCode, p.ch.err)
+    wg.Add(1)
+	go func() {
+        defer wg.Done()
+        p.spinHandleInput(ctx, cancel)
+    }()
 
-	select {
-	case err := <-p.ch.err:
-		return onErrorExitCode, err
-	case exitCode := <-p.ch.exitCode:
-		return exitCode, err
+    wg.Add(1)
+	go func() {
+        defer wg.Done()
+        p.drawer.spinDrawInterface(p.ch.keyCode, ctx, cancel)
+    }()
+    defer wg.Wait()
+    defer cancel(nil)
+
+	for {
+		select {
+		case exitCode := <-p.ch.exitCode:
+			return exitCode, nil
+		case <-ctx.Done():
+			return onErrorExitCode, context.Cause(ctx)
+		}
 	}
 }
 
-func (p *PromptSelect) spinHandleInput() {
+func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
 	for {
-		keyCodeValue, err := p.readKey()
-		if err != nil {
-			p.ch.err <- err
-		}
-		p.ch.keyCode <- keyCodeValue
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			keyCodeValue, err := p.readKey()
+			if err != nil {
+				cancel(err)
+                return
+			}
+			p.ch.keyCode <- keyCodeValue
 
-		switch keyCodeValue {
-		case quitKeyCode:
-			p.promptCtx.wg.Wait()
-			p.ch.exitCode <- onQuitExitCode
-			return
-		case enterKeyCode:
-			p.promptCtx.wg.Wait()
-			p.ch.exitCode <- onEnterExitCode
-			return
-		case upKeyCode, downKeyCode:
-			p.moveCursor(keyCodeValue)
+			switch keyCodeValue {
+			case quitKeyCode:
+				p.ch.exitCode <- onQuitExitCode
+				return
+			case enterKeyCode:
+				p.ch.exitCode <- onEnterExitCode
+				return
+			case upKeyCode, downKeyCode:
+				p.moveCursor(keyCodeValue)
+			}
 		}
 	}
 }
 
 func (p *PromptSelect) readKey() (keyCode, error) {
-	// Терминал в raw mode
 	var buf [3]byte
 	n, err := os.Stdin.Read(buf[:])
 	if err != nil {

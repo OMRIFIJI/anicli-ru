@@ -53,7 +53,7 @@ func (a *App) defaultAppPipe() error {
 	}
     animes = nil
 
-	print(anime.Title)
+	println(anime.Title)
 
 	return nil
 }
