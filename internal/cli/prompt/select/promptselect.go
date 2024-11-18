@@ -3,9 +3,12 @@ package promptselect
 import (
 	"context"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"unicode/utf8"
-    "golang.org/x/sys/unix"
+
+	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -77,7 +80,12 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 		case exitCode := <-p.ch.exitCode:
 			return exitCode, nil
 		case <-ctx.Done():
-			return onErrorExitCode, context.Cause(ctx)
+            err := context.Cause(ctx)
+            if err == context.Canceled{
+                return onQuitExitCode, nil
+            } 
+
+            return onErrorExitCode, err
 		}
 	}
 }
@@ -95,7 +103,6 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 	}
 	defer term.Restore(0, oldTermState)
 
-	
     // Перенос Stdin в non-block для корректного выхода по контексту
 	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
 	if err != nil {
@@ -115,16 +122,32 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
         }
 	}()
 
+    // Восстановление ISIG после Raw Mode
+    termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
+    if err != nil {
+        cancel(err)
+        return
+	}
+	termios.Lflag |= unix.ISIG
+	if err := unix.IoctlSetTermios(fd, unix.TCSETS, termios); err != nil {
+        cancel(err)
+        return
+	}
+    sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+        case <-sigChan:
+            cancel(nil)
+            return
 		default:
 			keyCodeValue, err := p.readKey()
 			if err != nil {
                 continue
 			}
-
 			switch keyCodeValue {
 			case quitKeyCode:
 				p.ch.exitCode <- onQuitExitCode
