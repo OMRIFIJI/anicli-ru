@@ -1,12 +1,11 @@
 package promptselect
 
 import (
-	"anicliru/internal/cli/ansi"
 	"context"
 	"os"
 	"sync"
 	"unicode/utf8"
-
+    "golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -47,36 +46,31 @@ func (p *PromptSelect) newBase(entries []string, promptMessage string, showIndex
 }
 
 func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
-	ansi.EnterAltScreenBuf()
-	defer ansi.ExitAltScreenBuf()
-
-	oldTermState, err := term.MakeRaw(0)
-	if err != nil {
-		return onErrorExitCode, err
-	}
-	defer term.Restore(0, oldTermState)
-
-	ansi.HideCursor()
-	defer ansi.ShowCursor()
-
-	backgroundCtx := context.Background()
+    backgroundCtx := context.Background()
 	ctx, cancel := context.WithCancelCause(backgroundCtx)
 
-    wg := sync.WaitGroup{}
+	wg := sync.WaitGroup{}
 
-    wg.Add(1)
+	wg.Add(1)
 	go func() {
-        defer wg.Done()
-        p.spinHandleInput(ctx, cancel)
-    }()
+		defer wg.Done()
+		p.spinHandleInput(ctx, cancel)
+	}()
 
-    wg.Add(1)
+	wg.Add(1)
 	go func() {
-        defer wg.Done()
-        p.drawer.spinDrawInterface(p.ch.keyCode, ctx, cancel)
-    }()
-    defer wg.Wait()
-    defer cancel(nil)
+		defer wg.Done()
+		p.drawer.spinDrawInterface(p.ch.keyCode, ctx, cancel)
+	}()
+	defer wg.Wait()
+
+    // Дочитать из канала после выхода в случае ошибки
+	defer func() {
+		for range p.ch.keyCode {
+		}
+	}()
+
+	defer cancel(nil)
 
 	for {
 		select {
@@ -89,6 +83,38 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 }
 
 func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
+    defer close(p.ch.keyCode)
+
+    fd := int(os.Stdin.Fd())
+
+    // Raw mode для чтения без EOL
+	oldTermState, err := term.MakeRaw(fd)
+	if err != nil {
+        cancel(err)
+        return
+	}
+	defer term.Restore(0, oldTermState)
+
+	
+    // Перенос Stdin в non-block для корректного выхода по контексту
+	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
+	if err != nil {
+        cancel(err)
+        return
+	}
+	_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags|unix.O_NONBLOCK)
+	if err != nil {
+        cancel(err)
+        return
+	}
+
+	defer func() {
+		_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags)
+        if err != nil {
+            cancel(err)
+        }
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -96,8 +122,7 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 		default:
 			keyCodeValue, err := p.readKey()
 			if err != nil {
-				cancel(err)
-                return
+                continue
 			}
 
 			switch keyCodeValue {
@@ -108,7 +133,7 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 				p.ch.exitCode <- onEnterExitCode
 				return
 			case upKeyCode, downKeyCode:
-                p.ch.keyCode <- keyCodeValue
+				p.ch.keyCode <- keyCodeValue
 				p.moveCursor(keyCodeValue)
 			}
 		}
