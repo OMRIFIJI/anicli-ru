@@ -63,11 +63,15 @@ func (d *drawer) fitPrompt() {
 }
 
 func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context, cancel context.CancelCauseFunc) {
-    ansi.EnterAltScreenBuf()
-	defer ansi.ExitAltScreenBuf()
-
+	ansi.EnterAltScreenBuf()
 	ansi.HideCursor()
-	defer ansi.ShowCursor()
+
+    // Очень грустное явление
+	if d.promptCtx.eraseOnQuit {
+        defer ansi.ExitAltScreenBuf()
+        defer ansi.ShowCursor()
+        defer ansi.ClearScreen()
+	}
 
 	// первая отрисовка интерфейса до нажатия клавиш
 	if err := d.drawInterface(noActionKeyCode, false); err != nil {
@@ -90,6 +94,10 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context
 		case keyCodeValue := <-keyCodeChan:
 			err := d.handleKeyInput(keyCodeValue)
 			if err != nil {
+                // Очень грустное явление 2
+                ansi.ExitAltScreenBuf()
+                ansi.ShowCursor()
+                ansi.ClearScreen()
 				cancel(err)
 				return
 			}
@@ -225,7 +233,7 @@ func (d *drawer) correctOnRedraw() {
 		if lineCount >= d.drawCtx.termSize.height-3 {
 			// Если курсор за пределами экрана
 			if newDrawLow-d.drawCtx.drawHigh < d.drawCtx.virtCur {
-                d.drawCtx.drawHigh++
+				d.drawCtx.drawHigh++
 				d.drawCtx.virtCur--
 			}
 			return
@@ -352,6 +360,10 @@ func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {
 		} else {
 			err = errors.New("Неизвестная ошибка в графике.")
 		}
+
+        ansi.EnterAltScreenBuf()
+        ansi.HideCursor()
+
 		cancel(err)
 	}
 }

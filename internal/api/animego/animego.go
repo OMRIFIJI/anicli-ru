@@ -3,6 +3,7 @@ package animego
 import (
 	"anicliru/internal/api/animego/parser"
 	apilog "anicliru/internal/api/log"
+	"anicliru/internal/api/player"
 	"anicliru/internal/api/types"
 	"errors"
 	"net/http"
@@ -337,5 +338,34 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode)
 
 	playerLinks, err := parser.ParsePlayerLinks(res.Body)
 	episode.PlayerLink = playerLinks
+
+    if err := a.fillEpLinks(episode); err != nil {
+        return err
+    }
+    
 	return nil
+}
+
+func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error{
+    episode.EpLink = make(types.EpisodeLinks)
+
+    for dubName, dubLinks := range episode.PlayerLink {
+        episode.EpLink[dubName] = make(map[string]map[string]string)
+
+        for playerName, embedLink := range dubLinks {
+            switch playerName {
+            case "Aniboom":
+                episode.EpLink[dubName][playerName] = player.GetAniboomLinks(embedLink)
+            }
+        }
+
+        if len(episode.EpLink[dubName]) == 0 {
+            err := &types.NotFoundError{
+                Msg: "Не удалось найти ни один эпизод.",
+            }
+            return err
+        }
+    }
+
+    return nil
 }

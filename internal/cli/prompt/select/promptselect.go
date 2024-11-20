@@ -12,44 +12,40 @@ import (
 	"golang.org/x/term"
 )
 
-func NewPrompt(entryNames []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
-	var p PromptSelect
-	if err := p.newBase(entryNames, promptMessage, showIndex); err != nil {
-		return nil, err
-	}
-	return &p, nil
-}
-
 func (p *PromptSelect) SpinPrompt() (bool, int, error) {
 	exitCodeValue, err := p.promptUserChoice()
 	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
 }
 
-func (p *PromptSelect) newBase(entries []string, promptMessage string, showIndex bool) error {
+func NewPrompt(entries []string, promptMessage string, showIndex bool, eraseOnQuit bool) (*PromptSelect, error) {
 	promptCtx := promptContext{
 		promptMessage: promptMessage,
 		entries:       entries,
 		cur:           0,
-	}
-
-	p.promptCtx = promptCtx
-
-	p.ch = promptChannels{
-		keyCode:  make(chan keyCode, 2),
-		exitCode: make(chan exitPromptCode),
+		eraseOnQuit:   eraseOnQuit,
 	}
 
 	drawer, err := newDrawer(promptCtx, showIndex)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	p.drawer = drawer
 
-	return nil
+	ch := promptChannels{
+		keyCode:  make(chan keyCode, 2),
+		exitCode: make(chan exitPromptCode),
+	}
+
+	p := PromptSelect{
+		promptCtx: promptCtx,
+		ch:        ch,
+		drawer:    drawer,
+	}
+
+	return &p, nil
 }
 
 func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
-    backgroundCtx := context.Background()
+	backgroundCtx := context.Background()
 	ctx, cancel := context.WithCancelCause(backgroundCtx)
 
 	wg := sync.WaitGroup{}
@@ -67,7 +63,7 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	}()
 	defer wg.Wait()
 
-    // Дочитать из канала после выхода в случае ошибки
+	// Дочитать из канала после выхода в случае ошибки
 	defer func() {
 		for range p.ch.keyCode {
 		}
@@ -80,72 +76,72 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 		case exitCode := <-p.ch.exitCode:
 			return exitCode, nil
 		case <-ctx.Done():
-            err := context.Cause(ctx)
-            if err == context.Canceled{
-                return onQuitExitCode, nil
-            } 
+			err := context.Cause(ctx)
+			if err == context.Canceled {
+				return onQuitExitCode, nil
+			}
 
-            return onErrorExitCode, err
+			return onErrorExitCode, err
 		}
 	}
 }
 
 func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
-    defer close(p.ch.keyCode)
+	defer close(p.ch.keyCode)
 
-    fd := int(os.Stdin.Fd())
+	fd := int(os.Stdin.Fd())
 
 	oldTermState, err := term.MakeRaw(fd)
 	if err != nil {
-        cancel(err)
-        return
+		cancel(err)
+		return
 	}
 	defer term.Restore(0, oldTermState)
 
-    // Перенос Stdin в non-block для корректного выхода по контексту
+	// Перенос Stdin в non-block для корректного выхода по контексту
 	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
 	if err != nil {
-        cancel(err)
-        return
+		cancel(err)
+		return
 	}
 	_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags|unix.O_NONBLOCK)
 	if err != nil {
-        cancel(err)
-        return
+		cancel(err)
+		return
 	}
 
 	defer func() {
 		_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags)
-        if err != nil {
-            cancel(err)
-        }
+		if err != nil {
+			cancel(err)
+		}
 	}()
 
-    // Восстановление ISIG после Raw Mode
-    termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
-    if err != nil {
-        cancel(err)
-        return
+	// Восстановление ISIG после Raw Mode
+	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
+	if err != nil {
+		cancel(err)
+		return
 	}
 	termios.Lflag |= unix.ISIG
 	if err := unix.IoctlSetTermios(fd, unix.TCSETS, termios); err != nil {
-        cancel(err)
-        return
+		cancel(err)
+		return
 	}
-    sigChan := make(chan os.Signal, 1)
+	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-        case <-sigChan:
-            cancel(nil)
-            return
+		case <-sigChan:
+			cancel(nil)
+			return
 		default:
 			keyCodeValue, err := p.readKey()
 			if err != nil {
-                continue
+				continue
 			}
 			switch keyCodeValue {
 			case quitKeyCode:

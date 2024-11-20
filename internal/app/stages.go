@@ -7,6 +7,7 @@ import (
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
+	"strconv"
 )
 
 func (a *App) getTitleFromUser() error {
@@ -40,7 +41,7 @@ func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
 	animeEntries := animefmt.GetWrappedAnimeTitles(animes)
 	promptMessage := "Выберите аниме из списка:"
 
-	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true)
+	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true, false)
 	if err != nil {
 		return nil, false, err
 	}
@@ -55,9 +56,9 @@ func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
 
 func (a *App) selectEpisode(anime *types.Anime) (*types.Episode, bool, error) {
 	episodeEntries := animefmt.GetEpisodes(anime)
-	promptMessage := "Выберите аниме из списка:"
+	promptMessage := "Выберите серию. " + anime.Title
 
-	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false)
+	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false, true)
 	if err != nil {
 		return nil, false, err
 	}
@@ -67,5 +68,10 @@ func (a *App) selectEpisode(anime *types.Anime) (*types.Episode, bool, error) {
 		return nil, false, err
 	}
 
-	return anime.Episodes[cur+1], isExitOnQuit, err
+    curEpKey, err := strconv.Atoi(episodeEntries[cur])
+    if err != nil {
+        return nil, false, err
+    }
+
+	return anime.Episodes[curEpKey], isExitOnQuit, err
 }

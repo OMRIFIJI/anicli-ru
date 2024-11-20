@@ -1,7 +1,7 @@
 package types
 
 // Структура: озвучка -> плеер -> качество видео -> ссылка на видео
-type EpisodeLinks map[string]map[string]map[string]*string
+type EpisodeLinks map[string]map[string]map[string]string
 
 // Структура: озвучка -> плеер -> ссылка на embed
 type PlayerLinks map[string]map[string]string

@@ -29,6 +29,7 @@ type promptContext struct {
 	promptMessage string
 	entries       []string
 	cur           int
+	eraseOnQuit   bool
 }
 
 type terminalSize struct {
