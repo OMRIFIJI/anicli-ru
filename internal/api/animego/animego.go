@@ -359,25 +359,28 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode)
 }
 
 func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
-	episode.EpLink = make(types.EpisodeLinks)
+    epLinks := make(types.EpisodeLinks)
 
-	for dubName, dubLinks := range episode.PlayerLink {
-		episode.EpLink[dubName] = make(map[string]map[string]string)
+	for dubName, dubPlayerLinks := range episode.PlayerLink {
+		epLinks[dubName] = make(map[string]map[string]string)
 
-		for playerName, embedLink := range dubLinks {
+		for playerName, embedLink := range dubPlayerLinks {
 			switch playerName {
 			case "Aniboom":
-				episode.EpLink[dubName][playerName] = player.GetAniboomLinks(embedLink)
+				epLinks[dubName][playerName] = player.GetAniboomLinks(embedLink)
 			}
 		}
 
-		if len(episode.EpLink[dubName]) == 0 {
-			err := &types.NotFoundError{
-				Msg: "Не удалось найти ни один эпизод.",
-			}
-			return err
-		}
 	}
+
+	if len(epLinks) == 0 {
+		err := &types.NotFoundError{
+			Msg: "Не удалось найти эту серию.",
+		}
+		return err
+	}
+
+    episode.EpLink = epLinks
 
 	return nil
 }
