@@ -11,10 +11,6 @@ import (
 	"strings"
 )
 
-type AnimeGoJson struct {
-	Content string `json:"content"`
-}
-
 func ParseSeriesEpisodes(r io.Reader) (map[int]int, int, error) {
 	episodeIdMap := make(map[int]int)
 	in, err := io.ReadAll(r)

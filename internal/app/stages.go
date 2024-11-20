@@ -2,6 +2,7 @@ package app
 
 import (
 	"anicliru/internal/animefmt"
+	"anicliru/internal/api"
 	"anicliru/internal/api/types"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
@@ -31,7 +32,7 @@ func (a *App) findAnimes() ([]types.Anime, error) {
 	a.startLoading()
 	defer a.stopLoading()
 
-	animes, err := a.api.FindAnimesByTitle(a.searchInput)
+	animes, err := api.FindAnimesByTitle(a.searchInput)
 	return animes, err
 }
 
@@ -50,4 +51,21 @@ func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
 	}
 
 	return &animes[cur], isExitOnQuit, err
+}
+
+func (a *App) selectEpisode(anime *types.Anime) (*types.Episode, bool, error) {
+	episodeEntries := animefmt.GetEpisodes(anime)
+	promptMessage := "Выберите аниме из списка:"
+
+	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false)
+	if err != nil {
+		return nil, false, err
+	}
+
+	isExitOnQuit, cur, err := prompt.SpinPrompt()
+	if err != nil {
+		return nil, false, err
+	}
+
+	return anime.Episodes[cur+1], isExitOnQuit, err
 }

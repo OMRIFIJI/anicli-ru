@@ -95,7 +95,6 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 
     fd := int(os.Stdin.Fd())
 
-    // Raw mode для чтения без EOL
 	oldTermState, err := term.MakeRaw(fd)
 	if err != nil {
         cancel(err)

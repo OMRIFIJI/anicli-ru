@@ -8,7 +8,6 @@ import (
 
 type App struct {
 	searchInput string
-	api         api.API
 	quitChan    chan struct{}
 	wg          *sync.WaitGroup
 }
@@ -53,7 +52,19 @@ func (a *App) defaultAppPipe() error {
 	}
     animes = nil
 
-	println(anime.Title)
+    if err := api.FindEpisodesLinks(anime); err != nil {
+        return err
+    }
+
+	episode, isExitOnQuit, err := a.selectEpisode(anime)
+	if err != nil {
+		return err
+	}
+	if isExitOnQuit {
+		return nil
+	}
+
+	println(anime.Title, ", ", episode.Id)
 
 	return nil
 }

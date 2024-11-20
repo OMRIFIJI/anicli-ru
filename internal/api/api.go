@@ -6,9 +6,7 @@ import (
 	"errors"
 )
 
-type API struct {}
-
-func (api *API) FindAnimesByTitle(title string) ([]types.Anime, error) {
+func FindAnimesByTitle(title string) ([]types.Anime, error) {
 	client := animego.NewAnimeGoClient(
 		animego.WithTitle(title),
 	)
@@ -23,3 +21,9 @@ func (api *API) FindAnimesByTitle(title string) ([]types.Anime, error) {
 	return animes, err
 }
 
+func FindEpisodesLinks(anime *types.Anime) error {
+    client := animego.NewAnimeGoClient()
+    client.FindEpisodesLinks(anime)
+    
+    return nil
+}

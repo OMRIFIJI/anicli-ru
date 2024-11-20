@@ -22,7 +22,7 @@ type AnimeGoURL struct {
 type AnimeGoClient struct {
 	client  http.Client
 	url     AnimeGoURL
-	anime   types.Anime
+	anime   *types.Anime
 	title   string
 	wg      sync.WaitGroup
 	headers map[string]string
@@ -41,12 +41,6 @@ func WithTitle(title string) func(*AnimeGoClient) {
 	return func(a *AnimeGoClient) {
 		a.title = strings.TrimSpace(title)
 		a.title = strings.ReplaceAll(a.title, " ", "+")
-	}
-}
-
-func WithAnime(anime types.Anime) func(*AnimeGoClient) {
-	return func(a *AnimeGoClient) {
-		a.anime = anime
 	}
 }
 
@@ -100,7 +94,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 
 	go func() {
 		a.wg.Wait()
-        close(errChan)
+		close(errChan)
 	}()
 
 	var errSlice []error
@@ -116,7 +110,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 		}
 	}
 
-    if len(animes) == 0 {
+	if len(animes) == 0 {
 		NotAvailableError := types.NotAvailableError{
 			Msg: "По вашему запросу нет доступных аниме.",
 		}
@@ -250,11 +244,10 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 		delete(epIdMap, lastEpNum)
 	}
 
-	anime.Episodes = make(map[int]types.Episode)
+	anime.Episodes = make(map[int]*types.Episode)
 	for key, val := range epIdMap {
-		anime.Episodes[key] = types.Episode{
-			Id:   val,
-			Link: nil,
+		anime.Episodes[key] = &types.Episode{
+			Id: val,
 		}
 	}
 	return nil
@@ -262,8 +255,8 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 
 func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	episodeIdStr := strconv.Itoa(episodeId)
-	animeURL := a.url.base + a.url.animeSuf + a.url.episodeSuf + episodeIdStr
-	req, err := http.NewRequest("GET", animeURL, nil)
+	episodeURL := a.url.base + a.url.animeSuf + a.url.episodeSuf + episodeIdStr
+	req, err := http.NewRequest("GET", episodeURL, nil)
 	if err != nil {
 		return false
 	}
@@ -286,4 +279,63 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	isValid := parser.IsValid(res.Body)
 
 	return isValid
+}
+
+func (a *AnimeGoClient) FindEpisodesLinks(anime *types.Anime) error {
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+
+	hasFoundEpisode := false
+
+	for key, val := range anime.Episodes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			err := a.findEpisodeLinks(key, val)
+			if err == nil {
+				mu.Lock()
+				hasFoundEpisode = true
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+
+	if !hasFoundEpisode {
+		err := &types.NotFoundError{
+			Msg: "Не удалось найти ни один эпизод.",
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode) error {
+	episodeIdStr := strconv.Itoa(episodeNum)
+	episodeURL := a.url.base + a.url.animeSuf + a.url.episodeSuf + episodeIdStr
+	req, err := http.NewRequest("GET", episodeURL, nil)
+	if err != nil {
+		return err
+	}
+	for key, val := range a.headers {
+		req.Header.Add(key, val)
+	}
+
+	res, err := a.client.Do(req)
+	if err != nil {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
+		return err
+	}
+
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
+		return err
+	}
+
+	playerLinks, err := parser.ParsePlayerLinks(res.Body)
+	episode.PlayerLink = playerLinks
+	return nil
 }
