@@ -2,6 +2,7 @@ package promptselect
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"sync"
@@ -17,12 +18,14 @@ func (p *PromptSelect) SpinPrompt() (bool, int, error) {
 	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
 }
 
-func NewPrompt(entries []string, promptMessage string, showIndex bool, eraseOnQuit bool) (*PromptSelect, error) {
+func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
+    if len(entries) == 0 {
+        return nil, errors.New("Ничего не найдено")
+    }
 	promptCtx := promptContext{
 		promptMessage: promptMessage,
 		entries:       entries,
 		cur:           0,
-		eraseOnQuit:   eraseOnQuit,
 	}
 
 	drawer, err := newDrawer(promptCtx, showIndex)

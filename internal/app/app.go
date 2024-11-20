@@ -25,6 +25,7 @@ func (a *App) init() {
 }
 
 func (a *App) RunApp() error {
+    defer a.restoreTerminal()
 	apilog.Init()
 
 	if err := a.defaultAppPipe(); err != nil {

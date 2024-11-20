@@ -4,11 +4,17 @@ import (
 	"anicliru/internal/animefmt"
 	"anicliru/internal/api"
 	"anicliru/internal/api/types"
+	"anicliru/internal/cli/ansi"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"strconv"
 )
+
+func (a *App) restoreTerminal() {
+    ansi.ExitAltScreenBuf()
+    ansi.ShowCursor()
+}
 
 func (a *App) getTitleFromUser() error {
 	searchInput, err := promptsearch.PromptSearchInput()
@@ -41,7 +47,7 @@ func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
 	animeEntries := animefmt.GetWrappedAnimeTitles(animes)
 	promptMessage := "Выберите аниме из списка:"
 
-	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true, false)
+	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true)
 	if err != nil {
 		return nil, false, err
 	}
@@ -58,7 +64,7 @@ func (a *App) selectEpisode(anime *types.Anime) (*types.Episode, bool, error) {
 	episodeEntries := animefmt.GetEpisodes(anime)
 	promptMessage := "Выберите серию. " + anime.Title
 
-	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false, true)
+	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false)
 	if err != nil {
 		return nil, false, err
 	}

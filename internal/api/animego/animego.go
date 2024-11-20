@@ -173,7 +173,10 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return err
+		noConError := types.HttpError{
+			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
+		}
+		return &noConError
 	}
 
 	isRegionBlock, err := parser.ParseFilmRegionBlock(res.Body)
@@ -200,7 +203,10 @@ func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return err
+		noConError := types.HttpError{
+			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
+		}
+		return &noConError
 	}
 
 	episodeCount, err := parser.ParseEpisodeCount(res.Body)
@@ -231,8 +237,11 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
-		return err
+		apilog.ErrorLog.Printf("Http error. %d\n", res.StatusCode)
+		noConError := types.HttpError{
+			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
+		}
+		return &noConError
 	}
 
 	epIdMap, lastEpNum, err := parser.ParseSeriesEpisodes(res.Body)
@@ -273,7 +282,7 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
+		apilog.ErrorLog.Printf("Http error. %d\n", res.StatusCode)
 		return false
 	}
 
@@ -332,40 +341,43 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode)
 
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
-		return err
+		apilog.ErrorLog.Printf("Http error. %d\n", res.StatusCode)
+		noConError := types.HttpError{
+			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
+		}
+		return &noConError
 	}
 
 	playerLinks, err := parser.ParsePlayerLinks(res.Body)
 	episode.PlayerLink = playerLinks
 
-    if err := a.fillEpLinks(episode); err != nil {
-        return err
-    }
-    
+	if err := a.fillEpLinks(episode); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error{
-    episode.EpLink = make(types.EpisodeLinks)
+func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
+	episode.EpLink = make(types.EpisodeLinks)
 
-    for dubName, dubLinks := range episode.PlayerLink {
-        episode.EpLink[dubName] = make(map[string]map[string]string)
+	for dubName, dubLinks := range episode.PlayerLink {
+		episode.EpLink[dubName] = make(map[string]map[string]string)
 
-        for playerName, embedLink := range dubLinks {
-            switch playerName {
-            case "Aniboom":
-                episode.EpLink[dubName][playerName] = player.GetAniboomLinks(embedLink)
-            }
-        }
+		for playerName, embedLink := range dubLinks {
+			switch playerName {
+			case "Aniboom":
+				episode.EpLink[dubName][playerName] = player.GetAniboomLinks(embedLink)
+			}
+		}
 
-        if len(episode.EpLink[dubName]) == 0 {
-            err := &types.NotFoundError{
-                Msg: "Не удалось найти ни один эпизод.",
-            }
-            return err
-        }
-    }
+		if len(episode.EpLink[dubName]) == 0 {
+			err := &types.NotFoundError{
+				Msg: "Не удалось найти ни один эпизод.",
+			}
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
