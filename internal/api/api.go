@@ -18,7 +18,7 @@ func FindAnimesByTitle(title string) ([]types.Anime, error) {
 		return animes, err
 	}
 
-	return animes, err
+	return animes, nil
 }
 
 func FindEpisodesLinks(anime *types.Anime) error {

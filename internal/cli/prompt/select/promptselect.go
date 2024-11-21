@@ -1,6 +1,7 @@
 package promptselect
 
 import (
+	"anicliru/internal/cli/ansi"
 	"context"
 	"errors"
 	"os"
@@ -12,6 +13,11 @@ import (
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
+
+func RestoreTerminal() {
+    ansi.ShowCursor()
+    ansi.ExitAltScreenBuf()
+}
 
 func (p *PromptSelect) SpinPrompt() (bool, int, error) {
 	exitCodeValue, err := p.promptUserChoice()
@@ -83,7 +89,6 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 			if err == context.Canceled {
 				return onQuitExitCode, nil
 			}
-
 			return onErrorExitCode, err
 		}
 	}

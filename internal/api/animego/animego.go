@@ -6,13 +6,12 @@ import (
 	"anicliru/internal/api/player"
 	"anicliru/internal/api/types"
 	"errors"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 )
 
-type AnimeGoURL struct {
+type animeGoURL struct {
 	base       string
 	searchSuf  string
 	animeSuf   string
@@ -21,12 +20,10 @@ type AnimeGoURL struct {
 }
 
 type AnimeGoClient struct {
-	client  http.Client
-	url     AnimeGoURL
-	anime   *types.Anime
-	title   string
-	wg      sync.WaitGroup
-	headers map[string]string
+	http     *animeGoHttp
+	urlBuild *urlBuilder
+	title    string
+	headers  map[string]string
 }
 
 func NewAnimeGoClient(options ...func(*AnimeGoClient)) *AnimeGoClient {
@@ -46,33 +43,17 @@ func WithTitle(title string) func(*AnimeGoClient) {
 }
 
 func (a *AnimeGoClient) baseNew() {
-	a.client = InitHttpClient()
-	a.url = AnimeGoURL{
-		base:       "https://animego.org/",
-		searchSuf:  "search/anime?q=",
-		animeSuf:   "anime/",
-		playerSuf:  "player?_allow=true",
-		episodeSuf: "series?id=",
-	}
-	a.headers = map[string]string{
-		"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
-		"X-Requested-With": "XMLHttpRequest",
-	}
+	a.http = newAnimeGoHttp()
+	a.urlBuild = newUrlBuilder()
 }
 
 func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
-	res, err := a.client.Get(a.url.base + a.url.searchSuf + a.title)
+	url := a.urlBuild.searchByTitle(a.title)
+	res, err := a.http.get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		noConError := types.HttpError{
-			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
-		}
-		return nil, &noConError
-	}
 
 	animes, err := parser.ParseAnimes(res.Body)
 	if err != nil {
@@ -80,28 +61,24 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 		return nil, err
 	}
 
-	if len(animes) == 0 {
-		notFoundError := types.NotFoundError{
-			Msg: "По вашему запросу не удалось ничего найти.",
-		}
-		return nil, &notFoundError
-	}
-
-	errChan := make(chan *types.ParseError, len(animes))
-	for i := 0; i < len(animes); i++ {
-		a.wg.Add(1)
-		go a.findMediaInfo(&animes[i], errChan)
-	}
-
-	go func() {
-		a.wg.Wait()
-		close(errChan)
-	}()
-
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 	var errSlice []error
-	for err := range errChan {
-		errSlice = append(errSlice, err)
+
+	for i := 0; i < len(animes); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if err := a.findMediaInfo(&animes[i]); err != nil {
+				mu.Lock()
+				errSlice = append(errSlice, err)
+				mu.Unlock()
+			}
+		}()
 	}
+
+	wg.Wait()
 	errorComposed := errors.Join(errSlice...)
 
 	var animesAvailable []types.Anime
@@ -121,63 +98,44 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	return animesAvailable, errorComposed
 }
 
-func (a *AnimeGoClient) findMediaInfo(anime **types.Anime, errChan chan *types.ParseError) {
-	defer a.wg.Done()
-
+func (a *AnimeGoClient) findMediaInfo(anime **types.Anime) error {
 	animeErr := &types.ParseError{
 		Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
 	}
 
 	if err := a.findEpisodeCount(*anime); err != nil {
-		errChan <- animeErr
 		*anime = nil
-		return
+		return animeErr
 	}
 
 	// Фильмы могут не иметь информации об их id
 	if (*anime).TotalEpCount == 1 {
 		if err := a.findFilmRegionBlock(*anime); err != nil {
-			errChan <- animeErr
 			*anime = nil
-			return
+			return animeErr
 		}
-		return
+		return nil
 	}
 
 	if err := a.findEpisodeIds(*anime); err != nil {
+		*anime = nil
+
 		var blockError *types.RegionBlockError
 		if !errors.As(err, &blockError) {
-			apilog.ErrorLog.Printf("Parse error. %s %s\n", (*anime).Title, err)
-			errChan <- animeErr
+			return animeErr
 		}
-		*anime = nil
-		return
 	}
+
+	return nil
 }
 
-func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
-	animeURL := a.url.base + a.url.animeSuf + anime.Id + "/" + a.url.playerSuf
-	req, err := http.NewRequest("GET", animeURL, nil)
+func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) error {
+	url := a.urlBuild.animeById(anime.Id)
+	res, err := a.http.get(url)
 	if err != nil {
-		return err
-	}
-	for key, val := range a.headers {
-		req.Header.Add(key, val)
-	}
-
-	res, err := a.client.Do(req)
-	if err != nil {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return err
 	}
 	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		noConError := types.HttpError{
-			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
-		}
-		return &noConError
-	}
 
 	isRegionBlock, err := parser.ParseFilmRegionBlock(res.Body)
 	if err != nil {
@@ -196,18 +154,12 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) (err error) {
 }
 
 func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
-	res, err := a.client.Get(a.url.base + a.url.animeSuf + anime.Uname)
+	url := a.urlBuild.animeByUname(anime.Uname)
+	res, err := a.http.get(url)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		noConError := types.HttpError{
-			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
-		}
-		return &noConError
-	}
 
 	episodeCount, err := parser.ParseEpisodeCount(res.Body)
 	if err != nil {
@@ -220,29 +172,12 @@ func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 }
 
 func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
-	animeURL := a.url.base + a.url.animeSuf + anime.Id + "/" + a.url.playerSuf
-	req, err := http.NewRequest("GET", animeURL, nil)
+	url := a.urlBuild.animeById(anime.Id)
+	res, err := a.http.get(url)
 	if err != nil {
-		return err
-	}
-	for key, val := range a.headers {
-		req.Header.Add(key, val)
-	}
-
-	res, err := a.client.Do(req)
-	if err != nil {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return err
 	}
 	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		apilog.ErrorLog.Printf("Http error. %d\n", res.StatusCode)
-		noConError := types.HttpError{
-			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
-		}
-		return &noConError
-	}
 
 	epIdMap, lastEpNum, err := parser.ParseSeriesEpisodes(res.Body)
 	if err != nil {
@@ -265,35 +200,21 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 
 func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	episodeIdStr := strconv.Itoa(episodeId)
-	episodeURL := a.url.base + a.url.animeSuf + a.url.episodeSuf + episodeIdStr
-	req, err := http.NewRequest("GET", episodeURL, nil)
-	if err != nil {
-		return false
-	}
-	for key, val := range a.headers {
-		req.Header.Add(key, val)
-	}
+	url := a.urlBuild.episodeById(episodeIdStr)
 
-	res, err := a.client.Do(req)
+	res, err := a.http.get(url)
 	if err != nil {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return false
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 200 {
-		apilog.ErrorLog.Printf("Http error. %d\n", res.StatusCode)
-		return false
-	}
-
 	isValid := parser.IsValid(res.Body)
-
 	return isValid
 }
 
 func (a *AnimeGoClient) FindEpisodesLinks(anime *types.Anime) error {
-	wg := sync.WaitGroup{}
-	mu := sync.Mutex{}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	hasFoundEpisode := false
 
@@ -324,30 +245,14 @@ func (a *AnimeGoClient) FindEpisodesLinks(anime *types.Anime) error {
 
 func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode) error {
 	episodeIdStr := strconv.Itoa(episodeNum)
-	episodeURL := a.url.base + a.url.animeSuf + a.url.episodeSuf + episodeIdStr
-	req, err := http.NewRequest("GET", episodeURL, nil)
+	url := a.urlBuild.episodeById(episodeIdStr)
+
+	res, err := a.http.get(url)
 	if err != nil {
 		return err
 	}
-	for key, val := range a.headers {
-		req.Header.Add(key, val)
-	}
-
-	res, err := a.client.Do(req)
-	if err != nil {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
-		return err
-	}
-
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		apilog.ErrorLog.Printf("Http error. %d\n", res.StatusCode)
-		noConError := types.HttpError{
-			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
-		}
-		return &noConError
-	}
-
+	
 	playerLinks, err := parser.ParsePlayerLinks(res.Body)
 	episode.PlayerLink = playerLinks
 
@@ -359,7 +264,7 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode)
 }
 
 func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
-    epLinks := make(types.EpisodeLinks)
+	epLinks := make(types.EpisodeLinks)
 
 	for dubName, dubPlayerLinks := range episode.PlayerLink {
 		epLinks[dubName] = make(map[string]map[string]string)
@@ -380,7 +285,7 @@ func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
 		return err
 	}
 
-    episode.EpLink = epLinks
+	episode.EpLink = epLinks
 
 	return nil
 }

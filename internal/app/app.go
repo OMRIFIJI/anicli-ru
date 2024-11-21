@@ -3,6 +3,7 @@ package app
 import (
 	"anicliru/internal/api"
 	apilog "anicliru/internal/api/log"
+	promptselect "anicliru/internal/cli/prompt/select"
 	"sync"
 )
 
@@ -25,7 +26,6 @@ func (a *App) init() {
 }
 
 func (a *App) RunApp() error {
-    defer a.restoreTerminal()
 	apilog.Init()
 
 	if err := a.defaultAppPipe(); err != nil {
@@ -44,6 +44,7 @@ func (a *App) defaultAppPipe() error {
 		return err
 	}
 
+    defer promptselect.RestoreTerminal()
 	anime, isExitOnQuit, err := a.selectAnime(animes)
 	if err != nil {
 		return err

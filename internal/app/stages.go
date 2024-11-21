@@ -4,17 +4,11 @@ import (
 	"anicliru/internal/animefmt"
 	"anicliru/internal/api"
 	"anicliru/internal/api/types"
-	"anicliru/internal/cli/ansi"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"strconv"
 )
-
-func (a *App) restoreTerminal() {
-    ansi.ExitAltScreenBuf()
-    ansi.ShowCursor()
-}
 
 func (a *App) getTitleFromUser() error {
 	searchInput, err := promptsearch.PromptSearchInput()

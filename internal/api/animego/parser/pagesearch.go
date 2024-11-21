@@ -57,5 +57,12 @@ func ParseAnimes(r io.Reader) ([]*types.Anime, error) {
 		}
 	}
 
+	if len(animeSlice) == 0 {
+		notFoundError := types.NotFoundError{
+			Msg: "По вашему запросу не удалось ничего найти.",
+		}
+		return nil, &notFoundError
+	}
+
 	return animeSlice, nil
 }
