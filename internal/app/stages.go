@@ -1,7 +1,7 @@
 package app
 
 import (
-	"anicliru/internal/animefmt"
+	"anicliru/internal/fmt"
 	"anicliru/internal/api"
 	"anicliru/internal/api/types"
 	"anicliru/internal/cli/loading"

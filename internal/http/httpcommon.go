@@ -1,4 +1,4 @@
-package animego
+package httpcommon
 
 import (
 	apilog "anicliru/internal/api/log"
@@ -7,31 +7,28 @@ import (
 	"time"
 )
 
-type animeGoHttp struct {
+type HttpClient struct {
 	client  http.Client
 	headers map[string]string
 }
 
-func newAnimeGoHttp() *animeGoHttp {
+func NewHttpClient(headers map[string]string) *HttpClient {
 	tr := &http.Transport{
-		MaxIdleConns:       10,
+		MaxIdleConns:       30,
 		IdleConnTimeout:    60 * time.Second,
 		DisableCompression: true,
 	}
 	client := http.Client{Transport: tr}
 
-	a := animeGoHttp{
-		client: client,
-		headers: map[string]string{
-			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
-			"X-Requested-With": "XMLHttpRequest",
-		},
+	a := HttpClient{
+		client:  client,
+		headers: headers,
 	}
 
-    return &a
+	return &a
 }
 
-func (a *animeGoHttp) get(link string) (*http.Response, error) {
+func (a *HttpClient) Get(link string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil {
 		return nil, err
@@ -50,7 +47,7 @@ func (a *animeGoHttp) get(link string) (*http.Response, error) {
 		noConError := types.HttpError{
 			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
 		}
-        res.Body.Close()
+		res.Body.Close()
 		return nil, &noConError
 	}
 

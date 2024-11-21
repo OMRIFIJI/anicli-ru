@@ -3,8 +3,9 @@ package animego
 import (
 	"anicliru/internal/api/animego/parser"
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/player"
+	"anicliru/internal/api/player/aniboom"
 	"anicliru/internal/api/types"
+	httpcommon "anicliru/internal/http"
 	"errors"
 	"strconv"
 	"strings"
@@ -20,7 +21,7 @@ type animeGoURL struct {
 }
 
 type AnimeGoClient struct {
-	http     *animeGoHttp
+	http     *httpcommon.HttpClient
 	urlBuild *urlBuilder
 	title    string
 	headers  map[string]string
@@ -43,13 +44,18 @@ func WithTitle(title string) func(*AnimeGoClient) {
 }
 
 func (a *AnimeGoClient) baseNew() {
-	a.http = newAnimeGoHttp()
+	a.http = httpcommon.NewHttpClient(
+		map[string]string{
+			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
+			"X-Requested-With": "XMLHttpRequest",
+		},
+	)
 	a.urlBuild = newUrlBuilder()
 }
 
 func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	url := a.urlBuild.searchByTitle(a.title)
-	res, err := a.http.get(url)
+	res, err := a.http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +137,7 @@ func (a *AnimeGoClient) findMediaInfo(anime **types.Anime) error {
 
 func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) error {
 	url := a.urlBuild.animeById(anime.Id)
-	res, err := a.http.get(url)
+	res, err := a.http.Get(url)
 	if err != nil {
 		return err
 	}
@@ -155,7 +161,7 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) error {
 
 func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 	url := a.urlBuild.animeByUname(anime.Uname)
-	res, err := a.http.get(url)
+	res, err := a.http.Get(url)
 	if err != nil {
 		return err
 	}
@@ -173,7 +179,7 @@ func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 
 func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 	url := a.urlBuild.animeById(anime.Id)
-	res, err := a.http.get(url)
+	res, err := a.http.Get(url)
 	if err != nil {
 		return err
 	}
@@ -202,7 +208,7 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	episodeIdStr := strconv.Itoa(episodeId)
 	url := a.urlBuild.episodeById(episodeIdStr)
 
-	res, err := a.http.get(url)
+	res, err := a.http.Get(url)
 	if err != nil {
 		return false
 	}
@@ -247,12 +253,12 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode)
 	episodeIdStr := strconv.Itoa(episodeNum)
 	url := a.urlBuild.episodeById(episodeIdStr)
 
-	res, err := a.http.get(url)
+	res, err := a.http.Get(url)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
-	
+
 	playerLinks, err := parser.ParsePlayerLinks(res.Body)
 	episode.PlayerLink = playerLinks
 
@@ -272,7 +278,7 @@ func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
 		for playerName, embedLink := range dubPlayerLinks {
 			switch playerName {
 			case "Aniboom":
-				epLinks[dubName][playerName] = player.GetAniboomLinks(embedLink)
+				epLinks[dubName][playerName] = aniboom.GetLinks(embedLink)
 			}
 		}
 
@@ -286,6 +292,5 @@ func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
 	}
 
 	episode.EpLink = epLinks
-
 	return nil
 }

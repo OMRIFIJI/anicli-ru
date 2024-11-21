@@ -1,4 +1,4 @@
-package player
+package aniboom
 
 import "net/http"
 
@@ -7,7 +7,7 @@ type AniBoom struct {
     client http.Client
 }
 
-func NewAniBoom(client http.Client) *AniBoom {
+func newAniBoom(client http.Client) *AniBoom {
     a := AniBoom{
         client: client,
         headers: map[string]string{
@@ -19,6 +19,6 @@ func NewAniBoom(client http.Client) *AniBoom {
     return &a
 }
 
-func GetAniboomLinks(embedLink string) map[string]string{
+func GetLinks(embedLink string) map[string]string{
     return nil
 }
