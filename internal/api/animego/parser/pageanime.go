@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"encoding/json"
 	"errors"
 	"golang.org/x/net/html"
@@ -26,7 +26,7 @@ func ParseSeriesEpisodes(r io.Reader) (map[int]int, int, error) {
 	reCheck := regexp.MustCompile("Видео недоступно на территории")
 	match := reCheck.FindString(result.Content)
 	if len(match) != 0 {
-		err := &types.RegionBlockError{
+		err := &models.RegionBlockError{
 			Msg: "Не доступно на территории РФ",
 		}
 		return nil, 0, err
@@ -49,7 +49,7 @@ func ParseSeriesEpisodes(r io.Reader) (map[int]int, int, error) {
 	}
 
 	if len(episodeIdMap) == 0 {
-		err := types.NotFoundError{
+		err := models.NotFoundError{
 			Msg: "Нет информации ни об одной серии.",
 		}
 		return nil, 0, &err

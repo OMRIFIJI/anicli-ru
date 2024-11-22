@@ -63,9 +63,6 @@ func (d *drawer) fitPrompt() {
 }
 
 func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context, cancel context.CancelCauseFunc) {
-	ansi.EnterAltScreenBuf()
-	ansi.HideCursor()
-
 	// первая отрисовка интерфейса до нажатия клавиш
 	if err := d.drawInterface(noActionKeyCode, false); err != nil {
 		cancel(err)

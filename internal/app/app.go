@@ -44,7 +44,12 @@ func (a *App) defaultAppPipe() error {
 		return err
 	}
 
-    defer promptselect.RestoreTerminal()
+    oldTermState, err := promptselect.PrepareTerminal()
+    if err != nil {
+        return err
+    }
+    defer promptselect.RestoreTerminal(oldTermState)
+
 	anime, isExitOnQuit, err := a.selectAnime(animes)
 	if err != nil {
 		return err

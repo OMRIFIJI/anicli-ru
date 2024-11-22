@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"golang.org/x/net/html"
 	"io"
 	"strings"
@@ -11,7 +11,7 @@ func isAnimeHref(href string) bool {
 	return strings.HasPrefix(href, "https://animego.org/anime")
 }
 
-func parseAnime(n *html.Node) *types.Anime {
+func parseAnime(n *html.Node) *models.Anime {
 	var href, title string
 	for _, attr := range n.Attr {
 		if attr.Key == "href" && isAnimeHref(attr.Val) {
@@ -31,7 +31,7 @@ func parseAnime(n *html.Node) *types.Anime {
 	if len(title) > 0 {
 		id := href[idInd:]
 		uname := href[unameInd:]
-		return &types.Anime{
+		return &models.Anime{
 			Id:    id,
 			Uname: uname,
 			Title: title,
@@ -41,13 +41,13 @@ func parseAnime(n *html.Node) *types.Anime {
 	}
 }
 
-func ParseAnimes(r io.Reader) ([]*types.Anime, error) {
+func ParseAnimes(r io.Reader) ([]*models.Anime, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var animeSlice []*types.Anime
+	var animeSlice []*models.Anime
 	for n := range doc.Descendants() {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			anime := parseAnime(n)
@@ -58,7 +58,7 @@ func ParseAnimes(r io.Reader) ([]*types.Anime, error) {
 	}
 
 	if len(animeSlice) == 0 {
-		notFoundError := types.NotFoundError{
+		notFoundError := models.NotFoundError{
 			Msg: "По вашему запросу не удалось ничего найти.",
 		}
 		return nil, &notFoundError

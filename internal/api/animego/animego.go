@@ -3,8 +3,7 @@ package animego
 import (
 	"anicliru/internal/api/animego/parser"
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/player/aniboom"
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	httpcommon "anicliru/internal/http"
 	"errors"
 	"strconv"
@@ -53,7 +52,7 @@ func (a *AnimeGoClient) baseNew() {
 	a.urlBuild = newUrlBuilder()
 }
 
-func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
+func (a *AnimeGoClient) FindAnimesByTitle() ([]models.Anime, error) {
 	url := a.urlBuild.searchByTitle(a.title)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -87,7 +86,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	wg.Wait()
 	errorComposed := errors.Join(errSlice...)
 
-	var animesAvailable []types.Anime
+	var animesAvailable []models.Anime
 	for _, anime := range animes {
 		if anime != nil {
 			animesAvailable = append(animesAvailable, *anime)
@@ -95,7 +94,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	}
 
 	if len(animes) == 0 {
-		NotAvailableError := types.NotAvailableError{
+		NotAvailableError := models.NotAvailableError{
 			Msg: "По вашему запросу нет доступных аниме.",
 		}
 		return nil, &NotAvailableError
@@ -104,8 +103,8 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]types.Anime, error) {
 	return animesAvailable, errorComposed
 }
 
-func (a *AnimeGoClient) findMediaInfo(anime **types.Anime) error {
-	animeErr := &types.ParseError{
+func (a *AnimeGoClient) findMediaInfo(anime **models.Anime) error {
+	animeErr := &models.ParseError{
 		Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
 	}
 
@@ -126,7 +125,7 @@ func (a *AnimeGoClient) findMediaInfo(anime **types.Anime) error {
 	if err := a.findEpisodeIds(*anime); err != nil {
 		*anime = nil
 
-		var blockError *types.RegionBlockError
+		var blockError *models.RegionBlockError
 		if !errors.As(err, &blockError) {
 			return animeErr
 		}
@@ -135,7 +134,7 @@ func (a *AnimeGoClient) findMediaInfo(anime **types.Anime) error {
 	return nil
 }
 
-func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) error {
+func (a *AnimeGoClient) findFilmRegionBlock(anime *models.Anime) error {
 	url := a.urlBuild.animeById(anime.Id)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -150,7 +149,7 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) error {
 	}
 
 	if isRegionBlock {
-		err := &types.RegionBlockError{
+		err := &models.RegionBlockError{
 			Msg: "Не доступно на территории РФ",
 		}
 		return err
@@ -159,7 +158,7 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *types.Anime) error {
 	return nil
 }
 
-func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
+func (a *AnimeGoClient) findEpisodeCount(anime *models.Anime) error {
 	url := a.urlBuild.animeByUname(anime.Uname)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -177,7 +176,7 @@ func (a *AnimeGoClient) findEpisodeCount(anime *types.Anime) error {
 	return nil
 }
 
-func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
+func (a *AnimeGoClient) findEpisodeIds(anime *models.Anime) error {
 	url := a.urlBuild.animeById(anime.Id)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -195,9 +194,9 @@ func (a *AnimeGoClient) findEpisodeIds(anime *types.Anime) error {
 		delete(epIdMap, lastEpNum)
 	}
 
-	anime.Episodes = make(map[int]*types.Episode)
+	anime.Episodes = make(map[int]*models.Episode)
 	for key, val := range epIdMap {
-		anime.Episodes[key] = &types.Episode{
+		anime.Episodes[key] = &models.Episode{
 			Id: val,
 		}
 	}
@@ -218,7 +217,7 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	return isValid
 }
 
-func (a *AnimeGoClient) FindEpisodesLinks(anime *types.Anime) error {
+func (a *AnimeGoClient) FindEpisodesLinks(anime *models.Anime) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
@@ -240,7 +239,7 @@ func (a *AnimeGoClient) FindEpisodesLinks(anime *types.Anime) error {
 	wg.Wait()
 
 	if !hasFoundEpisode {
-		err := &types.NotFoundError{
+		err := &models.NotFoundError{
 			Msg: "Не удалось найти ни один эпизод.",
 		}
 		return err
@@ -249,7 +248,7 @@ func (a *AnimeGoClient) FindEpisodesLinks(anime *types.Anime) error {
 	return nil
 }
 
-func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode) error {
+func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *models.Episode) error {
 	episodeIdStr := strconv.Itoa(episodeNum)
 	url := a.urlBuild.episodeById(episodeIdStr)
 
@@ -260,37 +259,8 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *types.Episode)
 	defer res.Body.Close()
 
 	playerLinks, err := parser.ParsePlayerLinks(res.Body)
-	episode.PlayerLink = playerLinks
-
-	if err := a.fillEpLinks(episode); err != nil {
-		return err
-	}
+	episode.EmbedLink = playerLinks
 
 	return nil
 }
 
-func (a *AnimeGoClient) fillEpLinks(episode *types.Episode) error {
-	epLinks := make(types.EpisodeLinks)
-
-	for dubName, dubPlayerLinks := range episode.PlayerLink {
-		epLinks[dubName] = make(map[string]map[string]string)
-
-		for playerName, embedLink := range dubPlayerLinks {
-			switch playerName {
-			case "Aniboom":
-				epLinks[dubName][playerName] = aniboom.GetLinks(embedLink)
-			}
-		}
-
-	}
-
-	if len(epLinks) == 0 {
-		err := &types.NotFoundError{
-			Msg: "Не удалось найти эту серию.",
-		}
-		return err
-	}
-
-	episode.EpLink = epLinks
-	return nil
-}

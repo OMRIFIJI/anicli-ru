@@ -3,7 +3,7 @@ package app
 import (
 	"anicliru/internal/fmt"
 	"anicliru/internal/api"
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
@@ -29,7 +29,7 @@ func (a *App) stopLoading() {
 	a.wg.Wait()
 }
 
-func (a *App) findAnimes() ([]types.Anime, error) {
+func (a *App) findAnimes() ([]models.Anime, error) {
 	a.startLoading()
 	defer a.stopLoading()
 
@@ -37,7 +37,7 @@ func (a *App) findAnimes() ([]types.Anime, error) {
 	return animes, err
 }
 
-func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
+func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
 	animeEntries := animefmt.GetWrappedAnimeTitles(animes)
 	promptMessage := "Выберите аниме из списка:"
 
@@ -54,7 +54,7 @@ func (a *App) selectAnime(animes []types.Anime) (*types.Anime, bool, error) {
 	return &animes[cur], isExitOnQuit, err
 }
 
-func (a *App) selectEpisode(anime *types.Anime) (*types.Episode, bool, error) {
+func (a *App) selectEpisode(anime *models.Anime) (*models.Episode, bool, error) {
 	episodeEntries := animefmt.GetEpisodes(anime)
 	promptMessage := "Выберите серию. " + anime.Title
 

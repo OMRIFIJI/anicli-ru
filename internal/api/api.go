@@ -2,18 +2,18 @@ package api
 
 import (
 	"anicliru/internal/api/animego"
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"errors"
 )
 
-func FindAnimesByTitle(title string) ([]types.Anime, error) {
+func FindAnimesByTitle(title string) ([]models.Anime, error) {
 	client := animego.NewAnimeGoClient(
 		animego.WithTitle(title),
 	)
 
 	animes, err := client.FindAnimesByTitle()
 
-	var parseError *types.ParseError
+	var parseError *models.ParseError
 	if err != nil && !errors.As(err, &parseError){
 		return animes, err
 	}
@@ -21,7 +21,7 @@ func FindAnimesByTitle(title string) ([]types.Anime, error) {
 	return animes, nil
 }
 
-func FindEpisodesLinks(anime *types.Anime) error {
+func FindEpisodesLinks(anime *models.Anime) error {
     client := animego.NewAnimeGoClient()
     client.FindEpisodesLinks(anime)
     

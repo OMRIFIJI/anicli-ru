@@ -1,15 +1,13 @@
-package types
-
-// Структура: озвучка -> плеер -> качество видео -> ссылка на видео
-type EpisodeLinks map[string]map[string]map[string]string
-
+package models
 // Структура: озвучка -> плеер -> ссылка на embed
-type PlayerLinks map[string]map[string]string
+type EmbedLink map[string]map[string]string
+
+// Структура: качество видео -> ссылка на видео
+type VideoLink map[string]string
 
 type Episode struct {
-	Id         int
-	EpLink     EpisodeLinks
-	PlayerLink PlayerLinks
+	Id        int
+	EmbedLink EmbedLink
 }
 
 type Anime struct {

@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"encoding/json"
 	"errors"
 	"io"
@@ -63,7 +63,7 @@ func parseIdToLinks(content string) (map[int]map[string]string, error) {
 	return idToLinks, nil
 }
 
-func ParsePlayerLinks(r io.Reader) (types.PlayerLinks, error) {
+func ParsePlayerLinks(r io.Reader) (models.EmbedLink, error) {
 	in, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func ParsePlayerLinks(r io.Reader) (types.PlayerLinks, error) {
 		return nil, err
 	}
 
-	playerLinks := make(types.PlayerLinks)
+	playerLinks := make(models.EmbedLink)
 	for id, dubName := range idToDub {
 		dubLinks, exists := idToLinks[id]
 		if !exists {

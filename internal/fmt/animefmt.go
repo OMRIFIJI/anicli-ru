@@ -1,20 +1,20 @@
 package animefmt
 
 import (
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"fmt"
 	"sort"
 	"strconv"
 )
 
-func wrapAnimeTitle(anime types.Anime) string {
+func wrapAnimeTitle(anime models.Anime) string {
 	if anime.TotalEpCount == len(anime.Episodes) {
 		return fmt.Sprintf("%s (%d серий)", anime.Title, anime.TotalEpCount)
 	}
 	return fmt.Sprintf("%s (%d из %d серий)", anime.Title, len(anime.Episodes), anime.TotalEpCount)
 }
 
-func GetWrappedAnimeTitles(animes []types.Anime) []string {
+func GetWrappedAnimeTitles(animes []models.Anime) []string {
 	wrappedTitles := make([]string, 0, len(animes))
 	for _, anime := range animes {
 		wrappedTitle := wrapAnimeTitle(anime)
@@ -23,7 +23,7 @@ func GetWrappedAnimeTitles(animes []types.Anime) []string {
 	return wrappedTitles
 }
 
-func GetEpisodes(anime *types.Anime) []string{
+func GetEpisodes(anime *models.Anime) []string{
 	var episodes []string
 
 	keys := make([]int, 0, len(anime.Episodes))

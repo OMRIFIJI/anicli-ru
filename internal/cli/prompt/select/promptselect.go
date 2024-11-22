@@ -14,20 +14,10 @@ import (
 	"golang.org/x/term"
 )
 
-func RestoreTerminal() {
-    ansi.ShowCursor()
-    ansi.ExitAltScreenBuf()
-}
-
-func (p *PromptSelect) SpinPrompt() (bool, int, error) {
-	exitCodeValue, err := p.promptUserChoice()
-	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
-}
-
 func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
-    if len(entries) == 0 {
-        return nil, errors.New("Ничего не найдено")
-    }
+	if len(entries) == 0 {
+		return nil, errors.New("Ничего не найдено")
+	}
 	promptCtx := promptContext{
 		promptMessage: promptMessage,
 		entries:       entries,
@@ -51,6 +41,31 @@ func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptS
 	}
 
 	return &p, nil
+}
+
+func PrepareTerminal() (*term.State, error) {
+	ansi.EnterAltScreenBuf()
+	ansi.HideCursor()
+
+    fd := int(os.Stdin.Fd())
+
+	oldTermState, err := term.MakeRaw(fd)
+	if err != nil {
+		return nil, err
+	}
+    
+    return oldTermState, err
+}
+
+func RestoreTerminal(oldTermState *term.State) {
+    term.Restore(0, oldTermState)
+	ansi.ShowCursor()
+	ansi.ExitAltScreenBuf()
+}
+
+func (p *PromptSelect) SpinPrompt() (bool, int, error) {
+	exitCodeValue, err := p.promptUserChoice()
+	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
 }
 
 func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
@@ -98,14 +113,6 @@ func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.Cance
 	defer close(p.ch.keyCode)
 
 	fd := int(os.Stdin.Fd())
-
-	oldTermState, err := term.MakeRaw(fd)
-	if err != nil {
-		cancel(err)
-		return
-	}
-	defer term.Restore(0, oldTermState)
-
 	// Перенос Stdin в non-block для корректного выхода по контексту
 	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
 	if err != nil {

@@ -2,7 +2,7 @@ package httpcommon
 
 import (
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/types"
+	"anicliru/internal/api/models"
 	"net/http"
 	"time"
 )
@@ -44,7 +44,7 @@ func (a *HttpClient) Get(link string) (*http.Response, error) {
 	}
 
 	if res.StatusCode != 200 {
-		noConError := types.HttpError{
+		noConError := models.HttpError{
 			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
 		}
 		res.Body.Close()
