@@ -3,7 +3,6 @@ package parser
 import (
 	"anicliru/internal/api/models"
 	"encoding/json"
-	"errors"
 	"io"
 	"regexp"
 	"strconv"
@@ -100,7 +99,7 @@ func ParseMediaStatus(r io.Reader) (epCount int, mediaType string, err error) {
     reCheck := regexp.MustCompile(`Тип\s*<\/dt>\s*\n*\s*<dd.+?>(.+?)<`)
 	match := reCheck.FindStringSubmatch(result)
 	if match == nil {
-		return -1, "", errors.New("Не удалось найти тег с типом медиа")
+		return -1, "", nil
 	}
 
     mediaType = strings.TrimSpace(match[1])
@@ -109,13 +108,13 @@ func ParseMediaStatus(r io.Reader) (epCount int, mediaType string, err error) {
     reCheck = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?>(\d+)<`)
 	match = reCheck.FindStringSubmatch(result)
 	if match == nil {
-		return -1, mediaType, errors.New("Не удалось найти тег с эпизодами")
+		return -1, mediaType, nil
 	}
 
     // Здесь либо 2 числа, если онгоинг, либо 1, если вышло
     epCount, err = strconv.Atoi(match[1])
     if err != nil {
-		return -1, mediaType, errors.New("В полученном тэге с эпизодами лежит не число")
+		return -1, mediaType, nil
     }
 	return epCount, mediaType, nil
 }

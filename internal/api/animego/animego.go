@@ -102,13 +102,13 @@ func (a *AnimeGoClient) getEpInfo(anime **models.Anime) error {
 	}
 
 	if err := a.getEpIds(*anime); err != nil {
-		*anime = nil
-
 		var blockError *models.RegionBlockError
 		if !errors.As(err, &blockError) {
-            apilog.ErrorLog.Printf("Parse media info error. %s\n", err)
+			apilog.ErrorLog.Printf("Ошибка обработки %s %s\n", (*anime).Title, err)
+			*anime = nil
 			return animeErr
 		}
+		*anime = nil
 	}
 
 	return nil
@@ -124,7 +124,7 @@ func (a *AnimeGoClient) getFilmRegionBlock(anime *models.Anime) error {
 
 	isRegionBlock, err := parser.ParseFilmRegionBlock(res.Body)
 	if err != nil {
-		apilog.ErrorLog.Printf("Parse error. %s\n", err)
+		apilog.ErrorLog.Printf("Ошибка обработки блокировки фильма %s %s\n", anime.Title, err)
 		return err
 	}
 
@@ -157,7 +157,7 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 	}
 
 	if err != nil {
-		apilog.ErrorLog.Printf("Parse error. %s\n", err)
+		apilog.ErrorLog.Printf("Ошибка обработки медиа информации %s %s\n", anime.Title, err)
 		return err
 	}
 
