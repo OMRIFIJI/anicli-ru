@@ -6,12 +6,10 @@ import (
 	"errors"
 )
 
-func FindAnimesByTitle(title string) ([]models.Anime, error) {
-	client := animego.NewAnimeGoClient(
-		animego.WithTitle(title),
-	)
+func GetAnimesByTitle(title string) ([]models.Anime, error) {
+	client := animego.NewAnimeGoClient()
 
-	animes, err := client.FindAnimesByTitle()
+	animes, err := client.GetAnimesByTitle(title)
 
 	var parseError *models.ParseError
 	if err != nil && !errors.As(err, &parseError){
@@ -21,9 +19,9 @@ func FindAnimesByTitle(title string) ([]models.Anime, error) {
 	return animes, nil
 }
 
-func FindEpisodesLinks(anime *models.Anime) error {
+func GetEmbedLink(episode *models.Episode) error {
     client := animego.NewAnimeGoClient()
-    client.FindEpisodesLinks(anime)
+    client.GetEmbedLink(episode)
     
     return nil
 }

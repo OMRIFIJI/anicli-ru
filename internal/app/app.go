@@ -1,8 +1,8 @@
 package app
 
 import (
-	"anicliru/internal/api"
 	apilog "anicliru/internal/api/log"
+	"anicliru/internal/api/models"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"sync"
 )
@@ -10,6 +10,7 @@ import (
 type App struct {
 	searchInput string
 	quitChan    chan struct{}
+	anime       *models.Anime
 	wg          *sync.WaitGroup
 }
 
@@ -44,11 +45,11 @@ func (a *App) defaultAppPipe() error {
 		return err
 	}
 
-    oldTermState, err := promptselect.PrepareTerminal()
-    if err != nil {
-        return err
-    }
-    defer promptselect.RestoreTerminal(oldTermState)
+	oldTermState, err := promptselect.PrepareTerminal()
+	if err != nil {
+		return err
+	}
+	defer promptselect.RestoreTerminal(oldTermState)
 
 	anime, isExitOnQuit, err := a.selectAnime(animes)
 	if err != nil {
@@ -57,13 +58,9 @@ func (a *App) defaultAppPipe() error {
 	if isExitOnQuit {
 		return nil
 	}
-    animes = nil
+	animes = nil
 
-    if err := api.FindEpisodesLinks(anime); err != nil {
-        return err
-    }
-
-	episode, isExitOnQuit, err := a.selectEpisode(anime)
+	isExitOnQuit, err = a.selectEpisode(anime)
 	if err != nil {
 		return err
 	}
@@ -71,7 +68,9 @@ func (a *App) defaultAppPipe() error {
 		return nil
 	}
 
-	println(anime.Title, ", ", episode.Id)
+    if err := a.spinWatch(anime); err != nil{
+        return err
+    }
 
 	return nil
 }

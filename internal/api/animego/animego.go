@@ -11,38 +11,13 @@ import (
 	"sync"
 )
 
-type animeGoURL struct {
-	base       string
-	searchSuf  string
-	animeSuf   string
-	episodeSuf string
-	playerSuf  string
-}
-
 type AnimeGoClient struct {
 	http     *httpcommon.HttpClient
 	urlBuild *urlBuilder
-	title    string
-	headers  map[string]string
 }
 
-func NewAnimeGoClient(options ...func(*AnimeGoClient)) *AnimeGoClient {
-	animeGo := &AnimeGoClient{}
-	animeGo.baseNew()
-	for _, o := range options {
-		o(animeGo)
-	}
-	return animeGo
-}
-
-func WithTitle(title string) func(*AnimeGoClient) {
-	return func(a *AnimeGoClient) {
-		a.title = strings.TrimSpace(title)
-		a.title = strings.ReplaceAll(a.title, " ", "+")
-	}
-}
-
-func (a *AnimeGoClient) baseNew() {
+func NewAnimeGoClient() *AnimeGoClient {
+	a := &AnimeGoClient{}
 	a.http = httpcommon.NewHttpClient(
 		map[string]string{
 			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
@@ -50,10 +25,14 @@ func (a *AnimeGoClient) baseNew() {
 		},
 	)
 	a.urlBuild = newUrlBuilder()
+	return a
 }
 
-func (a *AnimeGoClient) FindAnimesByTitle() ([]models.Anime, error) {
-	url := a.urlBuild.searchByTitle(a.title)
+func (a *AnimeGoClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
+	title = strings.TrimSpace(title)
+	title = strings.ReplaceAll(title, " ", "+")
+
+	url := a.urlBuild.searchByTitle(title)
 	res, err := a.http.Get(url)
 	if err != nil {
 		return nil, err
@@ -75,7 +54,7 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]models.Anime, error) {
 		go func() {
 			defer wg.Done()
 
-			if err := a.findMediaInfo(&animes[i]); err != nil {
+			if err := a.getEpInfo(&animes[i]); err != nil {
 				mu.Lock()
 				errSlice = append(errSlice, err)
 				mu.Unlock()
@@ -103,30 +82,31 @@ func (a *AnimeGoClient) FindAnimesByTitle() ([]models.Anime, error) {
 	return animesAvailable, errorComposed
 }
 
-func (a *AnimeGoClient) findMediaInfo(anime **models.Anime) error {
+func (a *AnimeGoClient) getEpInfo(anime **models.Anime) error {
 	animeErr := &models.ParseError{
 		Msg: "Предупреждение: ошибка при обработке " + (*anime).Title,
 	}
 
-	if err := a.findEpisodeCount(*anime); err != nil {
+	if err := a.getMediaStatus(*anime); err != nil {
 		*anime = nil
 		return animeErr
 	}
 
-	// Фильмы могут не иметь информации об их id
-	if (*anime).TotalEpCount == 1 {
-		if err := a.findFilmRegionBlock(*anime); err != nil {
+	// Фильмы могут не иметь информации об id их единственного эпизода
+	if (*anime).MediaType == "фильм" {
+		if err := a.getFilmRegionBlock(*anime); err != nil {
 			*anime = nil
 			return animeErr
 		}
 		return nil
 	}
 
-	if err := a.findEpisodeIds(*anime); err != nil {
+	if err := a.getEpIds(*anime); err != nil {
 		*anime = nil
 
 		var blockError *models.RegionBlockError
 		if !errors.As(err, &blockError) {
+            apilog.ErrorLog.Printf("Parse media info error. %s\n", err)
 			return animeErr
 		}
 	}
@@ -134,7 +114,7 @@ func (a *AnimeGoClient) findMediaInfo(anime **models.Anime) error {
 	return nil
 }
 
-func (a *AnimeGoClient) findFilmRegionBlock(anime *models.Anime) error {
+func (a *AnimeGoClient) getFilmRegionBlock(anime *models.Anime) error {
 	url := a.urlBuild.animeById(anime.Id)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -158,7 +138,7 @@ func (a *AnimeGoClient) findFilmRegionBlock(anime *models.Anime) error {
 	return nil
 }
 
-func (a *AnimeGoClient) findEpisodeCount(anime *models.Anime) error {
+func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 	url := a.urlBuild.animeByUname(anime.Uname)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -166,17 +146,28 @@ func (a *AnimeGoClient) findEpisodeCount(anime *models.Anime) error {
 	}
 	defer res.Body.Close()
 
-	episodeCount, err := parser.ParseEpisodeCount(res.Body)
+	epCount, mediaType, err := parser.ParseMediaStatus(res.Body)
+	if mediaType == "фильм" {
+		anime.EpCtx.TotalEpCount = 1
+		anime.MediaType = mediaType
+
+		filmEp := &models.Episode{Id: models.FilmEpisodeId}
+		anime.EpCtx.Eps = map[int]*models.Episode{1: filmEp}
+		return nil
+	}
+
 	if err != nil {
 		apilog.ErrorLog.Printf("Parse error. %s\n", err)
 		return err
 	}
-	anime.TotalEpCount = episodeCount
+
+	anime.EpCtx.TotalEpCount = epCount
+	anime.MediaType = mediaType
 
 	return nil
 }
 
-func (a *AnimeGoClient) findEpisodeIds(anime *models.Anime) error {
+func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 	url := a.urlBuild.animeById(anime.Id)
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -184,28 +175,41 @@ func (a *AnimeGoClient) findEpisodeIds(anime *models.Anime) error {
 	}
 	defer res.Body.Close()
 
-	epIdMap, lastEpNum, err := parser.ParseSeriesEpisodes(res.Body)
+	epIdMap, lastEpNum, err := parser.ParseEpIds(res.Body)
 	if err != nil {
 		return err
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	// В онгоингах часто сайт может говорить, что доступно на 1 эпизод больше, чем есть
-	if !a.isValidEpisodeId(epIdMap[lastEpNum]) {
+	isLastEpValid := true
+	go func() {
+		defer wg.Done()
+		isLastEpValid = a.isValidEpId(epIdMap[lastEpNum])
+	}()
+	if !a.isValidEpId(epIdMap[lastEpNum]) {
 		delete(epIdMap, lastEpNum)
 	}
 
-	anime.Episodes = make(map[int]*models.Episode)
+	anime.EpCtx.Eps = make(map[int]*models.Episode)
 	for key, val := range epIdMap {
-		anime.Episodes[key] = &models.Episode{
+		anime.EpCtx.Eps[key] = &models.Episode{
 			Id: val,
 		}
 	}
+
+	wg.Wait()
+	if !isLastEpValid {
+		delete(anime.EpCtx.Eps, lastEpNum)
+	}
+
 	return nil
 }
 
-func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
-	episodeIdStr := strconv.Itoa(episodeId)
-	url := a.urlBuild.episodeById(episodeIdStr)
+func (a *AnimeGoClient) isValidEpId(epId int) bool {
+	epIdStr := strconv.Itoa(epId)
+	url := a.urlBuild.epById(epIdStr)
 
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -217,40 +221,9 @@ func (a *AnimeGoClient) isValidEpisodeId(episodeId int) bool {
 	return isValid
 }
 
-func (a *AnimeGoClient) FindEpisodesLinks(anime *models.Anime) error {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-
-	hasFoundEpisode := false
-
-	for key, val := range anime.Episodes {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			err := a.findEpisodeLinks(key, val)
-			if err == nil {
-				mu.Lock()
-				hasFoundEpisode = true
-				mu.Unlock()
-			}
-		}()
-	}
-	wg.Wait()
-
-	if !hasFoundEpisode {
-		err := &models.NotFoundError{
-			Msg: "Не удалось найти ни один эпизод.",
-		}
-		return err
-	}
-
-	return nil
-}
-
-func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *models.Episode) error {
-	episodeIdStr := strconv.Itoa(episodeNum)
-	url := a.urlBuild.episodeById(episodeIdStr)
+func (a *AnimeGoClient) GetEmbedLink(ep *models.Episode) error {
+	epIdStr := strconv.Itoa(ep.Id)
+	url := a.urlBuild.epById(epIdStr)
 
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -258,9 +231,8 @@ func (a *AnimeGoClient) findEpisodeLinks(episodeNum int, episode *models.Episode
 	}
 	defer res.Body.Close()
 
-	playerLinks, err := parser.ParsePlayerLinks(res.Body)
-	episode.EmbedLink = playerLinks
+	embedLink, err := parser.ParseEmbedLink(res.Body)
+	ep.EmbedLink = embedLink
 
 	return nil
 }
-

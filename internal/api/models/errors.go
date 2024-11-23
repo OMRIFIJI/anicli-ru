@@ -1,22 +1,4 @@
 package models
-// Структура: озвучка -> плеер -> ссылка на embed
-type EmbedLink map[string]map[string]string
-
-// Структура: качество видео -> ссылка на видео
-type VideoLink map[string]string
-
-type Episode struct {
-	Id        int
-	EmbedLink EmbedLink
-}
-
-type Anime struct {
-	Id           string
-	Uname        string
-	Title        string
-	Episodes     map[int]*Episode
-	TotalEpCount int
-}
 
 type NotFoundError struct {
 	Msg string

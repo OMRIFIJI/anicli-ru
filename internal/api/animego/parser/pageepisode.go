@@ -63,7 +63,7 @@ func parseIdToLinks(content string) (map[int]map[string]string, error) {
 	return idToLinks, nil
 }
 
-func ParsePlayerLinks(r io.Reader) (models.EmbedLink, error) {
+func ParseEmbedLink(r io.Reader) (models.EmbedLink, error) {
 	in, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err

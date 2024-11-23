@@ -5,7 +5,7 @@ type urlBuilder struct {
 	searchSuf  string
 	animeSuf   string
 	playerSuf  string
-	episodeSuf string
+	epSuf string
 }
 
 func newUrlBuilder() *urlBuilder {
@@ -14,7 +14,7 @@ func newUrlBuilder() *urlBuilder {
 		searchSuf:  "search/anime?q=",
 		animeSuf:   "anime/",
 		playerSuf:  "player?_allow=true",
-		episodeSuf: "series?id=",
+		epSuf: "series?id=",
 	}
 	return &u
 }
@@ -31,6 +31,6 @@ func (u *urlBuilder) animeByUname(uname string) string {
 	return u.base + u.animeSuf + uname
 }
 
-func (u *urlBuilder) episodeById(id string) string {
-	return u.base + u.animeSuf + u.episodeSuf + id
+func (u *urlBuilder) epById(id string) string {
+	return u.base + u.animeSuf + u.epSuf + id
 }

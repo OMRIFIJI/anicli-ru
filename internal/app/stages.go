@@ -1,13 +1,13 @@
 package app
 
 import (
-	"anicliru/internal/fmt"
 	"anicliru/internal/api"
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
-	"strconv"
+	"anicliru/internal/fmt"
 )
 
 func (a *App) getTitleFromUser() error {
@@ -33,12 +33,12 @@ func (a *App) findAnimes() ([]models.Anime, error) {
 	a.startLoading()
 	defer a.stopLoading()
 
-	animes, err := api.FindAnimesByTitle(a.searchInput)
+	animes, err := api.GetAnimesByTitle(a.searchInput)
 	return animes, err
 }
 
 func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
-	animeEntries := animefmt.GetWrappedAnimeTitles(animes)
+	animeEntries := entryfmt.GetWrappedAnimeTitles(animes)
 	promptMessage := "Выберите аниме из списка:"
 
 	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true)
@@ -51,27 +51,38 @@ func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
 		return nil, false, err
 	}
 
+	animes[cur].UpdateSortedEpisodeKeys()
 	return &animes[cur], isExitOnQuit, err
 }
 
-func (a *App) selectEpisode(anime *models.Anime) (*models.Episode, bool, error) {
-	episodeEntries := animefmt.GetEpisodes(anime)
+func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
+	episodeEntries := entryfmt.EpisodeKeysToStr(anime.EpCtx.EpsSortedKeys)
 	promptMessage := "Выберите серию. " + anime.Title
 
 	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false)
 	if err != nil {
-		return nil, false, err
+		return false, err
 	}
 
 	isExitOnQuit, cur, err := prompt.SpinPrompt()
 	if err != nil {
-		return nil, false, err
+		return false, err
 	}
 
-    curEpKey, err := strconv.Atoi(episodeEntries[cur])
-    if err != nil {
-        return nil, false, err
-    }
+	anime.SetCur(cur)
+	return isExitOnQuit, err
+}
 
-	return anime.Episodes[curEpKey], isExitOnQuit, err
+func (a *App) spinWatch(anime *models.Anime) error {
+	ep, _ := anime.GetSelectedEp()
+    api.GetEmbedLink(ep)
+
+	apilog.WarnLog.Print("Выбран эпизод")
+	for _, val1 := range ep.EmbedLink {
+		for key2, val2 := range val1 {
+			apilog.WarnLog.Print(key2, val2)
+		}
+	}
+
+	return nil
 }

@@ -2,13 +2,15 @@ package aniboom
 
 import (
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/models"
 	httpcommon "anicliru/internal/http"
 	"io"
 )
 
-func GetLinks(embedLink string) (map[string]string, error) {
-    embedLink = "https:" + embedLink
+type Aniboom struct {
+	client *httpcommon.HttpClient
+}
+
+func NewAniboom() *Aniboom {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
 			"Referer":         "https://animego.one/",
@@ -16,46 +18,24 @@ func GetLinks(embedLink string) (map[string]string, error) {
 			"Origin":          "https://aniboom.one",
 		},
 	)
-    res, err := client.Get(embedLink)
-    if err != nil {
-        apilog.ErrorLog.Println(err)
-        return nil, err
-    }
-    defer res.Body.Close()
 
-    r, _ := io.ReadAll(res.Body)
-    apilog.WarnLog.Println(string(r))
-
-	return nil, nil
+	a := Aniboom{
+		client: client,
+	}
+	return &a
 }
 
-
-func fillEpLinks(embedLink models.EmbedLink) error {
-	epLinks := make(models.EmbedLink)
-
-	for dubName, dubPlayerLinks := range episode.EmbedLink {
-		epLinks[dubName] = make(map[string]map[string]string)
-
-		for playerName, embedLink := range dubPlayerLinks {
-			switch playerName {
-			case "aniboom":
-                links, err := aniboom.GetLinks(embedLink)
-                if err != nil {
-                    continue
-                }
-                epLinks[dubName][playerName] = links
-			}
-		}
-
+func (a *Aniboom) FindLinks(embedLink string) (map[string][]string, error) {
+	embedLink = "https:" + embedLink
+	res, err := a.client.Get(embedLink)
+	if err != nil {
+		apilog.ErrorLog.Println(err)
+		return nil, err
 	}
+	defer res.Body.Close()
 
-	if len(epLinks) == 0 {
-		err := &models.NotFoundError{
-			Msg: "Не удалось найти эту серию.",
-		}
-		return err
-	}
+	r, _ := io.ReadAll(res.Body)
+	apilog.WarnLog.Println(string(r))
 
-	episode.EpLink = epLinks
-	return nil
+	return nil, nil
 }
