@@ -4,37 +4,65 @@ import (
 	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player/aniboom"
+	"anicliru/internal/api/player/kodik"
+	"sync"
 )
 
 type embedHandler interface {
-	FindLinks(string) (map[string][]string, error)
+	FindLinks(string) (map[int]string, error)
 }
 
-func GetVideoLink(embedLink models.EmbedLink) (models.VideoLink, error) {
-	handlers := getPlayerHandlers()
+type PlayerLinkConverter struct {
+	handlers map[string]embedHandler
+}
+func (p *PlayerLinkConverter) SetPlayerHandlers() {
+	handlers := make(map[string]embedHandler)
+	handlers["aniboom"] = aniboom.NewAniboom()
+	handlers["kodik"] = kodik.NewKodik()
+
+	p.handlers = handlers
+}
+
+func (p *PlayerLinkConverter) GetVideoLink(embedLink models.EmbedLink) (models.VideoLink, error) {
 	videoLink := make(models.VideoLink)
 
+	var wg sync.WaitGroup
+    var mu sync.Mutex
+
 	for dubName, dubPlayerLinks := range embedLink {
-		videoLink[dubName] = make(map[string][]string)
+        wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		for playerName, link := range dubPlayerLinks {
-			handler, exists := handlers[playerName]
-			if !exists {
-				apilog.WarnLog.Printf("Нет реализации обработки плеера %s", playerName)
-				continue
+            mu.Lock()
+            videoLink[dubName] = make(map[int]string)
+            mu.Unlock()
+
+			for playerName, link := range dubPlayerLinks {
+				handler, exists := p.handlers[playerName]
+				if !exists {
+					apilog.WarnLog.Printf("Нет реализации обработки плеера %s", playerName)
+					return
+				}
+
+				qualityToLink, err := handler.FindLinks(link)
+				if err != nil {
+					apilog.ErrorLog.Printf("Ошибка обработки плеера %s, %s", playerName, err)
+					return
+				}
+
+                mu.Lock()
+				for quality := range qualityToLink {
+                    _, exists := videoLink[dubName][quality]
+                    if !exists {
+                        videoLink[dubName][quality] = qualityToLink[quality]
+                    }
+				}
+                mu.Unlock()
 			}
-
-			qualityToLink, err := handler.FindLinks(link)
-			if err != nil {
-				continue
-			}
-
-			for quality := range qualityToLink {
-				videoLink[dubName][quality] = append(videoLink[dubName][quality], qualityToLink[quality]...)
-			}
-		}
-
+		}()
 	}
+    wg.Wait()
 
 	if len(videoLink) == 0 {
 		err := &models.NotFoundError{
@@ -44,11 +72,4 @@ func GetVideoLink(embedLink models.EmbedLink) (models.VideoLink, error) {
 	}
 
 	return videoLink, nil
-}
-
-func getPlayerHandlers() map[string]embedHandler {
-	handlers := make(map[string]embedHandler)
-	handlers["aniboom"] = aniboom.NewAniboom()
-
-	return handlers
 }

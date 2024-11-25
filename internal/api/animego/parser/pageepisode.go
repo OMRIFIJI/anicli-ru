@@ -52,8 +52,9 @@ func parseIdToLinks(content string) (map[int]map[string]string, error) {
         }
 
         dubLink := strings.TrimSpace(match[1])
+        dubLink = strings.ReplaceAll(dubLink, "&amp;", "&")
 		playerName := getPlayerName(dubLink)
-        idToLinks[id][playerName] = strings.TrimSpace(match[1])
+        idToLinks[id][playerName] = dubLink
 	}
 
 	if len(idToLinks) == 0 {

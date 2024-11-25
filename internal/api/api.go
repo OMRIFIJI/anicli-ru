@@ -3,6 +3,7 @@ package api
 import (
 	"anicliru/internal/api/animego"
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/player"
 	"errors"
 )
 
@@ -24,4 +25,10 @@ func GetEmbedLink(episode *models.Episode) error {
     client.GetEmbedLink(episode)
     
     return nil
+}
+
+func NewPlayerLinkConverter() *player.PlayerLinkConverter {
+	p := player.PlayerLinkConverter{}
+	p.SetPlayerHandlers()
+	return &p
 }

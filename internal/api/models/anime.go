@@ -10,8 +10,8 @@ const FilmEpisodeId = -1
 // Структура: озвучка -> плеер -> ссылка на embed
 type EmbedLink map[string]map[string]string
 
-// Структура: озвучка -> качество видео -> ссылки на видео (со всех плееров)
-type VideoLink map[string]map[string][]string
+// Структура: озвучка -> качество видео -> ссылка на видео
+type VideoLink map[string]map[int]string
 
 type EpisodesContext struct {
 	Eps           map[int]*Episode

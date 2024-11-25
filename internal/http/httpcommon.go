@@ -3,13 +3,14 @@ package httpcommon
 import (
 	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
+	"io"
 	"net/http"
 	"time"
 )
 
 type HttpClient struct {
 	client  http.Client
-	headers map[string]string
+	Headers map[string]string
 }
 
 func NewHttpClient(headers map[string]string) *HttpClient {
@@ -22,7 +23,7 @@ func NewHttpClient(headers map[string]string) *HttpClient {
 
 	a := HttpClient{
 		client:  client,
-		headers: headers,
+		Headers: headers,
 	}
 
 	return &a
@@ -33,7 +34,7 @@ func (a *HttpClient) Get(link string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	for key, val := range a.headers {
+	for key, val := range a.Headers {
 		req.Header.Add(key, val)
 	}
 
@@ -45,7 +46,33 @@ func (a *HttpClient) Get(link string) (*http.Response, error) {
 
 	if res.StatusCode != 200 {
 		noConError := models.HttpError{
-			Msg: "Не получилось соединиться с сервером. Код ошибки: " + res.Status,
+			Msg: "Не удалось соединиться с сервером. Код ошибки: " + res.Status,
+		}
+		res.Body.Close()
+		return nil, &noConError
+	}
+
+	return res, err
+}
+
+func (a *HttpClient) Post(link string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest("POST", link, body)
+	if err != nil {
+		return nil, err
+	}
+	for key, val := range a.Headers {
+		req.Header.Add(key, val)
+	}
+
+	res, err := a.client.Do(req)
+	if err != nil {
+		apilog.ErrorLog.Printf("Http error. %s\n", err)
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		noConError := models.HttpError{
+			Msg: "Не удалось соединиться с сервером. Код ошибки: " + res.Status,
 		}
 		res.Body.Close()
 		return nil, &noConError

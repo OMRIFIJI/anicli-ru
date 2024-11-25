@@ -74,14 +74,19 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 }
 
 func (a *App) spinWatch(anime *models.Anime) error {
-	ep, _ := anime.GetSelectedEp()
-    api.GetEmbedLink(ep)
+	converter := api.NewPlayerLinkConverter()
 
-	apilog.WarnLog.Print("Выбран эпизод")
-	for _, val1 := range ep.EmbedLink {
-		for key2, val2 := range val1 {
-			apilog.WarnLog.Print(key2, val2)
-		}
+	ep, _ := anime.GetSelectedEp()
+	api.GetEmbedLink(ep)
+
+	videoLink, err := converter.GetVideoLink(ep.EmbedLink)
+	if err != nil {
+		return err
+	}
+
+	apilog.WarnLog.Println("Выбран эпизод")
+	for key, val := range videoLink {
+		apilog.WarnLog.Print(key, val)
 	}
 
 	return nil

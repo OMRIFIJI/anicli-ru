@@ -21,8 +21,8 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 		return nil, 0, err
 	}
 
-	reCheck := regexp.MustCompile("Видео недоступно на территории")
-	match := reCheck.FindString(result.Content)
+	re := regexp.MustCompile("Видео недоступно на территории")
+	match := re.FindString(result.Content)
 	if len(match) != 0 {
 		err := &models.RegionBlockError{
 			Msg: "Не доступно на территории РФ",
@@ -30,8 +30,8 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 		return nil, 0, err
 	}
 
-	reEp := regexp.MustCompile(`data-episode="(\d+)"\s*\n*\s*data-id="(\d+)"`)
-	matches := reEp.FindAllStringSubmatch(result.Content, -1)
+	re = regexp.MustCompile(`data-episode="(\d+)"\s*\n*\s*data-id="(\d+)"`)
+	matches := re.FindAllStringSubmatch(result.Content, -1)
 
 	for _, match := range matches {
 		epNum, errNum := strconv.Atoi(match[1])
@@ -66,8 +66,8 @@ func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {
 		return false, err
 	}
 
-	reCheck := regexp.MustCompile("Видео недоступно на территории")
-	match := reCheck.FindString(result.Content)
+	re := regexp.MustCompile("Видео недоступно на территории")
+	match := re.FindString(result.Content)
 	if len(match) != 0 {
 		return true, nil
 	}
@@ -96,8 +96,8 @@ func ParseMediaStatus(r io.Reader) (epCount int, mediaType string, err error) {
 	}
     result := string(resultByte)
 
-    reCheck := regexp.MustCompile(`Тип\s*<\/dt>\s*\n*\s*<dd.+?>(.+?)<`)
-	match := reCheck.FindStringSubmatch(result)
+    re := regexp.MustCompile(`Тип\s*<\/dt>\s*\n*\s*<dd.+?>(.+?)<`)
+	match := re.FindStringSubmatch(result)
 	if match == nil {
 		return -1, "", nil
 	}
@@ -105,8 +105,8 @@ func ParseMediaStatus(r io.Reader) (epCount int, mediaType string, err error) {
     mediaType = strings.TrimSpace(match[1])
     mediaType = strings.ToLower(mediaType)
 
-    reCheck = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?>(\d+)<`)
-	match = reCheck.FindStringSubmatch(result)
+    re = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?>(\d+)<`)
+	match = re.FindStringSubmatch(result)
 	if match == nil {
 		return -1, mediaType, nil
 	}
