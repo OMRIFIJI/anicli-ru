@@ -48,7 +48,7 @@ func (p *PlayerLinkConverter) GetVideoLink(embedLink models.EmbedLink) (models.V
 				qualityToLink, err := handler.FindLinks(link)
 				if err != nil {
 					apilog.ErrorLog.Printf("Ошибка обработки плеера %s, %s", playerName, err)
-					return
+                    continue
 				}
 
                 mu.Lock()
@@ -60,9 +60,16 @@ func (p *PlayerLinkConverter) GetVideoLink(embedLink models.EmbedLink) (models.V
 				}
                 mu.Unlock()
 			}
+
 		}()
 	}
     wg.Wait()
+
+    for dubName := range videoLink {
+        if len(videoLink[dubName]) == 0 {
+            delete(videoLink, dubName)
+        }
+    }
 
 	if len(videoLink) == 0 {
 		err := &models.NotFoundError{

@@ -102,7 +102,6 @@ func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]string {
 		}
 		decodedUrl, err := decodeUrl(val[0].Src)
 		if err != nil {
-			apilog.ErrorLog.Println("Ошибка декодинга", err)
 			continue
 		}
         ind := strings.Index(decodedUrl, ":hls:manifest")
@@ -175,12 +174,21 @@ func decodeRot13(input string) string {
 	return result.String()
 }
 
+func padBase64(base64Str string) string {
+	padLength := len(base64Str) % 4
+	if padLength != 0 {
+		base64Str += strings.Repeat("=", 4-padLength)
+	}
+	return base64Str
+}
+
 func decodeUrl(urlEncoded string) (string, error) {
 	base64URL := decodeRot13(urlEncoded)
-	apilog.WarnLog.Println(base64URL)
 
+    base64URL = padBase64(base64URL)
 	decodedBytes, err := base64.StdEncoding.DecodeString(base64URL)
 	if err != nil {
+		apilog.ErrorLog.Printf("Ошибка декодинга '%s' %s\n", base64URL, err)
 		return "", err
 	}
 	decodedURL := string(decodedBytes)

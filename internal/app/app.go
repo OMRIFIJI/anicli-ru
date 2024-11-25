@@ -8,7 +8,6 @@ import (
 )
 
 type App struct {
-	searchInput string
 	quitChan    chan struct{}
 	anime       *models.Anime
 	wg          *sync.WaitGroup
@@ -36,11 +35,12 @@ func (a *App) RunApp() error {
 }
 
 func (a *App) defaultAppPipe() error {
-	if err := a.getTitleFromUser(); err != nil {
+	searchInput, err := a.getTitleFromUser()
+    if err != nil {
 		return err
 	}
 
-	animes, err := a.findAnimes()
+	animes, err := a.findAnimes(searchInput)
 	if err != nil {
 		return err
 	}
