@@ -33,9 +33,14 @@ type Anime struct {
 	EpCtx     EpisodesContext
 }
 
-func (a *Anime) GetSelectedEp() (*Episode, error) {
+func (a *Anime) GetSelectedEpKey() int {
 	cur := a.EpCtx.Cur
 	key := a.EpCtx.EpsSortedKeys[cur]
+	return key
+}
+
+func (a *Anime) GetSelectedEp() (*Episode, error) {
+	key := a.GetSelectedEpKey()
 	ep, exists := a.EpCtx.Eps[key]
 	if !exists {
 		return nil, errors.New("Выбранный эпизод не существует")
@@ -53,7 +58,7 @@ func (a *Anime) SetCur(cur int) error {
 
 func (a *Anime) SelectNextEp() error {
 	if a.EpCtx.Cur+1 >= len(a.EpCtx.EpsSortedKeys) {
-		return errors.New("Неверное значение курсора")
+		return errors.New("Вы посмотрели все серии.")
 	}
 	a.EpCtx.Cur++
 	return nil

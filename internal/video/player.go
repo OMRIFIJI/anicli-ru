@@ -5,36 +5,57 @@ import (
 	"fmt"
 	"os/exec"
 	"sort"
+	"syscall"
 )
 
-type VideoPlayer struct {
-	Links          map[string]map[int]string
+type videoPlayer struct {
+	Links map[string]map[int]string
+	cfg   videoPlayerConfig
+	pid   int
+}
+
+type noDubError struct {
+	Msg string
+}
+
+func (nde *noDubError) Error() string {
+	return nde.Msg
+}
+
+type videoPlayerConfig struct {
 	CurrentDub     string
 	CurrentQuality int
 }
 
-func NewVideoPlayer(links map[string]map[int]string) *VideoPlayer {
-	return &VideoPlayer{
-		Links:          links,
-		CurrentQuality: 0,
+func (vpc *videoPlayerConfig) isEmpty() bool {
+    return vpc.CurrentQuality == 0
+}
+
+func newVideoPlayer() *videoPlayer {
+	return &videoPlayer{
+		cfg: videoPlayerConfig{CurrentQuality: 0},
+		pid: 0,
 	}
 }
 
-func (vp *VideoPlayer) SetLinks(newLinks map[string]map[int]string) error {
+func (vp *videoPlayer) SetLinks(newLinks map[string]map[int]string) error {
 	vp.Links = newLinks
 
-	if _, exists := vp.Links[vp.CurrentDub]; !exists {
-		vp.CurrentDub = ""
-		return errors.New("Выбранная озвучка больше не доступна")
+	if _, exists := vp.Links[vp.cfg.CurrentDub]; !exists {
+		vp.cfg.CurrentDub = ""
+		err := &noDubError{
+			Msg: "Выбранная озвучка больше не доступна. Выберите новую озвучку. ",
+		}
+		return err
 	}
 
-	qualities, _ := vp.GetQualities(vp.CurrentDub)
-	vp.CurrentQuality = vp.getClosestQuality(vp.CurrentQuality, qualities)
+	qualities, _ := vp.GetQualities(vp.cfg.CurrentDub)
+	vp.cfg.CurrentQuality = vp.getClosestQuality(vp.cfg.CurrentQuality, qualities)
 
 	return nil
 }
 
-func (vp *VideoPlayer) GetDubs() []string {
+func (vp *videoPlayer) GetDubs() []string {
 	dubs := make([]string, 0, len(vp.Links))
 	for dub := range vp.Links {
 		dubs = append(dubs, dub)
@@ -44,7 +65,7 @@ func (vp *VideoPlayer) GetDubs() []string {
 	return dubs
 }
 
-func (vp *VideoPlayer) GetQualities(dub string) ([]int, error) {
+func (vp *videoPlayer) GetQualities(dub string) ([]int, error) {
 	if qualities, exists := vp.Links[dub]; exists {
 		qualityList := make([]int, 0, len(qualities))
 		for quality := range qualities {
@@ -58,49 +79,52 @@ func (vp *VideoPlayer) GetQualities(dub string) ([]int, error) {
 	return nil, fmt.Errorf("озвучка '%s' не найдена", dub)
 }
 
-func (vp *VideoPlayer) GetLink() (string, error) {
-	if vp.CurrentDub == "" {
+func (vp *videoPlayer) GetLink() (string, error) {
+	if vp.cfg.CurrentDub == "" {
 		return "", errors.New("Озвучка не выбрана")
 	}
 
-	if qualities, exists := vp.Links[vp.CurrentDub]; exists {
-		if link, exists := qualities[vp.CurrentQuality]; exists {
+	if qualities, exists := vp.Links[vp.cfg.CurrentDub]; exists {
+		if link, exists := qualities[vp.cfg.CurrentQuality]; exists {
 			return link, nil
 		}
-		return "", fmt.Errorf("Качество %d не существует для озвучки '%s'", vp.CurrentQuality, vp.CurrentDub)
+		return "", fmt.Errorf("Качество %d не существует для озвучки '%s'", vp.cfg.CurrentQuality, vp.cfg.CurrentDub)
 	}
 
-	return "", fmt.Errorf("Озвучка '%s' не найдена", vp.CurrentDub)
+	return "", fmt.Errorf("Озвучка '%s' не найдена", vp.cfg.CurrentDub)
 }
 
-func (vp *VideoPlayer) SelectDub(dub string) error {
+func (vp *videoPlayer) SelectDub(dub string) error {
 	if _, exists := vp.Links[dub]; !exists {
 		return fmt.Errorf("Озвучка '%s' не найдена", dub)
 	}
-	vp.CurrentDub = dub
+	vp.cfg.CurrentDub = dub
 
-	qualities, _ := vp.GetQualities(dub)
+	qualities, err := vp.GetQualities(dub)
+	if err != nil {
+		return err
+	}
 
-	if vp.CurrentQuality == 0 {
-		vp.CurrentQuality = qualities[0]
+	if vp.cfg.CurrentQuality == 0 {
+		vp.cfg.CurrentQuality = qualities[0]
 		return nil
 	}
 
-	vp.CurrentQuality = vp.getClosestQuality(vp.CurrentQuality, qualities)
+	vp.cfg.CurrentQuality = vp.getClosestQuality(vp.cfg.CurrentQuality, qualities)
 
 	return nil
 }
 
-func (vp *VideoPlayer) SelectQuality(quality int) error {
-	if vp.CurrentDub == "" {
+func (vp *videoPlayer) SelectQuality(quality int) error {
+	if vp.cfg.CurrentDub == "" {
 		return fmt.Errorf("Озвучка не выбрана")
 	}
-	qualities, _ := vp.GetQualities(vp.CurrentDub)
-	vp.CurrentQuality = vp.getClosestQuality(quality, qualities)
+	qualities, _ := vp.GetQualities(vp.cfg.CurrentDub)
+	vp.cfg.CurrentQuality = vp.getClosestQuality(quality, qualities)
 	return nil
 }
 
-func (vp *VideoPlayer) getClosestQuality(target int, qualities []int) int {
+func (vp *videoPlayer) getClosestQuality(target int, qualities []int) int {
 	if len(qualities) == 0 {
 		return 0
 	}
@@ -123,7 +147,7 @@ func (vp *VideoPlayer) getClosestQuality(target int, qualities []int) int {
 	return closest
 }
 
-func (vp *VideoPlayer) StartMpv(title string) error {
+func (vp *videoPlayer) StartMpv(title string) error {
 	link, err := vp.GetLink()
 	if err != nil {
 		return err
@@ -132,9 +156,20 @@ func (vp *VideoPlayer) StartMpv(title string) error {
 	cmd := exec.Command("mpv", "--force-media-title="+title, link)
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("Не удалось запустить MPV: %s.\n", err)
+		return fmt.Errorf("Не удалось запустить MPV: %s.", err)
 	}
 
+	vp.pid = cmd.Process.Pid
+
+	return nil
+}
+
+func (vp *videoPlayer) KillMpv() error {
+	if vp.pid == 0 {
+		return errors.New("Попытка убить процесс MPV, не созданный этим приложением.")
+	}
+
+	syscall.Kill(vp.pid, syscall.SIGKILL)
 	return nil
 }
 

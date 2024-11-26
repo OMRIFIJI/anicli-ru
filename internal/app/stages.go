@@ -7,8 +7,6 @@ import (
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"anicliru/internal/fmt"
-	"anicliru/internal/video"
-	"fmt"
 )
 
 func (a *App) getTitleFromUser() (string, error) {
@@ -73,52 +71,3 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 	return isExitOnQuit, err
 }
 
-func (a *App) selectDub(promptMessage string, player *video.VideoPlayer) (bool, error) {
-	dubEntries := player.GetDubs()
-	prompt, err := promptselect.NewPrompt(dubEntries, promptMessage, false)
-	if err != nil {
-		return false, err
-	}
-
-	isExitOnQuit, cur, err := prompt.SpinPrompt()
-	if err != nil {
-		return false, err
-	}
-
-	err = player.SelectDub(dubEntries[cur])
-	if err != nil {
-		return false, err
-	}
-
-	return isExitOnQuit, err
-}
-
-func (a *App) spinWatch(anime *models.Anime) error {
-	converter := api.NewPlayerLinkConverter()
-	ep, _ := anime.GetSelectedEp()
-	api.GetEmbedLink(ep)
-
-	videoLink, err := converter.GetVideoLink(ep.EmbedLink)
-	if err != nil {
-		return err
-	}
-
-	player := video.NewVideoPlayer(videoLink)
-
-	promptMessage := "Выберите озвучку. " + anime.Title
-	isExitOnQuit, err := a.selectDub(promptMessage, player)
-	if err != nil {
-		return err
-	}
-	if isExitOnQuit {
-		return nil
-	}
-
-	videoTitle := fmt.Sprintf("Серия %d. %s.", anime.EpCtx.Cur, anime.Title)
-	err = player.StartMpv(videoTitle)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}

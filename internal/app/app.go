@@ -2,14 +2,13 @@ package app
 
 import (
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/models"
 	promptselect "anicliru/internal/cli/prompt/select"
+	"anicliru/internal/video"
 	"sync"
 )
 
 type App struct {
 	quitChan    chan struct{}
-	anime       *models.Anime
 	wg          *sync.WaitGroup
 }
 
@@ -68,7 +67,8 @@ func (a *App) defaultAppPipe() error {
 		return nil
 	}
 
-    if err := a.spinWatch(anime); err != nil{
+    animePlayer := video.NewAnimePlayer(anime)
+    if err := animePlayer.SpinWatch(); err != nil{
         return err
     }
 

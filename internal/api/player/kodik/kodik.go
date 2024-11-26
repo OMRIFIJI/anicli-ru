@@ -23,6 +23,7 @@ func NewKodik() *Kodik {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
 			"Referer": "https://animego.org/",
+            "Accept-Language": "ru-RU",
 		},
 	)
 
