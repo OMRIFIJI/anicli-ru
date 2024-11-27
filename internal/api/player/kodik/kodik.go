@@ -3,6 +3,7 @@ package kodik
 import (
 	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/player/common"
 	httpcommon "anicliru/internal/http"
 	"bytes"
 	"encoding/base64"
@@ -15,9 +16,12 @@ import (
 	"strings"
 )
 
+const Netloc = "kodik.info"
+
 type Kodik struct {
 	client  *httpcommon.HttpClient
 	baseUrl string
+	name    string
 }
 
 func NewKodik() *Kodik {
@@ -42,7 +46,7 @@ type kodikVideoData struct {
 	} `json:"links"`
 }
 
-func (k *Kodik) GetVideos(embedLink string) (map[int]models.Video, error) {
+func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 	embedLink = "https:" + embedLink
 	res, err := k.client.Get(embedLink)
 	if err != nil {
@@ -95,8 +99,8 @@ func (k *Kodik) GetVideos(embedLink string) (map[int]models.Video, error) {
 	return links, nil
 }
 
-func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]models.Video {
-	links := make(map[int]models.Video)
+func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]common.DecodedEmbed {
+	links := make(map[int]common.DecodedEmbed)
 
 	mpvOpts := []string{
 		`--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`,
@@ -126,9 +130,13 @@ func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]models.Video 
 			continue
 		}
 
-		links[quality] = models.Video{
+		video := models.Video{
 			Link:    link,
 			MpvOpts: mpvOpts,
+		}
+		links[quality] = common.DecodedEmbed{
+			Video:  video,
+			Origin: Netloc,
 		}
 	}
 

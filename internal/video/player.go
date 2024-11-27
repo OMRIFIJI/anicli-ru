@@ -165,7 +165,7 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 	mpvOpts := video.MpvOpts
 	mpvOpts = append(mpvOpts, fmt.Sprintf(`--force-media-title="%s"`, title))
 	mpvOpts = append(mpvOpts, fmt.Sprintf("--network-timeout=%d", mpvNetTimeout))
-	mpvOpts = append(mpvOpts, video.Link)
+	mpvOpts = append(mpvOpts, fmt.Sprintf(`"%s"`, video.Link))
 
 	// Пока лучший способ, который нашёл, чтобы пережить обработку bash array для хэдеров
 	bashCmd := "mpv " + strings.Join(mpvOpts, " ")

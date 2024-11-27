@@ -2,6 +2,7 @@ package aniboom
 
 import (
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/player/common"
 	httpcommon "anicliru/internal/http"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+const Netloc = "aniboom.one"
 
 type Aniboom struct {
 	client     *httpcommon.HttpClient
@@ -38,7 +41,7 @@ func NewAniboom() *Aniboom {
 	return &a
 }
 
-func (a *Aniboom) GetVideos(embedLink string) (map[int]models.Video, error) {
+func (a *Aniboom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 	embedLink = "https:" + embedLink
 	res, err := a.client.Get(embedLink)
 	if err != nil {
@@ -79,8 +82,8 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]models.Video, error) {
 	reOpts := regexp.MustCompile(`mimeType="video.*?".*?\s+width="\d+"\s+height="(\d+)"`)
 	matchOpts := reOpts.FindAllStringSubmatch(string(resBody), -1)
 
-	links := make(map[int]models.Video)
-    headersOpt := `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
+	links := make(map[int]common.DecodedEmbed)
+	headersOpt := `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
 	for i, match := range matchOpts {
 		quality, err := strconv.Atoi(match[1])
 		if err != nil {
@@ -88,13 +91,17 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]models.Video, error) {
 		}
 
 		mpvOpts := []string{
-            headersOpt,
+			headersOpt,
 			fmt.Sprintf("--vid=%d", i+1),
 		}
 
-		links[quality] = models.Video{
+		video := models.Video{
 			Link:    dash,
 			MpvOpts: mpvOpts,
+		}
+		links[quality] = common.DecodedEmbed{
+			Video:  video,
+			Origin: Netloc,
 		}
 	}
 

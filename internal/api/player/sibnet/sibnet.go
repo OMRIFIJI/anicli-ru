@@ -2,12 +2,15 @@ package sibnet
 
 import (
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/player/common"
 	httpcommon "anicliru/internal/http"
 	"errors"
 	"fmt"
 	"io"
 	"regexp"
 )
+
+const Netloc = "video.sibnet.ru"
 
 type Sibnet struct {
 	client  *httpcommon.HttpClient
@@ -22,7 +25,7 @@ func NewSibnet() *Sibnet {
 			"Upgrade-Insecure-Requests": "1",
 			"Accept-Language":           "ru-RU",
 		},
-		httpcommon.WithRetries(5), // Sibnet любитель помолчать
+		httpcommon.WithRetries(5), // Sibnet - любитель помолчать
 		httpcommon.WithTimeout(2), // Очень редко может не отвечать больше 3 раз, но ждать его не очень хочется...
 	)
 	s := &Sibnet{
@@ -32,7 +35,7 @@ func NewSibnet() *Sibnet {
 	return s
 }
 
-func (s *Sibnet) GetVideos(embedLink string) (map[int]models.Video, error) {
+func (s *Sibnet) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 	embedLink = "https:" + embedLink
 	res, err := s.client.Get(embedLink)
 	if err != nil {
@@ -53,14 +56,17 @@ func (s *Sibnet) GetVideos(embedLink string) (map[int]models.Video, error) {
 	}
 	link := s.baseUrl + match[1]
 
-	links := make(map[int]models.Video)
+	links := make(map[int]common.DecodedEmbed)
 	headersOpt := fmt.Sprintf(`--http-header-fields="Referer: %s","Upgrade-Insecure-Requests: 1"`, embedLink)
 
     // Всего одна ссылка
-	links[480] = models.Video{
+    video := models.Video{
 		Link:    link,
 		MpvOpts: []string{headersOpt},
 	}
-
+	links[480] = common.DecodedEmbed{
+        Video: video,
+        Origin: Netloc,
+    }
 	return links, nil
 }
