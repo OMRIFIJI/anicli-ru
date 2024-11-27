@@ -13,7 +13,7 @@ import (
 
 const (
 	mpvRetries    = 5
-	mpvNetTimeout = 5
+	mpvNetTimeout = 3
 )
 
 type videoPlayer struct {
