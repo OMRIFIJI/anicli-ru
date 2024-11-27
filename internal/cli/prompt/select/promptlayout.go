@@ -125,19 +125,18 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 		return err
 	}
 
-	ansi.ClearScreen()
-
-	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
-	ansi.MoveCursorToNewLine()
-
-	entryCount := len(d.drawCtx.fittedEntries)
+    entryCount := len(d.drawCtx.fittedEntries)
 	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
-	fmt.Printf("┌───── Всего: %d %s┐", entryCount, repeatLineStr)
-	ansi.MoveCursorToNewLine()
 
-	d.drawEntries()
+	var drawBuilder strings.Builder
+    fmt.Fprintf(&drawBuilder, "%s%s%s\r\n", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
+	fmt.Fprintf(&drawBuilder, "┌───── Всего: %d %s┐\r\n", entryCount, repeatLineStr)
+	d.drawEntriesBody(&drawBuilder)
+	fmt.Fprintf(&drawBuilder, "└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
 
-	fmt.Printf("└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
+	ansi.ClearScreen()
+    fmt.Print(drawBuilder.String())
+	
 	return nil
 }
 
@@ -301,12 +300,12 @@ func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
 
 }
 
-func (d *drawer) drawEntries() {
+func (d *drawer) drawEntriesBody(drawBuilder *strings.Builder) {
 	lineCount := 0
 
 	for _, entry := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur] {
 		for _, line := range entry {
-			fmt.Print(line)
+			drawBuilder.WriteString(line)
 			ansi.MoveCursorToNewLine()
 			lineCount++
 		}
@@ -314,7 +313,7 @@ func (d *drawer) drawEntries() {
 
 	selectedEntry := makeEntryActive(d.drawCtx.fittedEntries[d.promptCtx.cur])
 	for _, line := range selectedEntry {
-		fmt.Print(line)
+		drawBuilder.WriteString(line)
 		ansi.MoveCursorToNewLine()
 		lineCount++
 		if lineCount >= d.drawCtx.termSize.height-3 {
@@ -325,7 +324,7 @@ func (d *drawer) drawEntries() {
 
 	for i, entry := range d.drawCtx.fittedEntries[d.promptCtx.cur+1:] {
 		for _, line := range entry {
-			fmt.Print(line)
+			drawBuilder.WriteString(line)
 			ansi.MoveCursorToNewLine()
 			lineCount++
 			if lineCount >= d.drawCtx.termSize.height-3 {
@@ -336,6 +335,7 @@ func (d *drawer) drawEntries() {
 	}
 
 	d.drawCtx.drawLow = len(d.drawCtx.fittedEntries) - 1
+	return
 }
 
 func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {

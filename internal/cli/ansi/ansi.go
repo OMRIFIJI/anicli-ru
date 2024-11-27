@@ -24,12 +24,12 @@ func ShowCursor() {
 	fmt.Print("\033[?25h")
 }
 
-func MoveCursorToNewLine() {
-	fmt.Print("\033[E")
+func ClearLine() {
+	fmt.Print("\r\033[2K")
 }
 
-func ClearLine() {
-    fmt.Print("\r\033[2K")
+func MoveCursorToNewLine() string {
+	return "\033[E"
 }
 
 const (
