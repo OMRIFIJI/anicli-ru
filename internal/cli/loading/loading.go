@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+func RestoreTerminal() {
+	defer ansi.ShowCursor()
+	defer ansi.ClearLine()
+}
+
 func DisplayLoading(quitChan chan struct{}, wg *sync.WaitGroup) {
 	flowerPhases := []string{"", "*", "❀", "🌸"}
 	phasesCount := len(flowerPhases)
@@ -17,8 +22,6 @@ func DisplayLoading(quitChan chan struct{}, wg *sync.WaitGroup) {
 	ansi.HideCursor()
 	fmt.Print(loadingStr)
 
-	defer ansi.ShowCursor()
-	defer ansi.ClearLine()
 	defer wg.Done()
 
 	for {
