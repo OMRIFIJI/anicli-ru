@@ -1,6 +1,7 @@
 package player
 
 import (
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player/aniboom"
 	"anicliru/internal/api/player/common"
@@ -74,11 +75,13 @@ func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string
 	for playerName, link := range playerLinks {
 		handler, exists := plc.handlers[playerName]
 		if !exists {
+			apilog.WarnLog.Printf("Нет реализации обработки плеера %s %s", playerName, link)
 			return
 		}
 
 		qualityToVideo, err := handler.GetVideos(link)
 		if err != nil {
+			apilog.ErrorLog.Printf("Ошибка обработки плеера %s, %s", playerName, err)
 			continue
 		}
 

@@ -1,6 +1,7 @@
 package video
 
 import (
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	"context"
 	"errors"
@@ -177,13 +178,16 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 		}
 
 		if cmd.Process == nil {
+			apilog.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
 			continue
 		}
 
 		if err := cmd.Wait(); err != nil {
+			apilog.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
 			continue
 		}
 
+		apilog.WarnLog.Println("Mpv запущен успешно")
 		return nil
 	}
 
