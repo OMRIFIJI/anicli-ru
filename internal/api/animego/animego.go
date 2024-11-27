@@ -24,6 +24,7 @@ func NewAnimeGoClient() *AnimeGoClient {
 			"X-Requested-With": "XMLHttpRequest",
 		},
 		httpcommon.WithRetries(2),
+		httpcommon.WithRetryDelay(10),
 	)
 	a.urlBuild = newUrlBuilder()
 	return a
