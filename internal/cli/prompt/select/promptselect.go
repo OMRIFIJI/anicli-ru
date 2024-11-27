@@ -47,18 +47,18 @@ func PrepareTerminal() (*term.State, error) {
 	ansi.EnterAltScreenBuf()
 	ansi.HideCursor()
 
-    fd := int(os.Stdin.Fd())
+	fd := int(os.Stdin.Fd())
 
 	oldTermState, err := term.MakeRaw(fd)
 	if err != nil {
 		return nil, err
 	}
-    
-    return oldTermState, err
+
+	return oldTermState, err
 }
 
 func RestoreTerminal(oldTermState *term.State) {
-    term.Restore(0, oldTermState)
+	term.Restore(0, oldTermState)
 	ansi.ShowCursor()
 	ansi.ExitAltScreenBuf()
 }
@@ -180,17 +180,30 @@ func (p *PromptSelect) readKey() (keyCode, error) {
 		return noActionKeyCode, err
 	}
 
-	if n == 1 && (buf[0] == '\n' || buf[0] == '\r') {
-		return enterKeyCode, nil
-	}
-	if n == 1 && buf[0] == 'q' {
-		return quitKeyCode, nil
+	if n == 1 {
+		if buf[0] == '\n' || buf[0] == '\r' {
+			return enterKeyCode, nil
+		} else if buf[0] == 'q' {
+			return quitKeyCode, nil
+		} else if buf[0] == 'k' {
+			return upKeyCode, nil
+		} else if buf[0] == 'j' {
+			return downKeyCode, nil
+		} else if buf[0] == 'l' {
+			return enterKeyCode, nil
+		}
 	}
 	// Обрабатывает 'й' как 'q'
 	if n == 2 {
 		r, _ := utf8.DecodeRune(buf[:])
 		if r == 'й' {
 			return quitKeyCode, nil
+		} else if r == 'л' {
+			return upKeyCode, nil
+		} else if r == 'о' {
+			return downKeyCode, nil
+		} else if r == 'д' {
+			return enterKeyCode, nil
 		}
 	}
 	if n >= 3 && buf[0] == 27 && buf[1] == 91 {

@@ -17,8 +17,8 @@ const (
 )
 
 type videoPlayer struct {
-	Videos    map[string]map[int]models.Video
-	cfg       videoPlayerConfig
+	Videos map[string]map[int]models.Video
+	cfg    videoPlayerConfig
 }
 
 type noDubError struct {
@@ -35,12 +35,15 @@ type videoPlayerConfig struct {
 }
 
 func (vpc *videoPlayerConfig) isEmpty() bool {
-	return vpc.CurrentQuality == 0
+	return vpc.CurrentQuality == 0 && vpc.CurrentDub == ""
 }
 
 func newVideoPlayer() *videoPlayer {
 	return &videoPlayer{
-		cfg: videoPlayerConfig{CurrentQuality: 0},
+		cfg: videoPlayerConfig{
+			CurrentQuality: 0,
+			CurrentDub:     "",
+		},
 	}
 }
 
