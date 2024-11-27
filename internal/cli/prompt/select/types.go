@@ -1,6 +1,8 @@
 package promptselect
 
-import "sync"
+import (
+	"sync"
+)
 
 type keyCode uint8
 type exitPromptCode uint8
@@ -13,7 +15,7 @@ type fmtOpts struct {
 
 type PromptSelect struct {
 	promptCtx promptContext
-	drawer    Drawer
+	drawer    *drawer
 	termSize  terminalSize
 	ch        promptChannels
 }
@@ -21,19 +23,12 @@ type PromptSelect struct {
 type promptChannels struct {
 	keyCode  chan keyCode
 	exitCode chan exitPromptCode
-	err      chan error
 }
 
 type promptContext struct {
 	promptMessage string
 	entries       []string
-	cur           *Cursor
-	wg            *sync.WaitGroup
-}
-
-type Cursor struct {
-	pos    int
-	posMax int
+	cur           int
 }
 
 type terminalSize struct {
@@ -41,23 +36,24 @@ type terminalSize struct {
 	height int
 }
 
-type Drawer struct {
-	fittedEntries []fittedEntry
-	promptCtx     promptContext
-	drawCtx       drawingContext
-	mutex         sync.Mutex
-	ch            drawerChannels
-}
-
-type drawerChannels struct {
-	quitSpin   chan bool
-	quitRedraw chan bool
+type drawer struct {
+	promptCtx promptContext
+	drawCtx   drawingContext
+	mutex     sync.Mutex
 }
 
 type drawingContext struct {
-	drawHigh            int // Индекс самого первого entry видимого на экране
-	drawLow             int // Аналогично
-	displayedLinesCount int
-	virtCurPos          int
-	termSize            terminalSize
+	showIndex     bool
+	fittedEntries []fittedEntry
+	fittedPrompt  string
+	drawHigh      int // Индекс самого первого entry видимого на экране
+	drawLow       int // Аналогично
+	virtCur       int
+	termSize      terminalSize
 }
+
+type quitError struct {
+	Msg string
+}
+
+func (e *quitError) Error() string { return e.Msg }

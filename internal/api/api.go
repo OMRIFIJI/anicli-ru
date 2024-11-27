@@ -1,34 +1,33 @@
 package api
 
 import (
-	"anicliru/internal/parser/animego"
-	"anicliru/internal/types"
+	"anicliru/internal/api/animego"
+	"anicliru/internal/api/models"
+	"anicliru/internal/api/player"
 	"errors"
 )
 
-type API struct {
-	parser    types.Parser
-    animesFound    []types.Anime
+func GetAnimesByTitle(title string) ([]models.Anime, error) {
+	client := animego.NewAnimeGoClient()
+	animes, err := client.GetAnimesByTitle(title)
+
+	var parseError *models.ParseError
+	if err != nil && !errors.As(err, &parseError){
+		return animes, err
+	}
+
+	return animes, nil
 }
 
-func (api *API) FindAnimeByTitle(title string) error {
-    api.parser = &animego.AnimeGo{}
+func GetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
+    client := animego.NewAnimeGoClient()
+    client.GetEmbedLinks(anime, ep)
+    
+    return nil
+}
 
-    animesFound, err := api.parser.FindAnimeByTitle(title)
-    if err != nil {
-        return err
-    }
-
-    // на == nil не менять
-    if len(animesFound) == 0 {
-        return errors.New("По вашему запросу ничего не нашлось.")
-    }
-    api.animesFound = animesFound
-
-    for _, anime := range api.animesFound {
-        print("Название аниме: " + anime.Title + ", ")
-        print("ссылка: " + anime.Link + ".\n")
-    }
-
-	return err
+func NewPlayerLinkConverter() *player.PlayerLinkConverter {
+	p := player.PlayerLinkConverter{}
+	p.SetPlayerHandlers()
+	return &p
 }

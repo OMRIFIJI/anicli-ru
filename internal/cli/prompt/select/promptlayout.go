@@ -1,109 +1,138 @@
 package promptselect
 
 import (
-    "anicliru/internal/cli/ansi"
+	"anicliru/internal/cli/ansi"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"golang.org/x/term"
 )
 
-func (d *Drawer) newDrawer(promptCtx promptContext) error {
+func newDrawer(promptCtx promptContext, showIndex bool) (*drawer, error) {
+	d := &drawer{}
 	d.promptCtx = promptCtx
 
-	d.drawCtx = drawingContext{
-		drawHigh:   0,
-		virtCurPos: 0,
+	if showIndex {
+		for i := 0; i < len(d.promptCtx.entries); i++ {
+			d.promptCtx.entries[i] = fmt.Sprintf("%d %s", i+1, d.promptCtx.entries[i])
+		}
 	}
 
-	d.ch = drawerChannels{
-		quitSpin:   make(chan bool, 1),
-		quitRedraw: make(chan bool, 1),
+	d.drawCtx = drawingContext{
+		drawHigh:  0,
+		virtCur:   0,
+		showIndex: showIndex,
 	}
 
 	if err := d.updateTerminalSize(); err != nil {
-		return err
+		return nil, err
 	}
+	d.fitPrompt()
 	d.fitEntries()
 
-	return nil
+	return d, nil
 }
 
-func (d *Drawer) fitEntries() {
-	d.fittedEntries = nil
-	for _, entry := range d.promptCtx.entries {
-		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width)
-		d.fittedEntries = append(d.fittedEntries, fitEntry)
+func (d *drawer) fitEntries() {
+	d.drawCtx.fittedEntries = nil
+	indOpt := indexOptions{showIndex: d.drawCtx.showIndex}
+
+	for i, entry := range d.promptCtx.entries {
+		indOpt.index = i
+		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width, indOpt)
+		d.drawCtx.fittedEntries = append(d.drawCtx.fittedEntries, fitEntry)
 	}
 }
 
-func (d *Drawer) spinDrawInterface(keyCodeChan chan keyCode, errChan chan error) {
-	defer d.promptCtx.wg.Done()
-	defer func() {
-		if r := recover(); r != nil {
-			var err error
-			if recoveredErr, ok := r.(error); ok {
-				err = recoveredErr
-			} else {
-				err = errors.New("Неизвестная ошибка в графике.")
-			}
-			d.ch.quitRedraw <- true
-			errChan <- err
-		}
-	}()
+func (d *drawer) fitPrompt() {
+	runePrompt := []rune(d.promptCtx.promptMessage)
+	promptLen := len(runePrompt)
+	decorateBoxWidth := d.drawCtx.termSize.width - 2*borderSize
+	if promptLen > decorateBoxWidth {
+		d.drawCtx.fittedPrompt = string(runePrompt[:decorateBoxWidth-3]) + "..."
+	} else {
+		d.drawCtx.fittedPrompt = d.promptCtx.promptMessage
+	}
+}
 
+func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context, cancel context.CancelCauseFunc) {
 	// первая отрисовка интерфейса до нажатия клавиш
 	if err := d.drawInterface(noActionKeyCode, false); err != nil {
-		d.ch.quitRedraw <- true
-		errChan <- err
+		cancel(err)
 		return
 	}
 
-	d.promptCtx.wg.Add(1)
-	go d.redrawOnTerminalResize(errChan)
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		d.spinRedrawOnResize(ctx, cancel)
+	}()
+	defer wg.Wait()
+	defer d.recoverWithCancel(cancel)
 
 	for {
 		select {
 		case keyCodeValue := <-keyCodeChan:
-			switch keyCodeValue {
-			case upKeyCode, downKeyCode:
-				if err := d.drawInterface(keyCodeValue, false); err != nil {
-					d.ch.quitRedraw <- true
-					errChan <- err
-					return
-				}
-			case enterKeyCode, quitKeyCode:
-				d.ch.quitRedraw <- true
+			err := d.handleKeyInput(keyCodeValue)
+			if err != nil {
+				cancel(err)
 				return
 			}
-		case <-d.ch.quitSpin:
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
+func (d *drawer) handleKeyInput(keyCodeValue keyCode) error {
+	switch keyCodeValue {
+	case upKeyCode, downKeyCode:
+		d.moveCursor(keyCodeValue)
+		if err := d.drawInterface(keyCodeValue, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *drawer) moveCursor(keyCodeValue keyCode) {
+	switch keyCodeValue {
+	case downKeyCode:
+		if d.promptCtx.cur < len(d.promptCtx.entries)-1 {
+			d.promptCtx.cur++
+		}
+	case upKeyCode:
+		if d.promptCtx.cur > 0 {
+			d.promptCtx.cur--
+		}
+	}
+}
+
+func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	if err := d.updateDrawParams(keyCodeValue, onResize); err != nil {
+	if err := d.updateDrawContext(keyCodeValue, onResize); err != nil {
 		return err
 	}
 
 	ansi.ClearScreen()
 
-	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.promptCtx.promptMessage, ansi.ColorReset)
+	fmt.Printf("%s%s%s", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
 	ansi.MoveCursorToNewLine()
 
-	entryCountStr := strconv.Itoa(len(d.fittedEntries))
-	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-16-len(entryCountStr))
-	fmt.Printf("┌───── Всего: %s %s┐", entryCountStr, repeatLineStr)
+	entryCount := len(d.drawCtx.fittedEntries)
+	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
+	fmt.Printf("┌───── Всего: %d %s┐", entryCount, repeatLineStr)
 	ansi.MoveCursorToNewLine()
 
 	d.drawEntries()
@@ -112,20 +141,8 @@ func (d *Drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	return nil
 }
 
-func (d *Drawer) redrawOnTerminalResize(errChan chan error) {
-	defer d.promptCtx.wg.Done()
-	defer func() {
-		if r := recover(); r != nil {
-			var err error
-			if recoveredErr, ok := r.(error); ok {
-				err = recoveredErr
-			} else {
-				err = errors.New("Неизвестная ошибка в графике.")
-			}
-			d.ch.quitSpin <- true
-			errChan <- err
-		}
-	}()
+func (d *drawer) spinRedrawOnResize(ctx context.Context, cancel context.CancelCauseFunc) {
+	defer d.recoverWithCancel(cancel)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGWINCH)
@@ -134,30 +151,31 @@ func (d *Drawer) redrawOnTerminalResize(errChan chan error) {
 		d.debounce()
 
 		select {
-		case <-d.ch.quitRedraw:
+		case <-ctx.Done():
 			return
 		case <-signalChan:
 			if err := d.drawInterface(noActionKeyCode, true); err != nil {
-				println("Err channel fill")
-				d.ch.quitSpin <- true
-				errChan <- err
+				cancel(err)
 				return
 			}
 		}
 	}
 }
 
-func (d *Drawer) debounce() {
+func (d *drawer) debounce() {
 	time.Sleep(resizeDebounceMs * time.Millisecond)
 }
 
-func (d *Drawer) updateTerminalSize() error {
+func (d *drawer) updateTerminalSize() error {
 	termWidth, termHeight, err := term.GetSize(0)
 	if err != nil {
 		return err
 	}
+
+	entryCount := len(d.drawCtx.fittedEntries)
+	minimalTermWidth := decorateTextWidth + charLenOfInt(entryCount)
 	if termWidth < minimalTermWidth || termHeight < minimalTermHeight {
-		errorStr := "Размер терминала слишком маленький!\n"
+		errorStr := "Терминал слишком маленький!\n"
 		errorStr += fmt.Sprintf("Минимальный размер: (%dx%d).", minimalTermWidth, minimalTermHeight)
 		return errors.New(errorStr)
 	}
@@ -169,46 +187,124 @@ func (d *Drawer) updateTerminalSize() error {
 	return nil
 }
 
-func (d *Drawer) updateDrawParams(keyCodeValue keyCode, onResize bool) error {
+func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 	if onResize {
 		if err := d.updateTerminalSize(); err != nil {
 			return err
 		}
+		d.fitPrompt()
 		d.fitEntries()
+		// Если выбран нижний вариант, и высота уменьшена
+		d.correctOnRedraw()
 		return nil
 	}
 
+	if d.drawCtx.drawLow-d.drawCtx.drawHigh <= cursorScrollOffset {
+		d.smallWindowKeyHandle(keyCodeValue)
+	} else {
+		d.bigWindowKeyHandle(keyCodeValue)
+	}
+
+	// При переключении между маленьким и большим окном курсор может улететь вниз
+	d.correctDrawHigh()
+
+	return nil
+}
+
+func (d *drawer) correctOnRedraw() {
+	newDrawLow := d.drawCtx.drawHigh
+	lineCount := 0
+	for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
+		lineCount += len(line)
+		if lineCount >= d.drawCtx.termSize.height-3 {
+			// Если курсор за пределами экрана
+			if newDrawLow-d.drawCtx.drawHigh < d.drawCtx.virtCur {
+				d.drawCtx.drawHigh++
+				d.drawCtx.virtCur--
+			}
+			return
+		}
+		newDrawLow++
+	}
+	return
+}
+
+func (d *drawer) correctDrawHigh() {
+	newDrawLow := d.drawCtx.drawHigh
+	lineCount := 0
+	for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
+		lineCount += len(line)
+		if lineCount >= d.drawCtx.termSize.height-3 {
+			// Если курсор за пределами экрана
+			if newDrawLow-d.drawCtx.drawHigh < d.drawCtx.virtCur {
+				// Сдвигаем вниз, чтобы компенсировать прыжок курсора
+				d.drawCtx.drawHigh += d.drawCtx.virtCur - (newDrawLow - d.drawCtx.drawHigh)
+			}
+			return
+		}
+		newDrawLow++
+	}
+	return
+}
+
+func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {
 	if keyCodeValue == upKeyCode {
-		if d.promptCtx.cur.pos == 0 {
-			d.drawCtx.virtCurPos = 0
-		} else if d.promptCtx.cur.pos < cursorScrollOffset {
-			d.drawCtx.virtCurPos--
-		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCurPos <= cursorScrollOffset {
+		if d.promptCtx.cur == 0 {
+			d.drawCtx.virtCur = 0
+			d.drawCtx.drawHigh = 0
+		} else if d.drawCtx.virtCur == 0 {
 			d.drawCtx.drawHigh--
 		} else {
-			d.drawCtx.virtCurPos--
+			d.drawCtx.virtCur--
+		}
+	}
+
+	if keyCodeValue == downKeyCode {
+		if d.promptCtx.cur == len(d.drawCtx.fittedEntries)-1 {
+			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
+			if d.drawCtx.drawLow < len(d.drawCtx.fittedEntries)-1 {
+				d.drawCtx.drawHigh++
+			}
+		} else if d.drawCtx.virtCur == d.drawCtx.drawLow-d.drawCtx.drawHigh {
+			d.drawCtx.drawHigh++
+		} else {
+			d.drawCtx.virtCur++
+		}
+	}
+}
+
+func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
+	if keyCodeValue == upKeyCode {
+		if d.promptCtx.cur == 0 {
+			d.drawCtx.virtCur = 0
+		} else if d.promptCtx.cur < cursorScrollOffset {
+			d.drawCtx.virtCur--
+		} else if d.drawCtx.drawHigh > 0 && d.drawCtx.virtCur <= cursorScrollOffset {
+			d.drawCtx.drawHigh--
+		} else {
+			d.drawCtx.virtCur--
 		}
 	}
 	// Клавиша вниз - сложнее, но полная аналогия с клавишей вверх
 	if keyCodeValue == downKeyCode {
-		if d.promptCtx.cur.pos == len(d.fittedEntries)-1 {
-			d.drawCtx.virtCurPos = d.drawCtx.drawLow - d.drawCtx.drawHigh
-		} else if d.promptCtx.cur.pos > len(d.fittedEntries)-1-cursorScrollOffset {
-			d.drawCtx.virtCurPos++
-		} else if d.drawCtx.drawLow < len(d.fittedEntries)-1 &&
-			d.drawCtx.virtCurPos >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
+		if d.promptCtx.cur == len(d.drawCtx.fittedEntries)-1 {
+			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
+		} else if d.promptCtx.cur > len(d.drawCtx.fittedEntries)-1-cursorScrollOffset {
+			d.drawCtx.virtCur++
+		} else if d.drawCtx.drawLow < len(d.drawCtx.fittedEntries)-1 &&
+			d.drawCtx.virtCur >= d.drawCtx.drawLow-d.drawCtx.drawHigh-cursorScrollOffset {
 			d.drawCtx.drawHigh++
 		} else {
-			d.drawCtx.virtCurPos++
+			d.drawCtx.virtCur++
 		}
 	}
-	return nil
+
 }
 
-func (d *Drawer) drawEntries() {
+func (d *drawer) drawEntries() {
 	lineCount := 0
 
-	for _, entry := range d.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur.pos] {
+	for _, entry := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur] {
 		for _, line := range entry {
 			fmt.Print(line)
 			ansi.MoveCursorToNewLine()
@@ -216,28 +312,41 @@ func (d *Drawer) drawEntries() {
 		}
 	}
 
-	selectedEntry := makeEntryActive(d.fittedEntries[d.promptCtx.cur.pos])
+	selectedEntry := makeEntryActive(d.drawCtx.fittedEntries[d.promptCtx.cur])
 	for _, line := range selectedEntry {
 		fmt.Print(line)
 		ansi.MoveCursorToNewLine()
 		lineCount++
 		if lineCount >= d.drawCtx.termSize.height-3 {
-			d.drawCtx.drawLow = d.promptCtx.cur.pos
+			d.drawCtx.drawLow = d.promptCtx.cur
 			return
 		}
 	}
 
-	for i, entry := range d.fittedEntries[d.promptCtx.cur.pos+1:] {
+	for i, entry := range d.drawCtx.fittedEntries[d.promptCtx.cur+1:] {
 		for _, line := range entry {
 			fmt.Print(line)
 			ansi.MoveCursorToNewLine()
 			lineCount++
 			if lineCount >= d.drawCtx.termSize.height-3 {
-				d.drawCtx.drawLow = d.promptCtx.cur.pos + 1 + i
+				d.drawCtx.drawLow = d.promptCtx.cur + 1 + i
 				return
 			}
 		}
 	}
 
-	d.drawCtx.drawLow = len(d.fittedEntries) - 1
+	d.drawCtx.drawLow = len(d.drawCtx.fittedEntries) - 1
+}
+
+func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {
+	if r := recover(); r != nil {
+		var err error
+		if recoveredErr, ok := r.(error); ok {
+			err = recoveredErr
+		} else {
+			err = errors.New("Неизвестная ошибка в графике.")
+		}
+
+		cancel(err)
+	}
 }

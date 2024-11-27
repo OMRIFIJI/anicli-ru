@@ -1,111 +1,209 @@
 package promptselect
 
 import (
-    "anicliru/internal/cli/ansi"
-	"golang.org/x/term"
+	"anicliru/internal/cli/ansi"
+	"context"
+	"errors"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"unicode/utf8"
+
+	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 )
 
-func (s *PromptSelect) NewPrompt(entryNames []string, promptMessage string) (bool, int) {
-	s.init(entryNames, promptMessage)
-
-	exitCodeValue := s.promptUserChoice()
-
-	return exitCodeValue == onQuitExitCode, s.promptCtx.cur.pos
-}
-
-func (s *PromptSelect) init(entryNames []string, promptMessage string) {
-	s.promptCtx = promptContext{
+func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
+	if len(entries) == 0 {
+		return nil, errors.New("Ничего не найдено")
+	}
+	promptCtx := promptContext{
 		promptMessage: promptMessage,
-		entries:       entryNames,
-		cur: &Cursor{
-			pos:    0,
-			posMax: len(entryNames) - 1,
-		},
-		wg: &sync.WaitGroup{},
+		entries:       entries,
+		cur:           0,
 	}
 
-	s.ch = promptChannels{
-		keyCode:  make(chan keyCode),
-		exitCode: make(chan exitPromptCode),
-		err:      make(chan error),
-	}
-
-	s.drawer = Drawer{}
-	s.drawer.newDrawer(s.promptCtx)
-}
-
-func (s *PromptSelect) promptUserChoice() exitPromptCode {
-	ansi.EnterAltScreenBuf()
-	defer ansi.ExitAltScreenBuf()
-
-	oldTermState, err := term.MakeRaw(0)
+	drawer, err := newDrawer(promptCtx, showIndex)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	defer term.Restore(0, oldTermState)
 
+	ch := promptChannels{
+		keyCode:  make(chan keyCode, 2),
+		exitCode: make(chan exitPromptCode),
+	}
+
+	p := PromptSelect{
+		promptCtx: promptCtx,
+		ch:        ch,
+		drawer:    drawer,
+	}
+
+	return &p, nil
+}
+
+func PrepareTerminal() (*term.State, error) {
+	ansi.EnterAltScreenBuf()
 	ansi.HideCursor()
-	defer ansi.ShowCursor()
 
-	s.promptCtx.wg.Add(1)
+	fd := int(os.Stdin.Fd())
 
-	go s.spinHandleInput()
-
-	go s.drawer.spinDrawInterface(s.ch.keyCode, s.ch.err)
-
-	select {
-	case err := <-s.ch.err:
-		panic(err)
-	case exitCode := <-s.ch.exitCode:
-		return exitCode
+	oldTermState, err := term.MakeRaw(fd)
+	if err != nil {
+		return nil, err
 	}
+
+	return oldTermState, err
 }
 
-func (s *PromptSelect) spinHandleInput() {
+func RestoreTerminal(oldTermState *term.State) {
+	term.Restore(0, oldTermState)
+	ansi.ShowCursor()
+	ansi.ExitAltScreenBuf()
+}
+
+func (p *PromptSelect) SpinPrompt() (bool, int, error) {
+	exitCodeValue, err := p.promptUserChoice()
+	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
+}
+
+func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
+	backgroundCtx := context.Background()
+	ctx, cancel := context.WithCancelCause(backgroundCtx)
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		p.spinHandleInput(ctx, cancel)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		p.drawer.spinDrawInterface(p.ch.keyCode, ctx, cancel)
+	}()
+	defer wg.Wait()
+
+	// Дочитать из канала после выхода в случае ошибки
+	defer func() {
+		for range p.ch.keyCode {
+		}
+	}()
+
+	defer cancel(nil)
+
 	for {
-		keyCodeValue, err := s.readKey()
-		if err != nil {
-			s.ch.err <- err
-		}
-		s.ch.keyCode <- keyCodeValue
-
-		switch keyCodeValue {
-		case quitKeyCode:
-			s.promptCtx.wg.Wait()
-			s.ch.exitCode <- onQuitExitCode
-			return
-		case enterKeyCode:
-			s.promptCtx.wg.Wait()
-			s.ch.exitCode <- onEnterExitCode
-			return
-		case upKeyCode, downKeyCode:
-			s.moveCursor(keyCodeValue)
+		select {
+		case exitCode := <-p.ch.exitCode:
+			return exitCode, nil
+		case <-ctx.Done():
+			err := context.Cause(ctx)
+			if err == context.Canceled {
+				return onQuitExitCode, nil
+			}
+			return onErrorExitCode, err
 		}
 	}
 }
 
-func (s *PromptSelect) readKey() (keyCode, error) {
-	// Терминал в raw mode
+func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
+	defer close(p.ch.keyCode)
+
+	fd := int(os.Stdin.Fd())
+	// Перенос Stdin в non-block для корректного выхода по контексту
+	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
+	if err != nil {
+		cancel(err)
+		return
+	}
+	_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags|unix.O_NONBLOCK)
+	if err != nil {
+		cancel(err)
+		return
+	}
+
+	defer func() {
+		_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags)
+		if err != nil {
+			cancel(err)
+		}
+	}()
+
+	// Восстановление ISIG после Raw Mode
+	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
+	if err != nil {
+		cancel(err)
+		return
+	}
+	termios.Lflag |= unix.ISIG
+	if err := unix.IoctlSetTermios(fd, unix.TCSETS, termios); err != nil {
+		cancel(err)
+		return
+	}
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-sigChan:
+			cancel(nil)
+			return
+		default:
+			keyCodeValue, err := p.readKey()
+			if err != nil {
+				continue
+			}
+			switch keyCodeValue {
+			case quitKeyCode:
+				p.ch.exitCode <- onQuitExitCode
+				return
+			case enterKeyCode:
+				p.ch.exitCode <- onEnterExitCode
+				return
+			case upKeyCode, downKeyCode:
+				p.ch.keyCode <- keyCodeValue
+				p.moveCursor(keyCodeValue)
+			}
+		}
+	}
+}
+
+func (p *PromptSelect) readKey() (keyCode, error) {
 	var buf [3]byte
 	n, err := os.Stdin.Read(buf[:])
 	if err != nil {
 		return noActionKeyCode, err
 	}
 
-	if n == 1 && (buf[0] == '\n' || buf[0] == '\r') {
-		return enterKeyCode, nil
-	}
-	if n == 1 && buf[0] == 'q' {
-		return quitKeyCode, nil
+	if n == 1 {
+		if buf[0] == '\n' || buf[0] == '\r' {
+			return enterKeyCode, nil
+		} else if buf[0] == 'q' {
+			return quitKeyCode, nil
+		} else if buf[0] == 'k' {
+			return upKeyCode, nil
+		} else if buf[0] == 'j' {
+			return downKeyCode, nil
+		} else if buf[0] == 'l' {
+			return enterKeyCode, nil
+		}
 	}
 	// Обрабатывает 'й' как 'q'
 	if n == 2 {
 		r, _ := utf8.DecodeRune(buf[:])
 		if r == 'й' {
 			return quitKeyCode, nil
+		} else if r == 'л' {
+			return upKeyCode, nil
+		} else if r == 'о' {
+			return downKeyCode, nil
+		} else if r == 'д' {
+			return enterKeyCode, nil
 		}
 	}
 	if n >= 3 && buf[0] == 27 && buf[1] == 91 {
@@ -120,15 +218,15 @@ func (s *PromptSelect) readKey() (keyCode, error) {
 	return noActionKeyCode, nil
 }
 
-func (s *PromptSelect) moveCursor(keyCodeValue keyCode) {
+func (p *PromptSelect) moveCursor(keyCodeValue keyCode) {
 	switch keyCodeValue {
 	case downKeyCode:
-		if s.promptCtx.cur.pos < s.promptCtx.cur.posMax {
-			s.promptCtx.cur.pos++
+		if p.promptCtx.cur < len(p.promptCtx.entries)-1 {
+			p.promptCtx.cur++
 		}
 	case upKeyCode:
-		if s.promptCtx.cur.pos > 0 {
-			s.promptCtx.cur.pos--
+		if p.promptCtx.cur > 0 {
+			p.promptCtx.cur--
 		}
 	}
 }
