@@ -31,7 +31,7 @@ type Episode struct {
 }
 
 type Anime struct {
-	Id        string
+	Id        int
 	Uname     string
 	Title     string
 	MediaType string

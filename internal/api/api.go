@@ -19,9 +19,9 @@ func GetAnimesByTitle(title string) ([]models.Anime, error) {
 	return animes, nil
 }
 
-func GetEmbedLinks(episode *models.Episode) error {
+func GetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
     client := animego.NewAnimeGoClient()
-    client.GetEmbedLinks(episode)
+    client.GetEmbedLinks(anime, ep)
     
     return nil
 }

@@ -2,9 +2,11 @@ package parser
 
 import (
 	"anicliru/internal/api/models"
-	"golang.org/x/net/html"
 	"io"
+	"strconv"
 	"strings"
+
+	"golang.org/x/net/html"
 )
 
 func isAnimeHref(href string) bool {
@@ -29,7 +31,10 @@ func parseAnime(n *html.Node) *models.Anime {
 
 	unameInd := strings.LastIndex(href, "/") + 1
 	if len(title) > 0 {
-		id := href[idInd:]
+        id, err := strconv.Atoi(href[idInd:])
+        if err != nil {
+            return nil
+        }
 		uname := href[unameInd:]
 		return &models.Anime{
 			Id:    id,

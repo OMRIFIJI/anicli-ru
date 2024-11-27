@@ -66,7 +66,7 @@ func (ap *AnimePlayer) updateLink() error {
 		return err
 	}
 
-	err = api.GetEmbedLinks(ep)
+	err = api.GetEmbedLinks(ap.anime, ep)
 	if err != nil {
 		return err
 	}

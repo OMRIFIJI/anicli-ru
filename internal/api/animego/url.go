@@ -1,5 +1,7 @@
 package animego
 
+import "strconv"
+
 type urlBuilder struct {
 	base       string
 	searchSuf  string
@@ -23,8 +25,8 @@ func (u *urlBuilder) searchByTitle(title string) string {
 	return u.base + u.searchSuf + title
 }
 
-func (u *urlBuilder) animeById(id string) string {
-	return u.base + u.animeSuf + id + "/" + u.playerSuf
+func (u *urlBuilder) animeById(id int) string {
+	return u.base + u.animeSuf + strconv.Itoa(id) + "/" + u.playerSuf
 }
 
 func (u *urlBuilder) animeByUname(uname string) string {

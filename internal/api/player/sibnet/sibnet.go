@@ -1,7 +1,6 @@
 package sibnet
 
 import (
-	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	httpcommon "anicliru/internal/http"
 	"errors"
@@ -58,7 +57,6 @@ func (s *Sibnet) GetVideos(embedLink string) (map[int]models.Video, error) {
 	headersOpt := fmt.Sprintf(`--http-header-fields="Referer: %s","Upgrade-Insecure-Requests: 1"`, embedLink)
 
     // Всего одна ссылка
-    apilog.WarnLog.Println(link, " ", headersOpt)
 	links[480] = models.Video{
 		Link:    link,
 		MpvOpts: []string{headersOpt},

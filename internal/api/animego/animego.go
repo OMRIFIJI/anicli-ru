@@ -150,9 +150,9 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 
 	epCount, mediaType, err := parser.ParseMediaStatus(res.Body)
 	if mediaType == "фильм" {
-		anime.EpCtx.TotalEpCount = 1
 		anime.MediaType = mediaType
 
+		anime.EpCtx.TotalEpCount = 1
 		filmEp := &models.Episode{Id: models.FilmEpisodeId}
 		anime.EpCtx.Eps = map[int]*models.Episode{1: filmEp}
 		return nil
@@ -223,9 +223,14 @@ func (a *AnimeGoClient) isValidEpId(epId int) bool {
 	return isValid
 }
 
-func (a *AnimeGoClient) GetEmbedLinks(ep *models.Episode) error {
-	epIdStr := strconv.Itoa(ep.Id)
-	url := a.urlBuild.epById(epIdStr)
+func (a *AnimeGoClient) GetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
+	var url string
+	if anime.MediaType == "фильм" {
+		url = a.urlBuild.animeById(anime.Id)
+	} else {
+		epIdStr := strconv.Itoa(ep.Id)
+		url = a.urlBuild.epById(epIdStr)
+	}
 
 	res, err := a.http.Get(url)
 	if err != nil {
@@ -233,14 +238,13 @@ func (a *AnimeGoClient) GetEmbedLinks(ep *models.Episode) error {
 	}
 	defer res.Body.Close()
 
-
 	embedLinks, err := parser.ParseEmbedLinks(res.Body)
-    if err != nil {
-        return err
-    }
-    if len(embedLinks) == 0 {
-        return errors.New("Нет доступных ссылок на выбранный эпизод.")
-    }
+	if err != nil {
+		return err
+	}
+	if len(embedLinks) == 0 {
+		return errors.New("Нет доступных ссылок на выбранный эпизод.")
+	}
 	ep.EmbedLinks = embedLinks
 
 	return nil
