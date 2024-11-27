@@ -1,17 +1,20 @@
 package video
 
 import (
+	"anicliru/internal/api/models"
 	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
+	"strings"
 	"syscall"
 )
 
 type videoPlayer struct {
-	Links map[string]map[int]string
-	cfg   videoPlayerConfig
-	pid   int
+	Videos    map[string]map[int]models.Video
+	cfg       videoPlayerConfig
+	userAgent string
+	pid       int
 }
 
 type noDubError struct {
@@ -28,7 +31,7 @@ type videoPlayerConfig struct {
 }
 
 func (vpc *videoPlayerConfig) isEmpty() bool {
-    return vpc.CurrentQuality == 0
+	return vpc.CurrentQuality == 0
 }
 
 func newVideoPlayer() *videoPlayer {
@@ -38,10 +41,10 @@ func newVideoPlayer() *videoPlayer {
 	}
 }
 
-func (vp *videoPlayer) SetLinks(newLinks map[string]map[int]string) error {
-	vp.Links = newLinks
+func (vp *videoPlayer) SetVideos(newVideos map[string]map[int]models.Video) error {
+	vp.Videos = newVideos
 
-	if _, exists := vp.Links[vp.cfg.CurrentDub]; !exists {
+	if _, exists := vp.Videos[vp.cfg.CurrentDub]; !exists {
 		vp.cfg.CurrentDub = ""
 		err := &noDubError{
 			Msg: "Выбранная озвучка больше не доступна. Выберите новую озвучку. ",
@@ -56,8 +59,8 @@ func (vp *videoPlayer) SetLinks(newLinks map[string]map[int]string) error {
 }
 
 func (vp *videoPlayer) GetDubs() []string {
-	dubs := make([]string, 0, len(vp.Links))
-	for dub := range vp.Links {
+	dubs := make([]string, 0, len(vp.Videos))
+	for dub := range vp.Videos {
 		dubs = append(dubs, dub)
 	}
 
@@ -66,7 +69,7 @@ func (vp *videoPlayer) GetDubs() []string {
 }
 
 func (vp *videoPlayer) GetQualities(dub string) ([]int, error) {
-	if qualities, exists := vp.Links[dub]; exists {
+	if qualities, exists := vp.Videos[dub]; exists {
 		qualityList := make([]int, 0, len(qualities))
 		for quality := range qualities {
 			qualityList = append(qualityList, quality)
@@ -79,23 +82,23 @@ func (vp *videoPlayer) GetQualities(dub string) ([]int, error) {
 	return nil, fmt.Errorf("озвучка '%s' не найдена", dub)
 }
 
-func (vp *videoPlayer) GetLink() (string, error) {
+func (vp *videoPlayer) GetVideo() (*models.Video, error) {
 	if vp.cfg.CurrentDub == "" {
-		return "", errors.New("Озвучка не выбрана")
+		return nil, errors.New("Озвучка не выбрана")
 	}
 
-	if qualities, exists := vp.Links[vp.cfg.CurrentDub]; exists {
-		if link, exists := qualities[vp.cfg.CurrentQuality]; exists {
-			return link, nil
+	if qualities, exists := vp.Videos[vp.cfg.CurrentDub]; exists {
+		if video, exists := qualities[vp.cfg.CurrentQuality]; exists {
+			return &video, nil
 		}
-		return "", fmt.Errorf("Качество %d не существует для озвучки '%s'", vp.cfg.CurrentQuality, vp.cfg.CurrentDub)
+		return nil, fmt.Errorf("Качество %d не существует для озвучки '%s'", vp.cfg.CurrentQuality, vp.cfg.CurrentDub)
 	}
 
-	return "", fmt.Errorf("Озвучка '%s' не найдена", vp.cfg.CurrentDub)
+	return nil, fmt.Errorf("Озвучка '%s' не найдена", vp.cfg.CurrentDub)
 }
 
 func (vp *videoPlayer) SelectDub(dub string) error {
-	if _, exists := vp.Links[dub]; !exists {
+	if _, exists := vp.Videos[dub]; !exists {
 		return fmt.Errorf("Озвучка '%s' не найдена", dub)
 	}
 	vp.cfg.CurrentDub = dub
@@ -148,12 +151,18 @@ func (vp *videoPlayer) getClosestQuality(target int, qualities []int) int {
 }
 
 func (vp *videoPlayer) StartMpv(title string) error {
-	link, err := vp.GetLink()
+	video, err := vp.GetVideo()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("mpv", "--force-media-title="+title, link)
+	mpvOpts := video.MpvOpts
+	mpvOpts = append(mpvOpts, fmt.Sprintf(`--force-media-title="%s"`, title))
+	mpvOpts = append(mpvOpts, video.Link)
+
+    // Пока лучший способ, который нашёл, чтобы пережить обработку bash array для хэдеров
+	bashCmd := "mpv " + strings.Join(mpvOpts, " ")
+	cmd := exec.Command("/bin/bash", "-c", bashCmd)
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("Не удалось запустить MPV: %s.", err)

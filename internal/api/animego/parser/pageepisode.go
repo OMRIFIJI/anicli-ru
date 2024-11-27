@@ -6,22 +6,16 @@ import (
 	"errors"
 	"io"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
-func parseIdToDub(content string) (map[int]string, error) {
-	reEp := regexp.MustCompile(`data-dubbing="(\d+)"[^>]*>\s*<span[^>]*class="video-player-toggle-item-name[^>]*>\s*([^<]+)`)
+func parseIdToDub(content string) (map[string]string, error) {
+	reEp := regexp.MustCompile(`data-dubbing="(.+?)"[^>]*>\s*<span[^>]*class="video-player-toggle-item-name[^>]*>\s*([^<]+)`)
 	matches := reEp.FindAllStringSubmatch(content, -1)
 
-	idToDub := make(map[int]string)
+	idToDub := make(map[string]string)
 	for _, match := range matches {
-		idStr := strings.TrimSpace(match[1])
-		id, err := strconv.Atoi(idStr)
-
-		if err != nil {
-			continue
-		}
+		id := strings.TrimSpace(match[1])
 		idToDub[id] = strings.TrimSpace(match[2])
 	}
 
@@ -33,18 +27,13 @@ func parseIdToDub(content string) (map[int]string, error) {
 }
 
 // uid озвучки -> плеер -> ссылка
-func parseIdToLinks(content string) (map[int]map[string]string, error) {
-	reEp := regexp.MustCompile(`data-player="([^\"]*)"\s*data-provider="\d+"\s*data-provide-dubbing="(\d+)"`)
+func parseIdToLinks(content string) (map[string]map[string]string, error) {
+	reEp := regexp.MustCompile(`data-player="(.+?)"\s*data-provider=".+?"\s*data-provide-dubbing="(.+?)"`)
 	matches := reEp.FindAllStringSubmatch(content, -1)
 
-	idToLinks := make(map[int]map[string]string)
+	idToLinks := make(map[string]map[string]string)
 	for _, match := range matches {
-		idStr := strings.TrimSpace(match[2])
-		id, err := strconv.Atoi(idStr)
-
-		if err != nil {
-			continue
-		}
+		id := strings.TrimSpace(match[2])
 
         _, exists := idToLinks[id]
         if !exists{
@@ -64,7 +53,7 @@ func parseIdToLinks(content string) (map[int]map[string]string, error) {
 	return idToLinks, nil
 }
 
-func ParseEmbedLink(r io.Reader) (models.EmbedLink, error) {
+func ParseEmbedLinks(r io.Reader) (models.EmbedLinks, error) {
 	in, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -85,16 +74,16 @@ func ParseEmbedLink(r io.Reader) (models.EmbedLink, error) {
 		return nil, err
 	}
 
-	playerLinks := make(models.EmbedLink)
+	embedLinks := make(models.EmbedLinks)
 	for id, dubName := range idToDub {
 		dubLinks, exists := idToLinks[id]
 		if !exists {
 			continue
 		}
-        playerLinks[dubName] = dubLinks
+        embedLinks[dubName] = dubLinks
 	}
 
-	return playerLinks, nil
+	return embedLinks, nil
 }
 
 func getPlayerName(dubLink string) string {

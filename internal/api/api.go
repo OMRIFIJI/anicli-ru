@@ -9,7 +9,6 @@ import (
 
 func GetAnimesByTitle(title string) ([]models.Anime, error) {
 	client := animego.NewAnimeGoClient()
-
 	animes, err := client.GetAnimesByTitle(title)
 
 	var parseError *models.ParseError
@@ -20,9 +19,9 @@ func GetAnimesByTitle(title string) ([]models.Anime, error) {
 	return animes, nil
 }
 
-func GetEmbedLink(episode *models.Episode) error {
+func GetEmbedLinks(episode *models.Episode) error {
     client := animego.NewAnimeGoClient()
-    client.GetEmbedLink(episode)
+    client.GetEmbedLinks(episode)
     
     return nil
 }

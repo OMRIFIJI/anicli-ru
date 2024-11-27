@@ -2,6 +2,7 @@ package kodik
 
 import (
 	apilog "anicliru/internal/api/log"
+	"anicliru/internal/api/models"
 	httpcommon "anicliru/internal/http"
 	"bytes"
 	"encoding/base64"
@@ -22,8 +23,8 @@ type Kodik struct {
 func NewKodik() *Kodik {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
-			"Referer": "https://animego.org/",
-            "Accept-Language": "ru-RU",
+			"Referer":         "https://animego.org/",
+			"Accept-Language": "ru-RU",
 		},
 	)
 
@@ -40,9 +41,9 @@ type kodikVideoData struct {
 	} `json:"links"`
 }
 
-func (k *Kodik) FindLinks(embedLink string) (map[int]string, error) {
-	embedLink = "https:" + embedLink
-	res, err := k.client.Get(embedLink)
+func (k *Kodik) FindVideos(embedLinks string) (map[int]models.Video, error) {
+	embedLinks = "https:" + embedLinks
+	res, err := k.client.Get(embedLinks)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (k *Kodik) FindLinks(embedLink string) (map[int]string, error) {
 	clientApi := httpcommon.NewHttpClient(
 		map[string]string{
 			"Origin":  k.baseUrl,
-			"Referer": embedLink,
+			"Referer": embedLinks,
 			"Accept":  "application/json, text/javascript, */*; q=0.01",
 		},
 	)
@@ -86,15 +87,19 @@ func (k *Kodik) FindLinks(embedLink string) (map[int]string, error) {
 	}
 
 	links := k.videoDataToLinks(videoData)
-    if len(links) == 0 {
-        return nil, errors.New("Не найдено ни одной ссылки")
-    }
+	if len(links) == 0 {
+		return nil, errors.New("Не найдено ни одной ссылки")
+	}
 
 	return links, nil
 }
 
-func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]string {
-	links := make(map[int]string)
+func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]models.Video {
+	links := make(map[int]models.Video)
+
+	mpvOpts := []string{
+		`--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`,
+	}
 
 	for key, val := range videoData.Links {
 		if len(val) == 0 {
@@ -105,24 +110,28 @@ func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]string {
 		if err != nil {
 			continue
 		}
-        ind := strings.Index(decodedUrl, ":hls:manifest")
+		ind := strings.Index(decodedUrl, ":hls:manifest")
 
-        var link string
-        if ind != -1 {
-            link = decodedUrl[:ind]
-        } else {
-            link = decodedUrl
-        }
+		var link string
+		if ind != -1 {
+			link = decodedUrl[:ind]
+		} else {
+			link = decodedUrl
+		}
 
-        quality, err := strconv.Atoi(key)
-        if err != nil {
+		quality, err := strconv.Atoi(key)
+		if err != nil {
 			apilog.ErrorLog.Println("Ошибка обработки качества видео", err)
-            continue
-        }
-        links[quality] = link
+			continue
+		}
+
+		links[quality] = models.Video{
+			Link:    link,
+			MpvOpts: mpvOpts,
+		}
 	}
 
-    return links
+	return links
 }
 
 func (k *Kodik) getApiPayload(resBody []byte) ([]byte, error) {
@@ -186,7 +195,7 @@ func padBase64(base64Str string) string {
 func decodeUrl(urlEncoded string) (string, error) {
 	base64URL := decodeRot13(urlEncoded)
 
-    base64URL = padBase64(base64URL)
+	base64URL = padBase64(base64URL)
 	decodedBytes, err := base64.StdEncoding.DecodeString(base64URL)
 	if err != nil {
 		apilog.ErrorLog.Printf("Ошибка декодинга '%s' %s\n", base64URL, err)

@@ -9,36 +9,38 @@ import (
 )
 
 type HttpClient struct {
-	client  http.Client
+	Client  http.Client
 	Headers map[string]string
 }
 
 func NewHttpClient(headers map[string]string) *HttpClient {
 	tr := &http.Transport{
 		MaxIdleConns:       30,
-		IdleConnTimeout:    60 * time.Second,
 		DisableCompression: true,
 	}
-	client := http.Client{Transport: tr}
+	Client := http.Client{
+		Transport: tr,
+		Timeout:   10 * time.Second,
+	}
 
-	a := HttpClient{
-		client:  client,
+	hc := HttpClient{
+		Client:  Client,
 		Headers: headers,
 	}
 
-	return &a
+	return &hc
 }
 
-func (a *HttpClient) Get(link string) (*http.Response, error) {
+func (hc *HttpClient) Get(link string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil {
 		return nil, err
 	}
-	for key, val := range a.Headers {
+	for key, val := range hc.Headers {
 		req.Header.Add(key, val)
 	}
 
-	res, err := a.client.Do(req)
+	res, err := hc.Client.Do(req)
 	if err != nil {
 		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return nil, err
@@ -55,16 +57,16 @@ func (a *HttpClient) Get(link string) (*http.Response, error) {
 	return res, err
 }
 
-func (a *HttpClient) Post(link string, body io.Reader) (*http.Response, error) {
+func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest("POST", link, body)
 	if err != nil {
 		return nil, err
 	}
-	for key, val := range a.Headers {
+	for key, val := range hc.Headers {
 		req.Header.Add(key, val)
 	}
 
-	res, err := a.client.Do(req)
+	res, err := hc.Client.Do(req)
 	if err != nil {
 		apilog.ErrorLog.Printf("Http error. %s\n", err)
 		return nil, err

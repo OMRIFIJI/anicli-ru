@@ -4,7 +4,8 @@
 <img src="https://go.dev/blog/gopher/header.jpg" alt="Gopher" width="300"/>
 
 ## Зависимости
-Видео проигрываются с помощью [mpv](https://github.com/mpv-player/mpv).
+1. [mpv](https://github.com/mpv-player/mpv)
+2. [ffmpeg](https://github.com/FFmpeg/FFmpeg)
 
 ## Что умеет?
 На данный момент представляет из себя минимальный вариант.

@@ -221,7 +221,7 @@ func (a *AnimeGoClient) isValidEpId(epId int) bool {
 	return isValid
 }
 
-func (a *AnimeGoClient) GetEmbedLink(ep *models.Episode) error {
+func (a *AnimeGoClient) GetEmbedLinks(ep *models.Episode) error {
 	epIdStr := strconv.Itoa(ep.Id)
 	url := a.urlBuild.epById(epIdStr)
 
@@ -231,8 +231,15 @@ func (a *AnimeGoClient) GetEmbedLink(ep *models.Episode) error {
 	}
 	defer res.Body.Close()
 
-	embedLink, err := parser.ParseEmbedLink(res.Body)
-	ep.EmbedLink = embedLink
+
+	embedLinks, err := parser.ParseEmbedLinks(res.Body)
+    if err != nil {
+        return err
+    }
+    if len(embedLinks) == 0 {
+        return errors.New("Нет доступных ссылок на выбранный эпизод.")
+    }
+	ep.EmbedLinks = embedLinks
 
 	return nil
 }

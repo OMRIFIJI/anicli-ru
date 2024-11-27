@@ -70,14 +70,17 @@ func (ap *AnimePlayer) updateLink() error {
 		return err
 	}
 
-	api.GetEmbedLink(ep)
+    err = api.GetEmbedLinks(ep)
+    if err != nil {
+        return err
+    }
 
-	videoLink, err := ap.converter.GetVideoLink(ep.EmbedLink)
+	videos, err := ap.converter.GetVideos(ep.EmbedLinks)
 	if err != nil {
 		return err
 	}
 
-	err = ap.player.SetLinks(videoLink)
+	err = ap.player.SetVideos(videos)
 	return err
 }
 
@@ -151,7 +154,7 @@ func (ap *AnimePlayer) handleEpisodeSwitch(menuOption string) (replayVideo bool,
 			return false, err
 		}
 		if isExitOnQuit {
-			return false, errors.New("Не была выбрана новая озвучка.")
+			return false, errors.New("Выход из меню обязательного выбора новой озвучки.")
 		}
 		return true, nil
 	}

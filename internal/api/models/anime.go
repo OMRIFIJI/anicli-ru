@@ -8,10 +8,15 @@ import (
 const FilmEpisodeId = -1
 
 // Структура: озвучка -> плеер -> ссылка на embed
-type EmbedLink map[string]map[string]string
+type EmbedLinks map[string]map[string]string
 
 // Структура: озвучка -> качество видео -> ссылка на видео
-type VideoLink map[string]map[int]string
+type VideoLinks map[string]map[int]Video
+
+type Video struct {
+	Link string
+	MpvOpts []string
+}
 
 type EpisodesContext struct {
 	Eps           map[int]*Episode
@@ -21,8 +26,8 @@ type EpisodesContext struct {
 }
 
 type Episode struct {
-	Id        int
-	EmbedLink EmbedLink
+	Id         int
+	EmbedLinks EmbedLinks
 }
 
 type Anime struct {
