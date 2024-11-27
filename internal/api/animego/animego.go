@@ -2,7 +2,6 @@ package animego
 
 import (
 	"anicliru/internal/api/animego/parser"
-	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	httpcommon "anicliru/internal/http"
 	"errors"
@@ -43,7 +42,6 @@ func (a *AnimeGoClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 
 	animes, err := parser.ParseAnimes(res.Body)
 	if err != nil {
-		apilog.ErrorLog.Printf("Html parse fail. %s\n", err)
 		return nil, err
 	}
 
@@ -106,7 +104,6 @@ func (a *AnimeGoClient) getEpInfo(anime **models.Anime) error {
 	if err := a.getEpIds(*anime); err != nil {
 		var blockError *models.RegionBlockError
 		if !errors.As(err, &blockError) {
-			apilog.ErrorLog.Printf("Ошибка обработки %s %s\n", (*anime).Title, err)
 			*anime = nil
 			return animeErr
 		}
@@ -126,7 +123,6 @@ func (a *AnimeGoClient) getFilmRegionBlock(anime *models.Anime) error {
 
 	isRegionBlock, err := parser.ParseFilmRegionBlock(res.Body)
 	if err != nil {
-		apilog.ErrorLog.Printf("Ошибка обработки блокировки фильма %s %s\n", anime.Title, err)
 		return err
 	}
 
@@ -159,7 +155,6 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 	}
 
 	if err != nil {
-		apilog.ErrorLog.Printf("Ошибка обработки медиа информации %s %s\n", anime.Title, err)
 		return err
 	}
 

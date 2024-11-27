@@ -1,7 +1,6 @@
 package httpcommon
 
 import (
-	apilog "anicliru/internal/api/log"
 	"fmt"
 	"io"
 	"net/http"
@@ -76,7 +75,6 @@ func (hc *HttpClient) Get(link string) (*http.Response, error) {
 
 		res, err := hc.Client.Do(req)
 		if err != nil {
-			apilog.ErrorLog.Printf("Http error. %s\n", err)
             hc.delay()
 			continue
 		}
@@ -106,7 +104,6 @@ func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) 
 
 		res, err := hc.Client.Do(req)
 		if err != nil {
-			apilog.ErrorLog.Printf("Http error. %s\n", err)
             hc.delay()
 			continue
 		}

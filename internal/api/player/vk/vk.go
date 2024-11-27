@@ -1,7 +1,6 @@
 package vk
 
 import (
-	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player/common"
 	httpcommon "anicliru/internal/http"
@@ -59,7 +58,6 @@ func (vk *VK) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
         }
 		link := removeSlashes(match[2])
 
-        apilog.WarnLog.Println(link)
 		video := models.Video{
 			Link:    link,
 			MpvOpts: nil,

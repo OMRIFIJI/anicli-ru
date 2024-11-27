@@ -1,7 +1,6 @@
 package app
 
 import (
-	apilog "anicliru/internal/api/log"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"anicliru/internal/video"
 	"sync"
@@ -19,14 +18,11 @@ func NewApp() *App {
 }
 
 func (a *App) init() {
-	apilog.Init()
 	a.quitChan = make(chan struct{})
 	a.wg = &sync.WaitGroup{}
 }
 
 func (a *App) RunApp() error {
-	apilog.Init()
-
 	if err := a.defaultAppPipe(); err != nil {
 		return err
 	}
