@@ -35,23 +35,25 @@ https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 - [ ] Сделать код читабельнее
 
 ## Установка
-Для начала устанавливаем следующие зависимости любым удобным для вас способом:
-1. [mpv](https://github.com/mpv-player/mpv)
-2. [ffmpeg](https://github.com/FFmpeg/FFmpeg)
-
-Теперь скачиваем или собираем бинарник `anicli-ru`: 
-1. Скачать можно напрямую из [релиза](https://github.com/OMRIFIJI/anicli-ru/releases/tag/v2.0.0).
-2. Как собрать самому - инструкции ниже.
-
-Если хотим, чтобы можно было запускать приложение, не указывая полный путь до него,
-то добавляем `anicli-ru` в одну из директорий **PATH**.\
-Например: `sudo cp anicli-ru /usr/bin`
+1. Для работы приложения требуются следующие утилиты. Установите их удобным для вас способом:
+	- [mpv](https://github.com/mpv-player/mpv) - видеоплеер с поддержкой потокового воспроизведения.
+	- [ffmpeg](https://github.com/FFmpeg/FFmpeg) - инструмент для работы с мультимедиа.
+2. Загрузка или сборка приложения `anicli-ru`: 
+	- Скачать готовый бинарник можно на странице [релиза](https://github.com/OMRIFIJI/anicli-ru/releases/tag/v2.0.0).
+	- Инструкции по сборке находятся ниже (в разделе "Сборка").
+ 
+Чтобы запускать **anicli-ru** из любой директории без указания полного пути, добавьте бинарник в одну из системных директорий, входящих в PATH. Например:
+```bash
+sudo cp anicli-ru /usr/bin
+```
 
 ## Сборка
-1. `git clone https://github.com/OMRIFIJI/anicli-ru.git`
-2. `cd anicli-ru`
-3. `go build -ldflags "-s -w" -o anicli-ru ./cmd/main.go`
+Собирать приложение рекомендуется с флагами указанными ниже:
+```bash
+git clone https://github.com/OMRIFIJI/anicli-ru.git &&
+cd anicli-ru &&
+go build -ldflags "-s -w" -o anicli-ru ./cmd/main.go
+```
 
 ## Проблемы и способы их решения
-При сборке `ffmpeg` из исходников или на таких системах, как gentoo.
-Важно добавить зависимость `libxml2` для поддержки DASH.
+При сборке `ffmpeg` из исходников или на системах вроде Gentoo важно добавить зависимость `libxml2` для обеспечения поддержки DASH.
