@@ -12,10 +12,6 @@ func ExitAltScreenBuf() {
 	fmt.Print("\033[?1049l")
 }
 
-func ClearScreen() {
-	fmt.Print("\033[H\033[2J")
-}
-
 func HideCursor() {
 	fmt.Print("\033[?25l")
 }
@@ -29,6 +25,7 @@ func ClearLine() {
 }
 
 const (
+	ClearScreen = "\033[H\033[2J"
 	ColorReset  = "\033[0m"
 	ColorPrompt = "\033[34m"
 	ColorErr    = "\033[31m"

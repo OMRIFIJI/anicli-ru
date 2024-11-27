@@ -129,12 +129,13 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
 
 	var drawBuilder strings.Builder
+
+    drawBuilder.WriteString(ansi.ClearScreen)
 	fmt.Fprintf(&drawBuilder, "%s%s%s\r\n", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
 	fmt.Fprintf(&drawBuilder, "┌───── Всего: %d %s┐\r\n", entryCount, repeatLineStr)
 	d.drawEntriesBody(&drawBuilder)
 	fmt.Fprintf(&drawBuilder, "└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
 
-	ansi.ClearScreen()
 	fmt.Print(drawBuilder.String())
 
 	return nil

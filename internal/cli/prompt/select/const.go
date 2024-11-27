@@ -29,7 +29,7 @@ const (
 )
 
 const (
-    resizeDebounceMs = 100
+    resizeDebounceMs = 30
 )
 
 const (
