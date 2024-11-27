@@ -20,10 +20,10 @@ func (a *App) getTitleFromUser() (string, error) {
 func (a *App) startLoading() {
 	a.wg.Add(1)
 	go loading.DisplayLoading(a.quitChan, a.wg)
-    defer loading.RestoreTerminal()
 }
 
 func (a *App) stopLoading() {
+    defer loading.RestoreTerminal()
 	a.quitChan <- struct{}{}
 	a.wg.Wait()
 }
