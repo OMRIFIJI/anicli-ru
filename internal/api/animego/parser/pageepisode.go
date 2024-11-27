@@ -42,7 +42,7 @@ func parseIdToLinks(content string) (map[string]map[string]string, error) {
 
         dubLink := strings.TrimSpace(match[1])
         dubLink = strings.ReplaceAll(dubLink, "&amp;", "&")
-		playerName := getPlayerName(dubLink)
+		playerName := netloc(dubLink)
         idToLinks[id][playerName] = dubLink
 	}
 
@@ -86,12 +86,12 @@ func ParseEmbedLinks(r io.Reader) (models.EmbedLinks, error) {
 	return embedLinks, nil
 }
 
-func getPlayerName(dubLink string) string {
+func netloc(dubLink string) string {
 	playerName, exists := strings.CutPrefix(dubLink, "//")
 	if !exists {
 		return "Неизвестен"
 	}
-	endOfPlayerName := strings.Index(playerName, ".")
+	endOfPlayerName := strings.Index(playerName, "/")
 	if endOfPlayerName == -1 {
 		return "Неизвестен"
 	}

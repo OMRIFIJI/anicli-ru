@@ -1,20 +1,24 @@
 package video
 
 import (
+	apilog "anicliru/internal/api/log"
 	"anicliru/internal/api/models"
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
 	"strings"
-	"syscall"
+)
+
+const (
+	mpvRetries    = 5
+	mpvNetTimeout = 5
 )
 
 type videoPlayer struct {
 	Videos    map[string]map[int]models.Video
 	cfg       videoPlayerConfig
-	userAgent string
-	pid       int
 }
 
 type noDubError struct {
@@ -37,7 +41,6 @@ func (vpc *videoPlayerConfig) isEmpty() bool {
 func newVideoPlayer() *videoPlayer {
 	return &videoPlayer{
 		cfg: videoPlayerConfig{CurrentQuality: 0},
-		pid: 0,
 	}
 }
 
@@ -150,7 +153,7 @@ func (vp *videoPlayer) getClosestQuality(target int, qualities []int) int {
 	return closest
 }
 
-func (vp *videoPlayer) StartMpv(title string) error {
+func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 	video, err := vp.GetVideo()
 	if err != nil {
 		return err
@@ -158,28 +161,34 @@ func (vp *videoPlayer) StartMpv(title string) error {
 
 	mpvOpts := video.MpvOpts
 	mpvOpts = append(mpvOpts, fmt.Sprintf(`--force-media-title="%s"`, title))
+	mpvOpts = append(mpvOpts, fmt.Sprintf("--network-timeout=%d", mpvNetTimeout))
 	mpvOpts = append(mpvOpts, video.Link)
 
-    // Пока лучший способ, который нашёл, чтобы пережить обработку bash array для хэдеров
+	// Пока лучший способ, который нашёл, чтобы пережить обработку bash array для хэдеров
 	bashCmd := "mpv " + strings.Join(mpvOpts, " ")
-	cmd := exec.Command("/bin/bash", "-c", bashCmd)
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("Не удалось запустить MPV: %s.", err)
+	// Несколько раз пытаюсь достучаться до видео, особенно актуально для sibnet
+	for i := 0; i < mpvRetries; i++ {
+		cmd := exec.Command("/bin/bash", "-c", bashCmd)
+		if err := cmd.Start(); err != nil {
+			continue
+		}
+
+		if cmd.Process == nil {
+			apilog.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
+			continue
+		}
+
+		if err := cmd.Wait(); err != nil {
+			apilog.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
+			continue
+		}
+
+		apilog.WarnLog.Println("Mpv запущен успешно")
+		return nil
 	}
 
-	vp.pid = cmd.Process.Pid
-
-	return nil
-}
-
-func (vp *videoPlayer) KillMpv() error {
-	if vp.pid == 0 {
-		return errors.New("Попытка убить процесс MPV, не созданный этим приложением.")
-	}
-
-	syscall.Kill(vp.pid, syscall.SIGKILL)
-	return nil
+	return fmt.Errorf("Не удалось запустить MPV после %d попыток.", mpvRetries)
 }
 
 func intAbs(value int) int {

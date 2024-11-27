@@ -5,11 +5,12 @@ import (
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player/aniboom"
 	"anicliru/internal/api/player/kodik"
+	"anicliru/internal/api/player/sibnet"
 	"sync"
 )
 
 type embedHandler interface {
-	FindVideos(string) (map[int]models.Video, error)
+	GetVideos(string) (map[int]models.Video, error)
 }
 
 type PlayerLinkConverter struct {
@@ -18,8 +19,9 @@ type PlayerLinkConverter struct {
 
 func (p *PlayerLinkConverter) SetPlayerHandlers() {
 	handlers := make(map[string]embedHandler)
-	handlers["aniboom"] = aniboom.NewAniboom()
-	handlers["kodik"] = kodik.NewKodik()
+	handlers["aniboom.one"] = aniboom.NewAniboom()
+	handlers["kodik.info"] = kodik.NewKodik()
+	handlers["video.sibnet.ru"] = sibnet.NewSibnet()
 
 	p.handlers = handlers
 }
@@ -35,18 +37,18 @@ func (p *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.Vi
 		videoLinks[dubName] = make(map[int]models.Video)
 	}
 
-	for dubName, dubPlayerLinks := range embedLinks {
+	for dubName, playerLinks := range embedLinks {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for playerName, link := range dubPlayerLinks {
+			for playerName, link := range playerLinks {
 				handler, exists := p.handlers[playerName]
 				if !exists {
 					apilog.WarnLog.Printf("Нет реализации обработки плеера %s %s", playerName, link)
 					return
 				}
 
-				qualityToVideo, err := handler.FindVideos(link)
+				qualityToVideo, err := handler.GetVideos(link)
 				if err != nil {
 					apilog.ErrorLog.Printf("Ошибка обработки плеера %s, %s", playerName, err)
 					continue

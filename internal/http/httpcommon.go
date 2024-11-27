@@ -2,83 +2,103 @@ package httpcommon
 
 import (
 	apilog "anicliru/internal/api/log"
-	"anicliru/internal/api/models"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
 )
 
 type HttpClient struct {
-	Client  http.Client
-	Headers map[string]string
+	Client     http.Client
+	Headers    map[string]string
+	MaxRetries int
 }
 
-func NewHttpClient(headers map[string]string) *HttpClient {
+func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *HttpClient {
 	tr := &http.Transport{
 		MaxIdleConns:       30,
 		DisableCompression: true,
 	}
 	Client := http.Client{
 		Transport: tr,
-		Timeout:   10 * time.Second,
+		Timeout:   5 * time.Second,
 	}
 
-	hc := HttpClient{
+	hc := &HttpClient{
 		Client:  Client,
 		Headers: headers,
 	}
+	hc.MaxRetries = 1
 
-	return &hc
+	for _, o := range options {
+		o(hc)
+	}
+
+	return hc
+}
+
+func WithRetries(maxRetries int) func(*HttpClient) {
+	return func(hc *HttpClient) {
+		hc.MaxRetries = maxRetries
+	}
+}
+
+func WithTimeout(timeInSeconds int) func(*HttpClient) {
+	return func(hc *HttpClient) {
+		hc.Client.Timeout = time.Duration(timeInSeconds) * time.Second
+	}
 }
 
 func (hc *HttpClient) Get(link string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", link, nil)
-	if err != nil {
-		return nil, err
-	}
-	for key, val := range hc.Headers {
-		req.Header.Add(key, val)
-	}
-
-	res, err := hc.Client.Do(req)
-	if err != nil {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
-		return nil, err
-	}
-
-	if res.StatusCode != 200 {
-		noConError := models.HttpError{
-			Msg: "Не удалось соединиться с сервером. Код ошибки: " + res.Status,
+	for i := 0; i < hc.MaxRetries; i++ {
+		req, err := http.NewRequest("GET", link, nil)
+		if err != nil {
+			continue
 		}
-		res.Body.Close()
-		return nil, &noConError
+		for key, val := range hc.Headers {
+			req.Header.Add(key, val)
+		}
+
+		res, err := hc.Client.Do(req)
+		if err != nil {
+			apilog.ErrorLog.Printf("Http error. %s\n", err)
+			continue
+		}
+
+		if res.StatusCode != 200 {
+			res.Body.Close()
+			continue
+		}
+
+		return res, nil
 	}
 
-	return res, err
+	return nil, fmt.Errorf("Ошибка http после %d попытки. Проверьте не включен ли у вас VPN.", hc.MaxRetries)
 }
 
 func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest("POST", link, body)
-	if err != nil {
-		return nil, err
-	}
-	for key, val := range hc.Headers {
-		req.Header.Add(key, val)
-	}
-
-	res, err := hc.Client.Do(req)
-	if err != nil {
-		apilog.ErrorLog.Printf("Http error. %s\n", err)
-		return nil, err
-	}
-
-	if res.StatusCode != 200 {
-		noConError := models.HttpError{
-			Msg: "Не удалось соединиться с сервером. Код ошибки: " + res.Status,
+	for i := 0; i < hc.MaxRetries; i++ {
+		req, err := http.NewRequest("POST", link, body)
+		if err != nil {
+			continue
 		}
-		res.Body.Close()
-		return nil, &noConError
+		for key, val := range hc.Headers {
+			req.Header.Add(key, val)
+		}
+
+		res, err := hc.Client.Do(req)
+		if err != nil {
+			apilog.ErrorLog.Printf("Http error. %s\n", err)
+			continue
+		}
+
+		if res.StatusCode != 200 {
+			res.Body.Close()
+			continue
+		}
+
+		return res, nil
 	}
 
-	return res, err
+	return nil, fmt.Errorf("Ошибка http после %d попыток", hc.MaxRetries)
 }

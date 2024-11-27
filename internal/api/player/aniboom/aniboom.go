@@ -22,6 +22,7 @@ func NewAniboom() *Aniboom {
 			"Referer":         "https://animego.org/",
 			"Accept-Language": "ru-RU",
 		},
+		httpcommon.WithRetries(2),
 	)
 	clientDash := httpcommon.NewHttpClient(
 		map[string]string{
@@ -37,9 +38,9 @@ func NewAniboom() *Aniboom {
 	return &a
 }
 
-func (a *Aniboom) FindVideos(embedLinks string) (map[int]models.Video, error) {
-	embedLinks = "https:" + embedLinks
-	res, err := a.client.Get(embedLinks)
+func (a *Aniboom) GetVideos(embedLink string) (map[int]models.Video, error) {
+	embedLink = "https:" + embedLink
+	res, err := a.client.Get(embedLink)
 	if err != nil {
 		return nil, err
 	}

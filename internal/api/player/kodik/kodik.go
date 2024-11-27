@@ -26,6 +26,7 @@ func NewKodik() *Kodik {
 			"Referer":         "https://animego.org/",
 			"Accept-Language": "ru-RU",
 		},
+		httpcommon.WithRetries(2),
 	)
 
 	k := Kodik{
@@ -41,9 +42,9 @@ type kodikVideoData struct {
 	} `json:"links"`
 }
 
-func (k *Kodik) FindVideos(embedLinks string) (map[int]models.Video, error) {
-	embedLinks = "https:" + embedLinks
-	res, err := k.client.Get(embedLinks)
+func (k *Kodik) GetVideos(embedLink string) (map[int]models.Video, error) {
+	embedLink = "https:" + embedLink
+	res, err := k.client.Get(embedLink)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (k *Kodik) FindVideos(embedLinks string) (map[int]models.Video, error) {
 	clientApi := httpcommon.NewHttpClient(
 		map[string]string{
 			"Origin":  k.baseUrl,
-			"Referer": embedLinks,
+			"Referer": embedLink,
 			"Accept":  "application/json, text/javascript, */*; q=0.01",
 		},
 	)

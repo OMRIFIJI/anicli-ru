@@ -23,6 +23,7 @@ func NewAnimeGoClient() *AnimeGoClient {
 			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
 			"X-Requested-With": "XMLHttpRequest",
 		},
+		httpcommon.WithRetries(2),
 	)
 	a.urlBuild = newUrlBuilder()
 	return a

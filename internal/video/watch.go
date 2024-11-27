@@ -4,16 +4,18 @@ import (
 	"anicliru/internal/api"
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player"
+	"context"
 	"errors"
 	"fmt"
 )
 
 type AnimePlayer struct {
-	anime     *models.Anime
-	converter *player.PlayerLinkConverter
-	selector  *videoSelector
-	player    *videoPlayer
-	noDubErr  *noDubError
+	anime       *models.Anime
+	converter   *player.PlayerLinkConverter
+	selector    *videoSelector
+	player      *videoPlayer
+	noDubErr    *noDubError
+	replayVideo bool
 }
 
 func NewAnimePlayer(anime *models.Anime, options ...func(*AnimePlayer)) *AnimePlayer {
@@ -54,12 +56,6 @@ func (ap *AnimePlayer) SpinWatch() error {
 		}
 	}
 
-	// Просмотр первой выбранной серии
-	if err = ap.wrappedStartMpv(); err != nil {
-		return err
-	}
-
-	// Интерфейс для запуска остальных серий и изменения опций просмотра
 	err = ap.spinWatchWithOptions()
 	return err
 }
@@ -70,10 +66,10 @@ func (ap *AnimePlayer) updateLink() error {
 		return err
 	}
 
-    err = api.GetEmbedLinks(ep)
-    if err != nil {
-        return err
-    }
+	err = api.GetEmbedLinks(ep)
+	if err != nil {
+		return err
+	}
 
 	videos, err := ap.converter.GetVideos(ep.EmbedLinks)
 	if err != nil {
@@ -84,35 +80,64 @@ func (ap *AnimePlayer) updateLink() error {
 	return err
 }
 
-func (ap *AnimePlayer) wrappedStartMpv() error {
+func (ap *AnimePlayer) wrappedStartMpv(ctx context.Context) error {
 	videoTitle := fmt.Sprintf("Серия %d. %s.", ap.anime.GetSelectedEpKey(), ap.anime.Title)
-	err := ap.player.StartMpv(videoTitle)
+	err := ap.player.StartMpv(videoTitle, ctx)
 	return err
 }
 
 func (ap *AnimePlayer) spinWatchWithOptions() error {
-	for {
-		promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.GetSelectedEpKey(), ap.anime.Title)
-		menuOption, isExitOnQuit, err := ap.selector.selectMenuOption(promptMessage)
-		if err != nil {
-			return err
+	backgroundCtx := context.Background()
+	ctx, cancel := context.WithCancelCause(backgroundCtx)
+
+	// Первое видео уже настроено
+	ap.replayVideo = true
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				ap.showMpvAndMenu(ctx, cancel)
+			}
 		}
-		if isExitOnQuit {
+	}()
+
+	select {
+	case <-ctx.Done():
+		err := context.Cause(ctx)
+		if err == context.Canceled {
 			return nil
 		}
+		return err
+	}
+}
 
-		if menuOption == exitPlayer {
-			return nil
+func (ap *AnimePlayer) showMpvAndMenu(ctx context.Context, cancel context.CancelCauseFunc) {
+	go func() {
+		if ap.replayVideo {
+			err := ap.wrappedStartMpv(ctx)
+			if err != nil {
+				cancel(err)
+			}
 		}
+	}()
+	promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.GetSelectedEpKey(), ap.anime.Title)
+	menuOption, isExitOnQuit, err := ap.selector.selectMenuOption(promptMessage)
+	if err != nil {
+		cancel(err)
+	}
+	if isExitOnQuit {
+		cancel(nil)
+	}
 
-		replayVideo, err := ap.handleVideoChange(menuOption)
-		if err != nil {
-			return err
-		}
-		if replayVideo {
-			ap.wrappedStartMpv()
-		}
+	if menuOption == exitPlayer {
+		cancel(nil)
+	}
 
+	ap.replayVideo, err = ap.handleVideoChange(menuOption)
+	if err != nil {
+		cancel(err)
 	}
 }
 
@@ -121,10 +146,6 @@ func (ap *AnimePlayer) handleVideoChange(menuOption string) (replayVideo bool, e
 	case nextEpisode, previousEpisode:
 		return ap.handleEpisodeSwitch(menuOption)
 	case replay:
-		err = ap.player.KillMpv()
-		if err != nil {
-			return false, err
-		}
 		return true, nil
 	case changeDub:
 		return ap.handleChangeDub()
