@@ -28,10 +28,6 @@ func ClearLine() {
 	fmt.Print("\r\033[2K")
 }
 
-func MoveCursorToNewLine() string {
-	return "\033[E"
-}
-
 const (
 	ColorReset  = "\033[0m"
 	ColorPrompt = "\033[34m"
