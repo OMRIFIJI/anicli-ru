@@ -1,7 +1,7 @@
 package video
 
 import (
-	apilog "anicliru/internal/api/log"
+    "anicliru/internal/logger"
 	"anicliru/internal/api/models"
 	"context"
 	"errors"
@@ -53,7 +53,7 @@ func (vp *videoPlayer) SetVideos(newVideos map[string]map[int]models.Video) erro
 	if _, exists := vp.Videos[vp.cfg.CurrentDub]; !exists {
 		vp.cfg.CurrentDub = ""
 		err := &noDubError{
-			Msg: "Выбранная озвучка больше не доступна. Выберите новую озвучку. ",
+			Msg: "Выбранная озвучка больше не доступна.",
 		}
 		return err
 	}
@@ -178,16 +178,15 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 		}
 
 		if cmd.Process == nil {
-			apilog.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
+			logger.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
 			continue
 		}
 
 		if err := cmd.Wait(); err != nil {
-			apilog.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
+			logger.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
 			continue
 		}
 
-		apilog.WarnLog.Println("Mpv запущен успешно")
 		return nil
 	}
 

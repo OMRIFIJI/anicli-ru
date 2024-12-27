@@ -133,6 +133,7 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
     drawBuilder.WriteString(ansi.ClearScreen)
 	fmt.Fprintf(&drawBuilder, "%s%s%s\r\n", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
 	fmt.Fprintf(&drawBuilder, "┌───── Всего: %d %s┐\r\n", entryCount, repeatLineStr)
+
 	d.drawEntriesBody(&drawBuilder)
 	fmt.Fprintf(&drawBuilder, "└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
 

@@ -1,5 +1,5 @@
 package parser
 
-type AnimeGoJson struct {
+type animeGoJson struct {
 	Content string `json:"content"`
 }

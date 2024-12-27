@@ -1,31 +1,43 @@
 package app
 
 import (
-	apilog "anicliru/internal/api/log"
+	"anicliru/internal/api"
 	promptselect "anicliru/internal/cli/prompt/select"
+	"anicliru/internal/logger"
 	"anicliru/internal/video"
 	"sync"
 )
 
 type App struct {
-	quitChan    chan struct{}
-	wg          *sync.WaitGroup
+	api      *api.AnimeAPI
+	quitChan chan struct{}
+	wg       *sync.WaitGroup
 }
 
-func NewApp() *App {
+func NewApp() (*App, error) {
 	a := App{}
-	a.init()
-	return &a
+    if err := a.init(); err != nil {
+        return nil, err
+    }
+	return &a, nil
 }
 
-func (a *App) init() {
-	apilog.Init()
+func (a *App) init() error {
+    api, err := api.NewAnimeAPI([]string{"yummyanime"})
+    if err != nil {
+        return err
+    }
+
+    a.api = api
 	a.quitChan = make(chan struct{})
 	a.wg = &sync.WaitGroup{}
+
+	logger.Init()
+
+    return nil
 }
 
 func (a *App) RunApp() error {
-	apilog.Init()
 
 	if err := a.defaultAppPipe(); err != nil {
 		return err
@@ -35,7 +47,7 @@ func (a *App) RunApp() error {
 
 func (a *App) defaultAppPipe() error {
 	searchInput, err := a.getTitleFromUser()
-    if err != nil {
+	if err != nil {
 		return err
 	}
 
@@ -67,10 +79,10 @@ func (a *App) defaultAppPipe() error {
 		return nil
 	}
 
-    animePlayer := video.NewAnimePlayer(anime)
-    if err := animePlayer.SpinWatch(); err != nil{
-        return err
-    }
+	animePlayer := video.NewAnimePlayer(anime)
+	if err := animePlayer.Play(); err != nil {
+		return err
+	}
 
 	return nil
 }

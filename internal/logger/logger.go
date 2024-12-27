@@ -1,4 +1,4 @@
-package apilog
+package logger
 
 import (
 	"log"
@@ -20,7 +20,7 @@ func Init() {
 		}
 		stateHome = home + "/.local/state"
 	}
-	logPath := stateHome + "/anicli-ru/api-log.txt"
+	logPath := stateHome + "/anicli-ru/log.txt"
 
 	dir := filepath.Dir(logPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"anicliru/internal/api"
 	"anicliru/internal/api/models"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
@@ -32,7 +31,7 @@ func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
 	a.startLoading()
 	defer a.stopLoading()
 
-	animes, err := api.GetAnimesByTitle(searchInput)
+	animes, err := a.api.GetAnimesByTitle(searchInput)
 	return animes, err
 }
 
@@ -50,7 +49,7 @@ func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
 		return nil, false, err
 	}
 
-	animes[cur].UpdateSortedEpisodeKeys()
+	animes[cur].EpCtx.SortEpisodeKeys()
 	return &animes[cur], isExitOnQuit, err
 }
 
@@ -68,7 +67,7 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 		return false, err
 	}
 
-	anime.SetCur(cur)
+	anime.EpCtx.SetCur(cur)
 	return isExitOnQuit, err
 }
 

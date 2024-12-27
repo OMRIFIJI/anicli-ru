@@ -1,7 +1,7 @@
 package kodik
 
 import (
-	apilog "anicliru/internal/api/log"
+	"anicliru/internal/logger"
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player/common"
 	httpcommon "anicliru/internal/http"
@@ -108,11 +108,12 @@ func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]common.Decode
 
 	for key, val := range videoData.Links {
 		if len(val) == 0 {
-			apilog.ErrorLog.Println("Ошибка обработки json")
+			logger.ErrorLog.Println("Ошибка обработки json в Kodik.")
 			continue
 		}
 		decodedUrl, err := decodeUrl(val[0].Src)
 		if err != nil {
+			logger.ErrorLog.Printf("Ошибка расшифровки в Kodik. %s\n", err)
 			continue
 		}
 		ind := strings.Index(decodedUrl, ":hls:manifest")
@@ -126,7 +127,7 @@ func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]common.Decode
 
 		quality, err := strconv.Atoi(key)
 		if err != nil {
-			apilog.ErrorLog.Println("Ошибка обработки качества видео", err)
+			logger.ErrorLog.Printf("Ошибка обработки качества видео в Kodik. %s\n", err)
 			continue
 		}
 
@@ -207,7 +208,6 @@ func decodeUrl(urlEncoded string) (string, error) {
 	base64URL = padBase64(base64URL)
 	decodedBytes, err := base64.StdEncoding.DecodeString(base64URL)
 	if err != nil {
-		apilog.ErrorLog.Printf("Ошибка декодинга '%s' %s\n", base64URL, err)
 		return "", err
 	}
 	decodedURL := string(decodedBytes)

@@ -39,7 +39,7 @@ func WithVideoPlayerConfig(cfg videoPlayerConfig) func(*AnimePlayer) {
 	}
 }
 
-func (ap *AnimePlayer) SpinWatch() error {
+func (ap *AnimePlayer) Play() error {
 	err := ap.updateLink()
 	if err != nil && !errors.As(err, &ap.noDubErr) {
 		return err
@@ -56,17 +56,17 @@ func (ap *AnimePlayer) SpinWatch() error {
 		}
 	}
 
-	err = ap.spinWatchWithOptions()
+	err = ap.spinPlay()
 	return err
 }
 
 func (ap *AnimePlayer) updateLink() error {
-	ep, err := ap.anime.GetSelectedEp()
+	ep, err := ap.anime.EpCtx.GetSelectedEp()
 	if err != nil {
 		return err
 	}
 
-	err = api.GetEmbedLinks(ap.anime, ep)
+	err = api.SetEmbedLinks(ap.anime, ep)
 	if err != nil {
 		return err
 	}
@@ -80,13 +80,13 @@ func (ap *AnimePlayer) updateLink() error {
 	return err
 }
 
-func (ap *AnimePlayer) wrappedStartMpv(ctx context.Context) error {
-	videoTitle := fmt.Sprintf("Серия %d. %s.", ap.anime.GetSelectedEpKey(), ap.anime.Title)
+func (ap *AnimePlayer) startMpvWrapped(ctx context.Context) error {
+	videoTitle := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.GetSelectedEpKey(), ap.anime.Title)
 	err := ap.player.StartMpv(videoTitle, ctx)
 	return err
 }
 
-func (ap *AnimePlayer) spinWatchWithOptions() error {
+func (ap *AnimePlayer) spinPlay() error {
 	backgroundCtx := context.Background()
 	ctx, cancel := context.WithCancelCause(backgroundCtx)
 
@@ -116,13 +116,13 @@ func (ap *AnimePlayer) spinWatchWithOptions() error {
 func (ap *AnimePlayer) showMpvAndMenu(ctx context.Context, cancel context.CancelCauseFunc) {
 	go func() {
 		if ap.replayVideo {
-			err := ap.wrappedStartMpv(ctx)
+			err := ap.startMpvWrapped(ctx)
 			if err != nil {
 				cancel(err)
 			}
 		}
 	}()
-	promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.GetSelectedEpKey(), ap.anime.Title)
+	promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.GetSelectedEpKey(), ap.anime.Title)
 	menuOption, isExitOnQuit, err := ap.selector.selectMenuOption(promptMessage)
 	if err != nil {
 		cancel(err)
@@ -158,18 +158,18 @@ func (ap *AnimePlayer) handleVideoChange(menuOption string) (replayVideo bool, e
 func (ap *AnimePlayer) handleEpisodeSwitch(menuOption string) (replayVideo bool, err error) {
 	switch menuOption {
 	case nextEpisode:
-		if err := ap.anime.SelectNextEp(); err != nil {
+		if err := ap.anime.EpCtx.SelectNextEp(); err != nil {
 			return false, err
 		}
 	case previousEpisode:
-		if err := ap.anime.SelectPreviousEp(); err != nil {
+		if err := ap.anime.EpCtx.SelectPreviousEp(); err != nil {
 			return false, nil
 		}
 	}
 
 	err = ap.updateLink()
 	if errors.As(err, &ap.noDubErr) {
-		promptMessage := ap.noDubErr.Error() + ap.anime.Title
+		promptMessage := fmt.Sprintf("%s Выберите новую озвучку. %s.", ap.noDubErr.Error(), ap.anime.Title)
 		isExitOnQuit, err := ap.selector.selectDub(promptMessage, ap.player)
 		if err != nil {
 			return false, err

@@ -12,10 +12,10 @@ func wrapAnimeTitle(anime models.Anime) string {
     }
 
     if anime.EpCtx.TotalEpCount == -1 {
-        return fmt.Sprintf("%s (%d из ??? серий)", anime.Title, len(anime.EpCtx.Eps))
+        return fmt.Sprintf("%s (%d из ??? серий)", anime.Title, anime.EpCtx.AiredEpCount)
     }
 
-	if anime.EpCtx.TotalEpCount == len(anime.EpCtx.Eps) {
+	if anime.EpCtx.TotalEpCount == anime.EpCtx.AiredEpCount {
         if anime.EpCtx.TotalEpCount == 1 {
             return fmt.Sprintf("%s (%d серия)", anime.Title, anime.EpCtx.TotalEpCount)
         }
@@ -25,7 +25,7 @@ func wrapAnimeTitle(anime models.Anime) string {
         return fmt.Sprintf("%s (%d серий)", anime.Title, anime.EpCtx.TotalEpCount)
 	}
 
-	return fmt.Sprintf("%s (%d из %d серий)", anime.Title, len(anime.EpCtx.Eps), anime.EpCtx.TotalEpCount)
+	return fmt.Sprintf("%s (%d из %d серий)", anime.Title, anime.EpCtx.AiredEpCount, anime.EpCtx.TotalEpCount)
 }
 
 func GetWrappedAnimeTitles(animes []models.Anime) []string {

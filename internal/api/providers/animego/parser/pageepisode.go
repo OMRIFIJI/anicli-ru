@@ -59,7 +59,7 @@ func ParseEmbedLinks(r io.Reader) (models.EmbedLinks, error) {
 		return nil, err
 	}
 
-	var result AnimeGoJson
+	var result animeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
 		return nil, err
 	}

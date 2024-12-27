@@ -3,6 +3,7 @@ package parser
 import (
 	"anicliru/internal/api/models"
 	"encoding/json"
+	"errors"
 	"io"
 	"regexp"
 	"strconv"
@@ -16,7 +17,7 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 		return nil, 0, err
 	}
 
-	var result AnimeGoJson
+	var result animeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
 		return nil, 0, err
 	}
@@ -24,10 +25,7 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 	re := regexp.MustCompile("Видео недоступно на территории")
 	match := re.FindString(result.Content)
 	if len(match) != 0 {
-		err := &models.RegionBlockError{
-			Msg: "Не доступно на территории РФ",
-		}
-		return nil, 0, err
+		return nil, 0, errors.New("Не доступно на территории РФ")
 	}
 
 	re = regexp.MustCompile(`data-episode="(\d+)"\s*\n*\s*data-id="(\d+)"`)
@@ -61,7 +59,7 @@ func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {
 		return false, err
 	}
 
-	var result AnimeGoJson
+	var result animeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
 		return false, err
 	}
@@ -80,7 +78,7 @@ func IsValid(r io.Reader) bool {
 		return false
 	}
 
-	var result AnimeGoJson
+	var result animeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
 		return false
 	}
@@ -94,27 +92,27 @@ func ParseMediaStatus(r io.Reader) (epCount int, mediaType string, err error) {
 	if err != nil {
 		return -1, "", err
 	}
-    result := string(resultByte)
+	result := string(resultByte)
 
-    re := regexp.MustCompile(`Тип\s*<\/dt>\s*\n*\s*<dd.+?>(.+?)<`)
+	re := regexp.MustCompile(`Тип\s*<\/dt>\s*\n*\s*<dd.+?>(.+?)<`)
 	match := re.FindStringSubmatch(result)
 	if match == nil {
 		return -1, "", nil
 	}
 
-    mediaType = strings.TrimSpace(match[1])
-    mediaType = strings.ToLower(mediaType)
+	mediaType = strings.TrimSpace(match[1])
+	mediaType = strings.ToLower(mediaType)
 
-    re = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?>(\d+)<`)
+	re = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?>(\d+)<`)
 	match = re.FindStringSubmatch(result)
 	if match == nil {
 		return -1, mediaType, nil
 	}
 
-    // Здесь либо 2 числа, если онгоинг, либо 1, если вышло
-    epCount, err = strconv.Atoi(match[1])
-    if err != nil {
+	// Здесь либо 2 числа, если онгоинг, либо 1, если вышло
+	epCount, err = strconv.Atoi(match[1])
+	if err != nil {
 		return -1, mediaType, nil
-    }
+	}
 	return epCount, mediaType, nil
 }

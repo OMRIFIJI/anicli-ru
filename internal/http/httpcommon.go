@@ -1,7 +1,7 @@
 package httpcommon
 
 import (
-	apilog "anicliru/internal/api/log"
+	"anicliru/internal/logger"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +17,7 @@ type HttpClient struct {
 
 func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *HttpClient {
 	tr := &http.Transport{
-		MaxIdleConns:       30,
+		MaxIdleConns:       70,
 		DisableCompression: true,
 	}
 	Client := http.Client{
@@ -76,7 +76,7 @@ func (hc *HttpClient) Get(link string) (*http.Response, error) {
 
 		res, err := hc.Client.Do(req)
 		if err != nil {
-			apilog.ErrorLog.Printf("Http error. %s\n", err)
+			logger.WarnLog.Printf("Http error. %s\n", err)
             hc.delay()
 			continue
 		}
@@ -90,7 +90,7 @@ func (hc *HttpClient) Get(link string) (*http.Response, error) {
 		return res, nil
 	}
 
-	return nil, fmt.Errorf("Ошибка http после %d попыток. Проверьте не включен ли у вас VPN.", hc.MaxRetries)
+    return nil, fmt.Errorf("Ошибка http после %d попыток. Ссылка: %s", hc.MaxRetries, link)
 }
 
 func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) {
@@ -106,7 +106,7 @@ func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) 
 
 		res, err := hc.Client.Do(req)
 		if err != nil {
-			apilog.ErrorLog.Printf("Http error. %s\n", err)
+			logger.WarnLog.Printf("Http error. %s\n", err)
             hc.delay()
 			continue
 		}
@@ -120,5 +120,5 @@ func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) 
 		return res, nil
 	}
 
-	return nil, fmt.Errorf("Ошибка http после %d попыток", hc.MaxRetries)
+    return nil, fmt.Errorf("Ошибка http после %d попыток. Ссылка: %s", hc.MaxRetries, link)
 }
