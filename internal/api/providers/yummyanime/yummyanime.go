@@ -117,8 +117,6 @@ func (y *YummyAnimeClient) getEpCount(animeId int) (airedEpCount int, totalEpCou
 }
 
 func (y *YummyAnimeClient) SetAllEmbedLinks(anime *models.Anime) error {
-    logger.WarnLog.Println("Enter set embed")
-
 	url := y.urlBuild.embedByAnimeId(anime.Id)
 	res, err := y.http.Get(url)
 	if err != nil {

@@ -43,6 +43,10 @@ func ParseEpCount(r io.Reader) (airedEpCount int, totalEpCount int, err error) {
         return totalEpCount, totalEpCount, nil
     }
 
+    if (totalEpCount < airedEpCount) {
+        totalEpCount = -1
+    }
+
     return airedEpCount, totalEpCount, nil
 }
 

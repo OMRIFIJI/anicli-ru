@@ -5,7 +5,6 @@ import (
 	"anicliru/internal/api/player"
 	"anicliru/internal/api/providers/animego"
 	"anicliru/internal/api/providers/yummyanime"
-	"anicliru/internal/logger"
 	"errors"
 	"fmt"
 )
@@ -74,11 +73,9 @@ func (a *AnimeAPI) SetAllEmbedLinks(anime *models.Anime) error {
 	}
 
 	return nil
-
 }
 
 func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
-	logger.WarnLog.Println("Set enter")
 	client := a.animeParsers[anime.Provider]
 
 	err := client.SetEmbedLinks(anime, ep)
