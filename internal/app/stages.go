@@ -22,7 +22,7 @@ func (a *App) startLoading() {
 }
 
 func (a *App) stopLoading() {
-    defer loading.RestoreTerminal()
+	defer loading.RestoreTerminal()
 	a.quitChan <- struct{}{}
 	a.wg.Wait()
 }
@@ -49,12 +49,13 @@ func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
 		return nil, false, err
 	}
 
-	animes[cur].EpCtx.SortEpisodeKeys()
+    a.api.SetAllEmbedLinks(&animes[cur])
+
 	return &animes[cur], isExitOnQuit, err
 }
 
 func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
-	episodeEntries := entryfmt.EpisodeKeysToStr(anime.EpCtx.EpsSortedKeys)
+	episodeEntries := entryfmt.EpisodeEntries(anime.EpCtx)
 	promptMessage := "Выберите серию. " + anime.Title
 
 	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false)
@@ -67,7 +68,9 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 		return false, err
 	}
 
-	anime.EpCtx.SetCur(cur)
-	return isExitOnQuit, err
+	err = anime.EpCtx.SetCur(cur + 1)
+	if err != nil {
+		return false, err
+	}
+	return isExitOnQuit, nil
 }
-

@@ -5,20 +5,23 @@ import (
 	"anicliru/internal/api/player"
 	"anicliru/internal/api/providers/animego"
 	"anicliru/internal/api/providers/yummyanime"
+	"anicliru/internal/logger"
 	"errors"
 	"fmt"
 )
 
 type AnimeAPI struct {
-	animeParsers []animeParser
+	animeParsers map[string]animeParser
 }
 
+// TODO: исправить логику с embed'ами.
 type animeParser interface {
 	GetAnimesByTitle(string) ([]models.Anime, error)
-	// SetEmbedLinks(*models.Anime, *models.Episode) error
+	SetEmbedLinks(*models.Anime, *models.Episode) error
+	SetAllEmbedLinks(*models.Anime) error
 }
 
-func getAnimeParserByName(name string) (animeParser, error) {
+func NewAnimeParserByName(name string) (animeParser, error) {
 	switch name {
 	case "animego":
 		return animego.NewAnimeGoClient(), nil
@@ -30,39 +33,58 @@ func getAnimeParserByName(name string) (animeParser, error) {
 
 func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
 	a := AnimeAPI{}
+	a.animeParsers = make(map[string]animeParser)
 	for _, name := range animeParserNames {
-		animeParser, err := getAnimeParserByName(name)
+		animeParser, err := NewAnimeParserByName(name)
 		if err != nil {
 			return nil, err
 		}
-		a.animeParsers = append(a.animeParsers, animeParser)
+		a.animeParsers[name] = animeParser
 	}
 
 	return &a, nil
 }
 
 func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
-    var animes []models.Anime
+	var animes []models.Anime
 
+	// Перевести в async
 	for _, client := range a.animeParsers {
 		parsedAnimes, err := client.GetAnimesByTitle(title)
 		if err != nil {
 			return nil, err
 		}
 
-        animes = append(animes, parsedAnimes...)
+		animes = append(animes, parsedAnimes...)
 	}
 
-    if len(animes) == 0 {
-        return nil, errors.New("По вашему запросу ничего не найдено.")
-    }
-    
+	if len(animes) == 0 {
+		return nil, errors.New("По вашему запросу ничего не найдено.")
+	}
+
 	return animes, nil
 }
 
-func SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
-	client := animego.NewAnimeGoClient()
-	client.SetEmbedLinks(anime, ep)
+// Пытается установить все embed если это возможно
+func (a *AnimeAPI) SetAllEmbedLinks(anime *models.Anime) error {
+	client := a.animeParsers[anime.Provider]
+	err := client.SetAllEmbedLinks(anime)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
+	logger.WarnLog.Println("Set enter")
+	client := a.animeParsers[anime.Provider]
+
+	err := client.SetEmbedLinks(anime, ep)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

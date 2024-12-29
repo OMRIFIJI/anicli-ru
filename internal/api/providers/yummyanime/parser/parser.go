@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"anicliru/internal/api/models"
 	"encoding/json"
 	"io"
+	"net/url"
+	"strconv"
 )
 
 func ParseAnimes(r io.Reader) (*SearchJson, error) {
@@ -41,4 +44,46 @@ func ParseEpCount(r io.Reader) (airedEpCount int, totalEpCount int, err error) {
     }
 
     return airedEpCount, totalEpCount, nil
+}
+
+func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
+	in, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var result EpJson
+	if err := json.Unmarshal(in, &result); err != nil {
+		return nil, err
+	}
+
+    eps := make(map[int]*models.Episode)
+	for _, res := range result.Response {
+        epNumber, err := strconv.Atoi(res.Number)
+        if err != nil {
+            continue
+        }
+
+        _, exists := eps[epNumber]
+        if !exists {
+            eps[epNumber] = &models.Episode{}
+            eps[epNumber].EmbedLinks = make(models.EmbedLinks)
+        }
+
+        dubName := res.Data.Dubbing
+        u, err := url.Parse(res.IframeUrl)
+        if err != nil {
+            continue
+        }
+        playerName := u.Hostname()
+
+        _, exists = eps[epNumber].EmbedLinks[dubName]
+        if !exists {
+            eps[epNumber].EmbedLinks[dubName] = make(map[string]string)
+        }
+
+        eps[epNumber].EmbedLinks[dubName][playerName] = res.IframeUrl
+	}
+
+	return eps, nil
 }

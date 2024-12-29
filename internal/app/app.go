@@ -79,7 +79,7 @@ func (a *App) defaultAppPipe() error {
 		return nil
 	}
 
-	animePlayer := video.NewAnimePlayer(anime)
+	animePlayer := video.NewAnimePlayer(anime, a.api)
 	if err := animePlayer.Play(); err != nil {
 		return err
 	}

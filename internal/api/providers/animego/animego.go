@@ -206,6 +206,10 @@ func (a *AnimeGoClient) isValidEpId(epId int) bool {
 	return isValid
 }
 
+func (a *AnimeGoClient) SetAllEmbedLinks(*models.Anime) error {
+    return nil
+}
+
 func (a *AnimeGoClient) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
 	var url string
 	if anime.MediaType == "фильм" {
@@ -232,3 +236,5 @@ func (a *AnimeGoClient) SetEmbedLinks(anime *models.Anime, ep *models.Episode) e
 
 	return nil
 }
+
+

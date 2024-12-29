@@ -1,8 +1,8 @@
 package yummyanime
 
 import (
-    "strconv"
-    "net/url"
+	"net/url"
+	"strconv"
 )
 
 type urlBuilder struct {
@@ -10,8 +10,7 @@ type urlBuilder struct {
 	searchSuf  string
 	searchConf string
 	animeSuf   string
-	playerSuf  string
-	epSuf      string
+	videoSuf   string
 }
 
 func newUrlBuilder() urlBuilder {
@@ -20,8 +19,7 @@ func newUrlBuilder() urlBuilder {
 		searchSuf:  "api/search?q=",
 		searchConf: "&limit=10&offset=0",
 		animeSuf:   "api/anime/",
-		playerSuf:  "player?_allow=true",
-		epSuf:      "series?id=",
+		videoSuf:   "videos",
 	}
 	return u
 }
@@ -34,10 +32,6 @@ func (u *urlBuilder) animeById(id int) string {
 	return u.base + u.animeSuf + strconv.Itoa(id)
 }
 
-func (u *urlBuilder) animeByUname(uname string) string {
-	return u.base + u.animeSuf + url.QueryEscape(uname)
-}
-
-func (u *urlBuilder) epById(id string) string {
-	return u.base + u.animeSuf + u.epSuf + id
+func (u *urlBuilder) embedByAnimeId(id int) string {
+	return u.base + u.animeSuf + strconv.Itoa(id) + "/" + u.videoSuf
 }

@@ -10,6 +10,7 @@ import (
 )
 
 type AnimePlayer struct {
+	api         *api.AnimeAPI
 	anime       *models.Anime
 	converter   *player.PlayerLinkConverter
 	selector    *videoSelector
@@ -18,12 +19,15 @@ type AnimePlayer struct {
 	replayVideo bool
 }
 
-func NewAnimePlayer(anime *models.Anime, options ...func(*AnimePlayer)) *AnimePlayer {
-	ap := &AnimePlayer{anime: anime}
-	ap.converter = api.NewPlayerLinkConverter()
-	ap.selector = newSelector()
-	ap.player = newVideoPlayer()
-	ap.noDubErr = &noDubError{}
+func NewAnimePlayer(anime *models.Anime, apiPtr *api.AnimeAPI, options ...func(*AnimePlayer)) *AnimePlayer {
+	ap := &AnimePlayer{
+		anime:     anime,
+		converter: api.NewPlayerLinkConverter(),
+		api:       apiPtr,
+		selector:  newSelector(),
+		player:    newVideoPlayer(),
+		noDubErr:  &noDubError{},
+	}
 
 	for _, o := range options {
 		o(ap)
@@ -66,7 +70,7 @@ func (ap *AnimePlayer) updateLink() error {
 		return err
 	}
 
-	err = api.SetEmbedLinks(ap.anime, ep)
+	err = ap.api.SetEmbedLinks(ap.anime, ep)
 	if err != nil {
 		return err
 	}
@@ -81,7 +85,7 @@ func (ap *AnimePlayer) updateLink() error {
 }
 
 func (ap *AnimePlayer) startMpvWrapped(ctx context.Context) error {
-	videoTitle := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.GetSelectedEpKey(), ap.anime.Title)
+	videoTitle := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.Cur, ap.anime.Title)
 	err := ap.player.StartMpv(videoTitle, ctx)
 	return err
 }
@@ -122,7 +126,7 @@ func (ap *AnimePlayer) showMpvAndMenu(ctx context.Context, cancel context.Cancel
 			}
 		}
 	}()
-	promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.GetSelectedEpKey(), ap.anime.Title)
+	promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.Cur, ap.anime.Title)
 	menuOption, isExitOnQuit, err := ap.selector.selectMenuOption(promptMessage)
 	if err != nil {
 		cancel(err)

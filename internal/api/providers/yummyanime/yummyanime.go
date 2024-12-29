@@ -5,6 +5,7 @@ import (
 	"anicliru/internal/api/providers/yummyanime/parser"
 	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
+	"errors"
 	"strings"
 	"sync"
 )
@@ -83,8 +84,6 @@ func (y *YummyAnimeClient) getSearchJson(title string) (*parser.SearchJson, erro
 	title = strings.TrimSpace(title)
 	url := y.urlBuild.searchByTitle(title)
 
-    logger.WarnLog.Println(url)
-
 	res, err := y.http.Get(url)
 	if err != nil {
 		return nil, err
@@ -115,4 +114,33 @@ func (y *YummyAnimeClient) getEpCount(animeId int) (airedEpCount int, totalEpCou
 	}
 
 	return airedEpCount, totalEpCount, nil
+}
+
+func (y *YummyAnimeClient) SetAllEmbedLinks(anime *models.Anime) error {
+    logger.WarnLog.Println("Enter set embed")
+
+	url := y.urlBuild.embedByAnimeId(anime.Id)
+	res, err := y.http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	// Игнорируем входной эпизод и заполняем все эпизоды
+	eps, err := parser.ParseEpisodes(res.Body)
+
+    logger.WarnLog.Printf("Found %d eps\n", len(eps))
+	if len(eps) == 0 {
+		return errors.New("Нет доступных ссылок на эпизоды данного аниме.")
+	}
+	anime.EpCtx.Eps = eps
+
+    for i := range eps {
+        logger.WarnLog.Printf("%d\n", i)
+    }
+	return nil
+}
+
+func (y *YummyAnimeClient) SetEmbedLinks(*models.Anime, *models.Episode) error {
+	return nil
 }
