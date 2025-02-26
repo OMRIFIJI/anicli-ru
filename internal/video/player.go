@@ -1,12 +1,11 @@
 package video
 
 import (
-    "anicliru/internal/logger"
 	"anicliru/internal/api/models"
+	"anicliru/internal/logger"
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strings"
 )
@@ -90,22 +89,22 @@ func (vp *videoPlayer) GetQualities(dub string) ([]int, error) {
 
 func (vp *videoPlayer) GetVideo() (*models.Video, error) {
 	if vp.cfg.CurrentDub == "" {
-		return nil, errors.New("Озвучка не выбрана")
+		return nil, errors.New("озвучка не выбрана")
 	}
 
 	if qualities, exists := vp.Videos[vp.cfg.CurrentDub]; exists {
 		if video, exists := qualities[vp.cfg.CurrentQuality]; exists {
 			return &video, nil
 		}
-		return nil, fmt.Errorf("Качество %d не существует для озвучки '%s'", vp.cfg.CurrentQuality, vp.cfg.CurrentDub)
+		return nil, fmt.Errorf("качество %d не существует для озвучки '%s'", vp.cfg.CurrentQuality, vp.cfg.CurrentDub)
 	}
 
-	return nil, fmt.Errorf("Озвучка '%s' не найдена", vp.cfg.CurrentDub)
+	return nil, fmt.Errorf("озвучка '%s' не найдена", vp.cfg.CurrentDub)
 }
 
 func (vp *videoPlayer) SelectDub(dub string) error {
 	if _, exists := vp.Videos[dub]; !exists {
-		return fmt.Errorf("Озвучка '%s' не найдена", dub)
+		return fmt.Errorf("озвучка '%s' не найдена", dub)
 	}
 	vp.cfg.CurrentDub = dub
 
@@ -126,7 +125,7 @@ func (vp *videoPlayer) SelectDub(dub string) error {
 
 func (vp *videoPlayer) SelectQuality(quality int) error {
 	if vp.cfg.CurrentDub == "" {
-		return fmt.Errorf("Озвучка не выбрана")
+		return fmt.Errorf("озвучка не выбрана")
 	}
 	qualities, _ := vp.GetQualities(vp.cfg.CurrentDub)
 	vp.cfg.CurrentQuality = vp.getClosestQuality(quality, qualities)
@@ -168,29 +167,32 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 	mpvOpts = append(mpvOpts, fmt.Sprintf(`"%s"`, video.Link))
 
 	// Пока лучший способ, который нашёл, чтобы пережить обработку bash array для хэдеров
-	bashCmd := "mpv " + strings.Join(mpvOpts, " ")
+	mpvCmd := "mpv " + strings.Join(mpvOpts, " ")
 
+	logger.WarnLog.Printf("%s", mpvCmd)
 	// Несколько раз пытаюсь достучаться до видео, особенно актуально для sibnet
-	for i := 0; i < mpvRetries; i++ {
-		cmd := exec.Command("/bin/bash", "-c", bashCmd)
+	for i := range mpvRetries {
+		cmd := execCommand(mpvCmd)
+
 		if err := cmd.Start(); err != nil {
+			logger.WarnLog.Printf("не удалось запустить mpv на %d попытке. %s\n", i+1, err)
 			continue
 		}
 
 		if cmd.Process == nil {
-			logger.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
+			logger.WarnLog.Printf("не удача mpv на %d попытке: process == nil \n", i+1)
 			continue
 		}
 
 		if err := cmd.Wait(); err != nil {
-			logger.WarnLog.Printf("Не удача в mpv на %d попытке\n", i+1)
+			logger.WarnLog.Printf("не удача mpv на %d попытке %s\n", i+1, err)
 			continue
 		}
 
 		return nil
 	}
 
-	return fmt.Errorf("Не удалось запустить MPV после %d попыток.", mpvRetries)
+	return fmt.Errorf("не удалось запустить MPV после %d попыток", mpvRetries)
 }
 
 func intAbs(value int) int {

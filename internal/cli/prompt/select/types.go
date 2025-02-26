@@ -51,9 +51,3 @@ type drawingContext struct {
 	virtCur       int
 	termSize      terminalSize
 }
-
-type quitError struct {
-	Msg string
-}
-
-func (e *quitError) Error() string { return e.Msg }

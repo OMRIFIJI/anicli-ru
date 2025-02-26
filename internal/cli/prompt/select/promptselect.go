@@ -5,18 +5,15 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"unicode/utf8"
 
-	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
 func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptSelect, error) {
 	if len(entries) == 0 {
-		return nil, errors.New("Ничего не найдено")
+		return nil, errors.New("ничего не найдено")
 	}
 	promptCtx := promptContext{
 		promptMessage: promptMessage,
@@ -58,7 +55,9 @@ func PrepareTerminal() (*term.State, error) {
 }
 
 func RestoreTerminal(oldTermState *term.State) {
-	term.Restore(0, oldTermState)
+	fd := int(os.Stdin.Fd())
+	term.Restore(fd, oldTermState)
+
 	ansi.ShowCursor()
 	ansi.ExitAltScreenBuf()
 }
@@ -77,7 +76,7 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		p.spinHandleInput(ctx, cancel)
+		p.spinHandleInput(ctx)
 	}()
 
 	wg.Add(1)
@@ -109,49 +108,12 @@ func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
 	}
 }
 
-func (p *PromptSelect) spinHandleInput(ctx context.Context, cancel context.CancelCauseFunc) {
+func (p *PromptSelect) spinHandleInput(ctx context.Context) {
 	defer close(p.ch.keyCode)
-
-	fd := int(os.Stdin.Fd())
-	// Перенос Stdin в non-block для корректного выхода по контексту
-	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
-	if err != nil {
-		cancel(err)
-		return
-	}
-	_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags|unix.O_NONBLOCK)
-	if err != nil {
-		cancel(err)
-		return
-	}
-
-	defer func() {
-		_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags)
-		if err != nil {
-			cancel(err)
-		}
-	}()
-
-	// Восстановление ISIG после Raw Mode
-	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
-	if err != nil {
-		cancel(err)
-		return
-	}
-	termios.Lflag |= unix.ISIG
-	if err := unix.IoctlSetTermios(fd, unix.TCSETS, termios); err != nil {
-		cancel(err)
-		return
-	}
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-sigChan:
-			cancel(nil)
 			return
 		default:
 			keyCodeValue, err := p.readKey()
@@ -183,7 +145,7 @@ func (p *PromptSelect) readKey() (keyCode, error) {
 	if n == 1 {
 		if buf[0] == '\n' || buf[0] == '\r' {
 			return enterKeyCode, nil
-		} else if buf[0] == 'q' {
+		} else if buf[0] == 'q' || buf[0] == 3 || buf[0] == 4 {
 			return quitKeyCode, nil
 		} else if buf[0] == 'k' {
 			return upKeyCode, nil
@@ -206,7 +168,7 @@ func (p *PromptSelect) readKey() (keyCode, error) {
 			return enterKeyCode, nil
 		}
 	}
-	if n >= 3 && buf[0] == 27 && buf[1] == 91 {
+	if n == 3 && buf[0] == 27 && buf[1] == 91 {
 		switch buf[2] {
 		case 65:
 			return upKeyCode, nil

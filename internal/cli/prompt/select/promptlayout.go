@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"golang.org/x/term"
@@ -20,7 +18,7 @@ func newDrawer(promptCtx promptContext, showIndex bool) (*drawer, error) {
 	d.promptCtx = promptCtx
 
 	if showIndex {
-		for i := 0; i < len(d.promptCtx.entries); i++ {
+		for i := range len(d.promptCtx.entries) {
 			d.promptCtx.entries[i] = fmt.Sprintf("%d %s", i+1, d.promptCtx.entries[i])
 		}
 	}
@@ -130,7 +128,7 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 
 	var drawBuilder strings.Builder
 
-    drawBuilder.WriteString(ansi.ClearScreen)
+	drawBuilder.WriteString(ansi.ClearScreen)
 	fmt.Fprintf(&drawBuilder, "%s%s%s\r\n", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
 	fmt.Fprintf(&drawBuilder, "┌───── Всего: %d %s┐\r\n", entryCount, repeatLineStr)
 
@@ -145,8 +143,7 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 func (d *drawer) spinRedrawOnResize(ctx context.Context, cancel context.CancelCauseFunc) {
 	defer d.recoverWithCancel(cancel)
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGWINCH)
+	signalChan := newResizeChan(ctx)
 
 	for {
 		d.debounce()
@@ -168,7 +165,8 @@ func (d *drawer) debounce() {
 }
 
 func (d *drawer) updateTerminalSize() error {
-	termWidth, termHeight, err := term.GetSize(0)
+	fd := int(os.Stdout.Fd())
+	termWidth, termHeight, err := term.GetSize(fd)
 	if err != nil {
 		return err
 	}
