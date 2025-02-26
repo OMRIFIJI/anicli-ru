@@ -41,7 +41,7 @@ func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptS
 }
 
 func PrepareTerminal() (*term.State, error) {
-	ansi.EnterAltScreenBuf()
+	enterAltScreenBuf()
 	ansi.HideCursor()
 
 	fd := int(os.Stdin.Fd())
@@ -59,7 +59,7 @@ func RestoreTerminal(oldTermState *term.State) {
 	term.Restore(fd, oldTermState)
 
 	ansi.ShowCursor()
-	ansi.ExitAltScreenBuf()
+	exitAltScreenBuf()
 }
 
 func (p *PromptSelect) SpinPrompt() (bool, int, error) {
