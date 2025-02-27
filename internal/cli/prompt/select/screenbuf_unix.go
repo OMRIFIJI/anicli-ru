@@ -9,5 +9,5 @@ func enterAltScreenBuf() {
 }
 
 func exitAltScreenBuf() {
-	ansi.EnterAltScreenBuf()
+	ansi.ExitAltScreenBuf()
 }

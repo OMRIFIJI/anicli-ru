@@ -15,7 +15,7 @@ type urlBuilder struct {
 
 func newUrlBuilder() urlBuilder {
 	u := urlBuilder{
-		base:      "https://animego.org/",
+		base:      "https://animego.club/",
 		searchSuf: "search/anime?q=",
 		animeSuf:  "anime/",
 		playerSuf: "player?_allow=true",

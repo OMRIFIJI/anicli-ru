@@ -22,7 +22,7 @@ func NewAnimeGoClient() *AnimeGoClient {
 	a.http = httpcommon.NewHttpClient(
 		map[string]string{
 			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
-			"Referer":          "https://animego.org",
+			"Referer":          "https://animego.club",
 			"X-Requested-With": "XMLHttpRequest",
 			"Accept-Language":  "en-US,en;q=0.5",
 		},

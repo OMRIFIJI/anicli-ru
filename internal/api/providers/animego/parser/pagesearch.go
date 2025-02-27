@@ -10,7 +10,7 @@ import (
 )
 
 func isAnimeHref(href string) bool {
-	return strings.HasPrefix(href, "https://animego.org/anime")
+	return strings.HasPrefix(href, "https://animego.club/anime")
 }
 
 func parseAnime(n *html.Node) *models.Anime {
@@ -40,6 +40,7 @@ func parseAnime(n *html.Node) *models.Anime {
 			Id:    id,
 			Uname: uname,
 			Title: title,
+            Provider: "animego",
 		}
 	} else {
 		return nil
