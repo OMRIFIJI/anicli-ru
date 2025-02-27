@@ -1,8 +1,8 @@
 package animego
 
 import (
-	"anicliru/internal/api/providers/animego/parser"
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/providers/animego/parser"
 	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
 	"errors"
@@ -96,11 +96,11 @@ func (a *AnimeGoClient) getEpsInfo(anime **models.Anime) {
 	if err := a.getEpIds(*anime); err != nil {
 		logger.WarnLog.Printf("Ошибка обработки %s. %s\n", (*anime).Title, err)
 		*anime = nil
+		return
 	}
 
-    // Временная заглушка, надо бы напрямую брать с сайта
-    (*anime).EpCtx.AiredEpCount = len((*anime).EpCtx.Eps)
-	return
+	// Временная заглушка, надо бы напрямую брать с сайта
+	(*anime).EpCtx.AiredEpCount = len((*anime).EpCtx.Eps)
 }
 
 func (a *AnimeGoClient) getFilmRegionBlock(anime *models.Anime) error {
@@ -117,7 +117,7 @@ func (a *AnimeGoClient) getFilmRegionBlock(anime *models.Anime) error {
 	}
 
 	if isRegionBlock {
-		return fmt.Errorf("Аниме %s заблокировано на вашей территории.", anime.Title)
+		return fmt.Errorf("аниме %s заблокировано на вашей территории", anime.Title)
 	}
 
 	return nil
@@ -136,14 +136,14 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 		anime.MediaType = mediaType
 
 		anime.EpCtx.TotalEpCount = 1
-        // Сайт не всегда возвращает Id фильмов. В любом случае он не обязателен для работы с ними.
+		// Сайт не всегда возвращает Id фильмов. В любом случае он не обязателен для работы с ними.
 		filmEp := &models.Episode{Id: -1}
 		anime.EpCtx.Eps = map[int]*models.Episode{1: filmEp}
 		return nil
 	}
 
 	if err != nil {
-		return fmt.Errorf("Ошибка обработки медиа информации %s %s\n", anime.Title, err)
+		return fmt.Errorf("ошибка обработки медиа информации %s %s", anime.Title, err)
 	}
 
 	anime.EpCtx.TotalEpCount = epCount
@@ -207,7 +207,7 @@ func (a *AnimeGoClient) isValidEpId(epId int) bool {
 }
 
 func (a *AnimeGoClient) SetAllEmbedLinks(*models.Anime) error {
-    return nil
+	return nil
 }
 
 func (a *AnimeGoClient) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
@@ -230,11 +230,9 @@ func (a *AnimeGoClient) SetEmbedLinks(anime *models.Anime, ep *models.Episode) e
 		return err
 	}
 	if len(embedLinks) == 0 {
-		return errors.New("Нет доступных ссылок на выбранный эпизод.")
+		return errors.New("нет доступных ссылок на выбранный эпизод")
 	}
 	ep.EmbedLinks = embedLinks
 
 	return nil
 }
-
-

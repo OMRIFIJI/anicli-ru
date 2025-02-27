@@ -1,10 +1,10 @@
 package kodik
 
 import (
-	"anicliru/internal/logger"
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player/common"
 	httpcommon "anicliru/internal/http"
+	"anicliru/internal/logger"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -21,7 +21,6 @@ const Netloc = "kodik.info"
 type Kodik struct {
 	client  *httpcommon.HttpClient
 	baseUrl string
-	name    string
 }
 
 func NewKodik() *Kodik {
@@ -93,7 +92,7 @@ func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error)
 
 	links := k.videoDataToLinks(videoData)
 	if len(links) == 0 {
-		return nil, errors.New("Не найдено ни одной ссылки")
+		return nil, errors.New("не найдено ни одной ссылки")
 	}
 
 	return links, nil
@@ -149,7 +148,7 @@ func (k *Kodik) getApiPayload(resBody []byte) ([]byte, error) {
 	re := regexp.MustCompile(exp)
 	match := re.FindStringSubmatch(string(resBody))
 	if match == nil {
-		return nil, errors.New("Ответ от kodik не удалось обработать")
+		return nil, errors.New("ответ от kodik не удалось обработать")
 	}
 
 	payloadMap := make(map[string]string)
@@ -164,7 +163,7 @@ func (k *Kodik) getApiPayload(resBody []byte) ([]byte, error) {
 	re = regexp.MustCompile(exp)
 	match = re.FindStringSubmatch(string(resBody))
 	if match == nil {
-		return nil, errors.New("Ответ от kodik не удалось обработать")
+		return nil, errors.New("ответ от kodik не удалось обработать")
 	}
 	payloadMap["type"] = match[1]
 	payloadMap["hash"] = match[2]
@@ -218,9 +217,4 @@ func decodeUrl(urlEncoded string) (string, error) {
 	}
 
 	return decodedURL, nil
-}
-
-func removeSlashes(link string) string {
-	link = strings.ReplaceAll(link, `\\\`, "")
-	return link
 }

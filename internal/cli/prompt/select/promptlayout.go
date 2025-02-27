@@ -225,7 +225,6 @@ func (d *drawer) correctOnRedraw() {
 		}
 		newDrawLow++
 	}
-	return
 }
 
 func (d *drawer) correctDrawHigh() {
@@ -243,7 +242,6 @@ func (d *drawer) correctDrawHigh() {
 		}
 		newDrawLow++
 	}
-	return
 }
 
 func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {
@@ -332,7 +330,6 @@ func (d *drawer) drawEntriesBody(drawBuilder *strings.Builder) {
 	}
 
 	d.drawCtx.drawLow = len(d.drawCtx.fittedEntries) - 1
-	return
 }
 
 func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {
@@ -341,7 +338,7 @@ func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {
 		if recoveredErr, ok := r.(error); ok {
 			err = recoveredErr
 		} else {
-			err = errors.New("Неизвестная ошибка в графике.")
+			err = errors.New("неизвестная ошибка в графике")
 		}
 
 		cancel(err)

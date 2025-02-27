@@ -156,7 +156,7 @@ func (ap *AnimePlayer) handleVideoChange(menuOption string) (replayVideo bool, e
 	case changeQuality:
 		return ap.handleChangeQuality()
 	}
-	return false, errors.New("Опцию меню не удалось обработать")
+	return false, errors.New("опцию меню не удалось обработать")
 }
 
 func (ap *AnimePlayer) handleEpisodeSwitch(menuOption string) (replayVideo bool, err error) {
@@ -179,7 +179,7 @@ func (ap *AnimePlayer) handleEpisodeSwitch(menuOption string) (replayVideo bool,
 			return false, err
 		}
 		if isExitOnQuit {
-			return false, errors.New("Выход из меню обязательного выбора новой озвучки.")
+			return false, errors.New("выход из меню обязательного выбора новой озвучки")
 		}
 		return true, nil
 	}

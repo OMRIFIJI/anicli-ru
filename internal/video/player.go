@@ -169,7 +169,6 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 	// Пока лучший способ, который нашёл, чтобы пережить обработку bash array для хэдеров
 	mpvCmd := "mpv " + strings.Join(mpvOpts, " ")
 
-	logger.WarnLog.Printf("%s", mpvCmd)
 	// Несколько раз пытаюсь достучаться до видео, особенно актуально для sibnet
 	for i := range mpvRetries {
 		cmd := execCommand(mpvCmd)

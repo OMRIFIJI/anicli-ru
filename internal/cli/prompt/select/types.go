@@ -16,7 +16,6 @@ type fmtOpts struct {
 type PromptSelect struct {
 	promptCtx promptContext
 	drawer    *drawer
-	termSize  terminalSize
 	ch        promptChannels
 }
 
