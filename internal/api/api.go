@@ -48,34 +48,39 @@ func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
 
 func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 	var animes []models.Anime
-    var mu sync.Mutex
-    var wg sync.WaitGroup
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, client := range a.animeParsers {
-        wg.Add(1)
+		wg.Add(1)
 		go func() {
-            defer wg.Done()
+			defer wg.Done()
 
 			parsedAnimes, err := client.GetAnimesByTitle(title)
 			if err != nil {
 				logger.ErrorLog.Println(err)
 			}
-            
-            mu.Lock()
+
+			mu.Lock()
 			animes = append(animes, parsedAnimes...)
-            mu.Unlock()
+			mu.Unlock()
 		}()
 	}
-    wg.Wait()
+	wg.Wait()
 
 	if len(animes) == 0 {
 		return nil, errors.New("По вашему запросу ничего не найдено.")
 	}
 
+	animes, err := dropAnimeDuplicates(animes)
+	if err != nil {
+		return nil, err
+	}
+
 	return animes, nil
 }
 
-// Пытается установить все embed если это возможно
+// Пытается установить все embed если это возможно.
 func (a *AnimeAPI) SetAllEmbedLinks(anime *models.Anime) error {
 	client := a.animeParsers[anime.Provider]
 	err := client.SetAllEmbedLinks(anime)
