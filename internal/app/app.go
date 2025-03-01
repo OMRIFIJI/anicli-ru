@@ -23,7 +23,7 @@ func NewApp() (*App, error) {
 }
 
 func (a *App) init() error {
-    api, err := api.NewAnimeAPI([]string{"animego"})
+    api, err := api.NewAnimeAPI([]string{"animego", "yummyanime"})
     if err != nil {
         return err
     }

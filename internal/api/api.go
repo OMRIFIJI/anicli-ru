@@ -5,6 +5,7 @@ import (
 	"anicliru/internal/api/player"
 	"anicliru/internal/api/providers/animego"
 	"anicliru/internal/api/providers/yummyanime"
+	"anicliru/internal/logger"
 	"errors"
 	"fmt"
 )
@@ -51,7 +52,7 @@ func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 	for _, client := range a.animeParsers {
 		parsedAnimes, err := client.GetAnimesByTitle(title)
 		if err != nil {
-			return nil, err
+            logger.ErrorLog.Println(err)
 		}
 
 		animes = append(animes, parsedAnimes...)

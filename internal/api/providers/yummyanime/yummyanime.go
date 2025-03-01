@@ -127,7 +127,6 @@ func (y *YummyAnimeClient) SetAllEmbedLinks(anime *models.Anime) error {
 	// Игнорируем входной эпизод и заполняем все эпизоды
 	eps, _ := parser.ParseEpisodes(res.Body)
 
-	logger.WarnLog.Printf("Found %d eps\n", len(eps))
 	if len(eps) == 0 {
 		return errors.New("нет доступных ссылок на эпизоды данного аниме")
 	}
