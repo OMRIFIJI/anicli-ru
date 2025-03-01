@@ -8,6 +8,7 @@ import (
 	"anicliru/internal/logger"
 	"errors"
 	"fmt"
+	"sync"
 )
 
 type AnimeAPI struct {
@@ -47,16 +48,25 @@ func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
 
 func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 	var animes []models.Anime
+    var mu sync.Mutex
+    var wg sync.WaitGroup
 
-	// Перевести в async
 	for _, client := range a.animeParsers {
-		parsedAnimes, err := client.GetAnimesByTitle(title)
-		if err != nil {
-            logger.ErrorLog.Println(err)
-		}
+        wg.Add(1)
+		go func() {
+            defer wg.Done()
 
-		animes = append(animes, parsedAnimes...)
+			parsedAnimes, err := client.GetAnimesByTitle(title)
+			if err != nil {
+				logger.ErrorLog.Println(err)
+			}
+            
+            mu.Lock()
+			animes = append(animes, parsedAnimes...)
+            mu.Unlock()
+		}()
 	}
+    wg.Wait()
 
 	if len(animes) == 0 {
 		return nil, errors.New("По вашему запросу ничего не найдено.")
