@@ -2,6 +2,7 @@ package app
 
 import (
 	"anicliru/internal/api"
+	config "anicliru/internal/app/cfg"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"anicliru/internal/logger"
 	"anicliru/internal/video"
@@ -23,7 +24,12 @@ func NewApp() (*App, error) {
 }
 
 func (a *App) init() error {
-    api, err := api.NewAnimeAPI([]string{"animego", "yummyanime"})
+    cfg, err := config.LoadConfig()
+    if err != nil {
+        return err
+    }
+
+    api, err := api.NewAnimeAPI(cfg.Providers)
     if err != nil {
         return err
     }

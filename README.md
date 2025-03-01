@@ -7,7 +7,7 @@
 ## Что умеет?
 https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 
-Поиск аниме осуществляется через [yummyanime](https://yummyani.meme/).
+Поиск аниме осуществляется через [yummyanime](https://yummy-anime.ru/) и зеркало [animego](https://animego.club/).
 Прямые ссылки на видео для mpv запрашиваются у встроенных в сайт плееров.
 Некоторые плееры, в частности aniboom, предлагают DASH.
 Для работы с ними mpv может использовать ffmpeg.
@@ -34,10 +34,17 @@ https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 ## Установка
 Просто скачайте готовый бинарник из последнего [релиза](https://github.com/OMRIFIJI/anicli-ru/releases). Для воспроизведения видео используется плеер `mpv` и `ffmpeg`.
 
+## Источники
+Источники задаются в конфиге, стандартный конфиг будет включать в себя все доступные источники.
+Программа создаст стандартный конфиг по одному из следующих путей:
+1. `$XDG_CONFIG_HOME/anicli-ru/config.toml`
+2. `$HOME/anicli-ru/config.toml`
+
 ## Windows
 * Не забудьте добавить `mpv` в PATH.
 * Рекомендую использовать `powershell`.
 * Через `cmd` программа тоже будет работать, но новый [буфер экрана](https://learn.microsoft.com/ru-ru/windows/console/console-screen-buffers) она создавать не будет, вместо этого она будет захламлять ваш буфер.
+* Конфиг находится в ` %APPDATA%\anicli-ru\config.toml`
 
 ## Проблемы и способы их решения
 При сборке `ffmpeg` из исходников важно добавить зависимость `libxml2` для поддержки DASH.

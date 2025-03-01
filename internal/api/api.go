@@ -29,7 +29,7 @@ func NewAnimeParserByName(name string) (animeParser, error) {
 	case "yummyanime":
 		return yummyanime.NewYummyAnimeClient(), nil
 	}
-	return nil, fmt.Errorf("Парсер %s не существует.", name)
+	return nil, fmt.Errorf("парсер %s не существует", name)
 }
 
 func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
@@ -42,6 +42,10 @@ func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
 		}
 		a.animeParsers[name] = animeParser
 	}
+
+    if len(a.animeParsers) == 0 {
+        return nil, errors.New("не удалось найти ни один парсер в конфиге")
+    }
 
 	return &a, nil
 }

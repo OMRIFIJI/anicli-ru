@@ -165,14 +165,8 @@ func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 		return err
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
 	// В онгоингах часто сайт может говорить, что доступно на 1 эпизод больше, чем есть
 	isLastEpValid := true
-	go func() {
-		defer wg.Done()
-		isLastEpValid = a.isValidEpId(epIdMap[lastEpNum])
-	}()
 	if !a.isValidEpId(epIdMap[lastEpNum]) {
 		delete(epIdMap, lastEpNum)
 	}
@@ -184,7 +178,6 @@ func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 		}
 	}
 
-	wg.Wait()
 	if !isLastEpValid {
 		delete(anime.EpCtx.Eps, lastEpNum)
 	}
