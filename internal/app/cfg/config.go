@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -13,12 +14,12 @@ type Config struct {
 }
 
 func getConfigPath() (string, error) {
-	dir, err := os.UserConfigDir()
-    if err != nil {
-        return "", fmt.Errorf("не удалось получить директорию для конфигов из переменных окружения среды. %s", err)
-    }
+	configHome, err := xdg.ConfigFile("anicli-ru")
+	if err != nil {
+		return "", nil
+	}
 
-    configPath := filepath.Join(dir, "anicli-ru", "config.toml")
+	configPath := filepath.Join(configHome, "config.toml")
 	return configPath, nil
 }
 
@@ -49,16 +50,16 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-    
-    cfgToml, err := os.ReadFile(cfgPath)
-    if err != nil {
-        return newDefaultConfig(cfgPath)
-    }
 
-    var cfg Config
-    if err := toml.Unmarshal(cfgToml, &cfg); err != nil {
-        return nil, err
-    }
+	cfgToml, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return newDefaultConfig(cfgPath)
+	}
 
-    return &cfg, nil
+	var cfg Config
+	if err := toml.Unmarshal(cfgToml, &cfg); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
 }

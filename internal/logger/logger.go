@@ -1,5 +1,3 @@
-//go:build windows
-
 package logger
 
 import (
@@ -7,6 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/adrg/xdg"
 )
 
 var (
@@ -15,11 +15,11 @@ var (
 )
 
 func Init() error {
-	cacheDir, err := os.UserCacheDir()
+	logHome, err := xdg.StateFile("anicli-ru")
 	if err != nil {
-		return fmt.Errorf("не удалось создать лог. %s", err)
+		return err
 	}
-	logPath := cacheDir + "\\anicli-ru\\log.txt"
+	logPath := filepath.Join(logHome, "log.txt")
 
 	dir := filepath.Dir(logPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
