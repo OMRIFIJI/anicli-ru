@@ -64,6 +64,7 @@ func (hc *HttpClient) delay() {
 }
 
 func (hc *HttpClient) Get(link string) (*http.Response, error) {
+    var err error
 	for i := 0; i < hc.MaxRetries; i++ {
 		req, err := http.NewRequest("GET", link, nil)
 		if err != nil {
@@ -90,10 +91,11 @@ func (hc *HttpClient) Get(link string) (*http.Response, error) {
 		return res, nil
 	}
 
-    return nil, fmt.Errorf("Ошибка http после %d попыток. Ссылка: %s", hc.MaxRetries, link)
+    return nil, fmt.Errorf("Ошибка http после %d попыток. Ссылка: %s. Последняя ошибка: %s", hc.MaxRetries, link, err)
 }
 
 func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) {
+    var err error
 	for i := 0; i < hc.MaxRetries; i++ {
 		req, err := http.NewRequest("POST", link, body)
 		if err != nil {
@@ -120,5 +122,5 @@ func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) 
 		return res, nil
 	}
 
-    return nil, fmt.Errorf("Ошибка http после %d попыток. Ссылка: %s", hc.MaxRetries, link)
+    return nil, fmt.Errorf("Ошибка http после %d попыток. Ссылка: %s. Последняя ошибка: %s", hc.MaxRetries, link, err)
 }

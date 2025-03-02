@@ -18,7 +18,7 @@ type Video struct {
 
 type EpisodesContext struct {
 	Eps          map[int]*Episode
-	Cur          int
+	Cur          int `json:"cur"`
 	TotalEpCount int
 	AiredEpCount int
 }
@@ -30,12 +30,12 @@ type Episode struct {
 
 // Структура аниме, возвращаемая api.
 type Anime struct {
-	Id        int
-	Uname     string
+	Id        int             `json:"id"`
+	Uname     string          `json:"uname"`
+	Provider  string          `json:"provider"`
+	EpCtx     EpisodesContext `json:"epCtx"`
 	Title     string
 	MediaType string
-	Provider  string
-	EpCtx     EpisodesContext
 }
 
 func (e *EpisodesContext) GetSelectedEp() (*Episode, error) {

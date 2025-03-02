@@ -2,10 +2,11 @@ package app
 
 import (
 	"anicliru/internal/api/models"
-	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
-	"anicliru/internal/fmt"
+	entryfmt "anicliru/internal/fmt"
+	"anicliru/internal/logger"
+	"sync"
 )
 
 func (a *App) getTitleFromUser() (string, error) {
@@ -14,17 +15,6 @@ func (a *App) getTitleFromUser() (string, error) {
 		return "", err
 	}
 	return searchInput, nil
-}
-
-func (a *App) startLoading() {
-	a.wg.Add(1)
-	go loading.DisplayLoading(a.quitChan, a.wg)
-}
-
-func (a *App) stopLoading() {
-	defer loading.RestoreTerminal()
-	a.quitChan <- struct{}{}
-	a.wg.Wait()
 }
 
 func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
@@ -36,21 +26,24 @@ func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
 }
 
 func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
-	animeEntries := entryfmt.GetWrappedAnimeTitles(animes)
-	promptMessage := "Выберите аниме из списка:"
-
-	prompt, err := promptselect.NewPrompt(animeEntries, promptMessage, true)
+	animeEntries := entryfmt.WrapAnimeTitlesAired(animes)
+	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
 
-	isExitOnQuit, cur, err := prompt.SpinPrompt()
+	a.api.SetAllEmbedLinks(&animes[cur])
+	return &animes[cur], isExitOnQuit, err
+}
+
+func (a *App) selectAnimeToCountinue(animes []models.Anime) (*models.Anime, bool, error) {
+	animeEntries := entryfmt.WrapAnimeTitlesWatched(animes)
+	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
 
-    a.api.SetAllEmbedLinks(&animes[cur])
-
+	a.api.SetAllEmbedLinks(&animes[cur])
 	return &animes[cur], isExitOnQuit, err
 }
 
@@ -73,4 +66,28 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 		return false, err
 	}
 	return isExitOnQuit, nil
+}
+
+func (a *App) prepareSavedAnime(animeSlice []models.Anime) ([]models.Anime, error) {
+	var animeSlicePrepared []models.Anime
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, anime := range animeSlice {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := a.api.PrepareSavedAnime(&anime); err != nil {
+				logger.ErrorLog.Println(err)
+			}
+			// Если онгоинг и новых серий нет, то не выводим
+			if anime.EpCtx.Cur != anime.EpCtx.AiredEpCount {
+				mu.Lock()
+				defer mu.Unlock()
+				animeSlicePrepared = append(animeSlicePrepared, anime)
+			}
+		}()
+	}
+	wg.Wait()
+
+	return animeSlicePrepared, nil
 }

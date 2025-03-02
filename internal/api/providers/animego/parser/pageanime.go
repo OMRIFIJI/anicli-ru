@@ -72,7 +72,7 @@ func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {
 	return false, nil
 }
 
-func IsValid(r io.Reader) bool {
+func IsValidEp(r io.Reader) bool {
 	in, err := io.ReadAll(r)
 	if err != nil {
 		return false

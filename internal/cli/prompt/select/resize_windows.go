@@ -24,7 +24,7 @@ func monitorWindowSize(ctx context.Context, signalChan chan struct{}) {
 	fd := int(os.Stdout.Fd())
 	oldHeight, oldWidth, err := term.GetSize(fd)
 	if err != nil {
-		logger.WarnLog.Println(err)
+		logger.ErrorLog.Println(err)
 		return
 	}
 
@@ -35,7 +35,7 @@ func monitorWindowSize(ctx context.Context, signalChan chan struct{}) {
 		case <-time.After(pollingDelay * time.Millisecond):
 			newHeight, newWidth, err := term.GetSize(fd)
 			if err != nil {
-				logger.WarnLog.Println(err)
+				logger.ErrorLog.Println(err)
 				return
 			}
 

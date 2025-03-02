@@ -174,17 +174,17 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 		cmd := execCommand(mpvCmd)
 
 		if err := cmd.Start(); err != nil {
-			logger.WarnLog.Printf("не удалось запустить mpv на %d попытке. %s\n", i+1, err)
+			logger.ErrorLog.Printf("не удалось запустить mpv на %d попытке. %s\n", i+1, err)
 			continue
 		}
 
 		if cmd.Process == nil {
-			logger.WarnLog.Printf("не удача mpv на %d попытке: process == nil \n", i+1)
+			logger.ErrorLog.Printf("не удача mpv на %d попытке: process == nil \n", i+1)
 			continue
 		}
 
 		if err := cmd.Wait(); err != nil {
-			logger.WarnLog.Printf("не удача mpv на %d попытке %s\n", i+1, err)
+			logger.ErrorLog.Printf("не удача mpv на %d попытке %s\n", i+1, err)
 			continue
 		}
 

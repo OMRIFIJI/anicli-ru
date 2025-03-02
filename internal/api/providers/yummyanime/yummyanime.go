@@ -124,7 +124,6 @@ func (y *YummyAnimeClient) SetAllEmbedLinks(anime *models.Anime) error {
 	}
 	defer res.Body.Close()
 
-	// Игнорируем входной эпизод и заполняем все эпизоды
 	eps, _ := parser.ParseEpisodes(res.Body)
 
 	if len(eps) == 0 {
@@ -137,4 +136,20 @@ func (y *YummyAnimeClient) SetAllEmbedLinks(anime *models.Anime) error {
 
 func (y *YummyAnimeClient) SetEmbedLinks(*models.Anime, *models.Episode) error {
 	return nil
+}
+
+func (y *YummyAnimeClient) PrepareSavedAnime(anime *models.Anime) error {
+	url := y.urlBuild.animeById(anime.Id)
+
+	res, err := y.http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+    airedEpCount, totalEpCount, err := parser.ParseEpCount(res.Body)
+    anime.EpCtx.AiredEpCount = airedEpCount
+    anime.EpCtx.TotalEpCount = totalEpCount
+
+    return nil
 }

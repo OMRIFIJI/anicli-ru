@@ -6,32 +6,56 @@ import (
 	"strconv"
 )
 
-func wrapAnimeTitle(anime models.Anime) string {
+func wrapSeries(title string, available, total int) string {
+	if total == -1 {
+		return fmt.Sprintf("%s (%d из ??? серий)", title, available)
+	}
+
+	if available == total {
+		if total == 1 {
+			return fmt.Sprintf("%s (%d серия)", title, total)
+		}
+		if total < 5 {
+			return fmt.Sprintf("%s (%d серии)", title, total)
+		}
+		return fmt.Sprintf("%s (%d серий)", title, total)
+	}
+
+	return fmt.Sprintf("%s (%d из %d серий)", title, available, total)
+
+}
+
+func wrapAnimeTitleAired(anime models.Anime) string {
 	if anime.MediaType == "фильм" {
 		return fmt.Sprintf("%s (фильм)", anime.Title)
 	}
 
-	if anime.EpCtx.TotalEpCount == -1 {
-		return fmt.Sprintf("%s (%d из ??? серий)", anime.Title, anime.EpCtx.AiredEpCount)
-	}
-
-	if anime.EpCtx.TotalEpCount == anime.EpCtx.AiredEpCount {
-		if anime.EpCtx.TotalEpCount == 1 {
-			return fmt.Sprintf("%s (%d серия)", anime.Title, anime.EpCtx.TotalEpCount)
-		}
-		if anime.EpCtx.TotalEpCount < 5 {
-			return fmt.Sprintf("%s (%d серии)", anime.Title, anime.EpCtx.TotalEpCount)
-		}
-		return fmt.Sprintf("%s (%d серий)", anime.Title, anime.EpCtx.TotalEpCount)
-	}
-
-	return fmt.Sprintf("%s (%d из %d серий)", anime.Title, anime.EpCtx.AiredEpCount, anime.EpCtx.TotalEpCount)
+	return wrapSeries(anime.Title, anime.EpCtx.AiredEpCount, anime.EpCtx.TotalEpCount)
 }
 
-func GetWrappedAnimeTitles(animes []models.Anime) []string {
+func wrapAnimeTitleWatched(anime models.Anime) string {
+	if anime.MediaType == "фильм" {
+		return fmt.Sprintf("%s (фильм)", anime.Title)
+	}
+
+	return wrapSeries(anime.Title, anime.EpCtx.Cur, anime.EpCtx.AiredEpCount)
+}
+
+// Возвращает названия аниме и количество вышедших серий из общего количества серий.
+func WrapAnimeTitlesAired(animes []models.Anime) []string {
 	wrappedTitles := make([]string, 0, len(animes))
 	for _, anime := range animes {
-		wrappedTitle := wrapAnimeTitle(anime)
+		wrappedTitle := wrapAnimeTitleAired(anime)
+		wrappedTitles = append(wrappedTitles, wrappedTitle)
+	}
+	return wrappedTitles
+}
+
+// Возвращает названия аниме и количество просмотренных серий из количества вышедших серий.
+func WrapAnimeTitlesWatched(animes []models.Anime) []string {
+	wrappedTitles := make([]string, 0, len(animes))
+	for _, anime := range animes {
+		wrappedTitle := wrapAnimeTitleWatched(anime)
 		wrappedTitles = append(wrappedTitles, wrappedTitle)
 	}
 	return wrappedTitles

@@ -195,7 +195,7 @@ func (a *AnimeGoClient) isValidEpId(epId int) bool {
 	}
 	defer res.Body.Close()
 
-	isValid := parser.IsValid(res.Body)
+	isValid := parser.IsValidEp(res.Body)
 	return isValid
 }
 
@@ -226,6 +226,18 @@ func (a *AnimeGoClient) SetEmbedLinks(anime *models.Anime, ep *models.Episode) e
 		return errors.New("нет доступных ссылок на выбранный эпизод")
 	}
 	ep.EmbedLinks = embedLinks
+
+	return nil
+}
+
+func (a *AnimeGoClient) PrepareSavedAnime(anime *models.Anime) error {
+	if err := a.getMediaStatus(anime); err != nil {
+		return err
+	}
+
+	if err := a.getEpIds(anime); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -20,6 +20,8 @@ type animeParser interface {
 	GetAnimesByTitle(string) ([]models.Anime, error)
 	SetEmbedLinks(*models.Anime, *models.Episode) error
 	SetAllEmbedLinks(*models.Anime) error
+	// Дозаполняет структуру аниме из сохраненных перед вычислением embed'ов
+	PrepareSavedAnime(anime *models.Anime) error
 }
 
 func NewAnimeParserByName(name string) (animeParser, error) {
@@ -43,9 +45,9 @@ func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
 		a.animeParsers[name] = animeParser
 	}
 
-    if len(a.animeParsers) == 0 {
-        return nil, errors.New("не удалось найти ни один парсер в конфиге")
-    }
+	if len(a.animeParsers) == 0 {
+		return nil, errors.New("не удалось найти ни один парсер в конфиге")
+	}
 
 	return &a, nil
 }
@@ -103,6 +105,17 @@ func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error 
 		return err
 	}
 
+	return nil
+}
+
+func (a *AnimeAPI) PrepareSavedAnime(anime *models.Anime) error {
+	client, ok := a.animeParsers[anime.Provider]
+	if !ok {
+		return fmt.Errorf("парсер %s не доступен", anime.Provider)
+	}
+	if err := client.PrepareSavedAnime(anime); err != nil {
+		return err
+	}
 	return nil
 }
 
