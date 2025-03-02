@@ -44,7 +44,7 @@ https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 * Не забудьте добавить `mpv` в PATH.
 * Рекомендую использовать `powershell`.
 * Через `cmd` программа тоже будет работать, но новый [буфер экрана](https://learn.microsoft.com/ru-ru/windows/console/console-screen-buffers) она создавать не будет, вместо этого она будет захламлять ваш буфер.
-* Конфиг находится в `%APPDATA%\anicli-ru\config.toml`
+* Конфиг находится в `%LOCALAPPDATA%\anicli-ru\config.toml`
 
 ## Проблемы и способы их решения
 При сборке `ffmpeg` из исходников важно добавить зависимость `libxml2` для поддержки DASH.
