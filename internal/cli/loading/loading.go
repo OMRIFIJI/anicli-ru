@@ -3,7 +3,6 @@ package loading
 import (
 	"anicliru/internal/cli/ansi"
 	"fmt"
-	"sync"
 	"time"
 )
 
@@ -12,7 +11,7 @@ func RestoreTerminal() {
 	defer ansi.ClearLine()
 }
 
-func DisplayLoading(quitChan chan struct{}, wg *sync.WaitGroup) {
+func DisplayLoading(quitChan chan struct{}) {
 	flowerPhases := []string{"", "*", "❀", "🌸"}
 	phasesCount := len(flowerPhases)
 	bloomLen := len(flowerPhases[phasesCount-1])
@@ -21,8 +20,6 @@ func DisplayLoading(quitChan chan struct{}, wg *sync.WaitGroup) {
 
 	ansi.HideCursor()
 	fmt.Print(loadingStr)
-
-	defer wg.Done()
 
 	for {
 		printSuccess := func(j int) bool {

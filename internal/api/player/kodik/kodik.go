@@ -112,7 +112,7 @@ func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]common.Decode
 		}
 		decodedUrl, err := decodeUrl(val[0].Src)
 		if err != nil {
-			logger.ErrorLog.Printf("Ошибка расшифровки в Kodik. %s\n", err)
+			logger.ErrorLog.Printf("Ошибка расшифровки %s в Kodik. %s\n", val[0].Src, err)
 			continue
 		}
 		ind := strings.Index(decodedUrl, ":hls:manifest")
@@ -202,6 +202,10 @@ func padBase64(base64Str string) string {
 }
 
 func decodeUrl(urlEncoded string) (string, error) {
+	if isDecoded(urlEncoded) {
+		return appendHttp(urlEncoded), nil
+	}
+
 	base64URL := decodeRot13(urlEncoded)
 
 	base64URL = padBase64(base64URL)
@@ -211,10 +215,18 @@ func decodeUrl(urlEncoded string) (string, error) {
 	}
 	decodedURL := string(decodedBytes)
 
-	// Проверяем, начинается ли строка с "https"
-	if !strings.HasPrefix(decodedURL, "https") {
-		decodedURL = "https:" + decodedURL
-	}
+    decodedURL = appendHttp(decodedURL)
 
 	return decodedURL, nil
+}
+
+func isDecoded(url string) bool {
+	return strings.Contains(url, "cloud.kodik-storage.com")
+}
+
+func appendHttp(url string) string {
+	if !strings.HasPrefix(url, "https") {
+		return "https:" + url
+	}
+    return url
 }

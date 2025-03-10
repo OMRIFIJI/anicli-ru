@@ -7,17 +7,15 @@ import (
 	"anicliru/internal/db"
 	"anicliru/internal/logger"
 	"anicliru/internal/video"
+	"errors"
 	"flag"
 	"fmt"
-	"sync"
 
 	"rsc.io/getopt"
 )
 
 type App struct {
-	api      *api.AnimeAPI
-	quitChan chan struct{}
-	wg       *sync.WaitGroup
+	api *api.AnimeAPI
 }
 
 func NewApp() (*App, error) {
@@ -38,10 +36,7 @@ func (a *App) init() error {
 	if err != nil {
 		return err
 	}
-
 	a.api = api
-	a.quitChan = make(chan struct{})
-	a.wg = &sync.WaitGroup{}
 
 	logger.Init()
 
@@ -101,8 +96,7 @@ func (a *App) continueAppPipe(dbh *db.DBHandler) error {
 	}
 
 	if len(animes) == 0 {
-		fmt.Println("Нет аниме для продолжения просмотра.")
-		return nil
+		return errors.New("нет аниме для продолжения просмотра")
 	}
 
 	oldTermState, err := promptselect.PrepareTerminal()
@@ -154,15 +148,20 @@ func (a *App) defaultAppPipe(dbh *db.DBHandler) error {
 	if isExitOnQuit {
 		return nil
 	}
-	animes = nil
 
-	isExitOnQuit, err = a.selectEpisode(anime)
+	animeFromDb, err := dbh.GetAnime(anime.Title)
+    // Если ещё не смотрели аниме или не удалось загрузить, то выбираем эпизод
 	if err != nil {
-		return err
-	}
-	if isExitOnQuit {
-		return nil
-	}
+		isExitOnQuit, err = a.selectEpisode(anime)
+		if err != nil {
+			return err
+		}
+		if isExitOnQuit {
+			return nil
+		}
+	} else {
+        anime.EpCtx.Cur = animeFromDb.EpCtx.Cur
+    }
 
 	// Сохраняет информацию об аниме на выходе
 	defer dbh.UpdateAnime(anime)

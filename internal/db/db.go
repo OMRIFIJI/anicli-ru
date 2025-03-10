@@ -3,6 +3,7 @@ package db
 import (
 	"anicliru/internal/api/models"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -141,18 +142,18 @@ func (dbh *DBHandler) UpdateAnime(anime *models.Anime) error {
 }
 
 func (dbh *DBHandler) GetAnimeSlice() ([]models.Anime, error) {
-    var animeSlice []models.Anime
+	var animeSlice []models.Anime
 	if err := dbh.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(animeBucket))
 
 		if err := b.ForEach(func(title, animeJson []byte) error {
-            var anime models.Anime
-            if err := json.Unmarshal(animeJson, &anime); err != nil {
-                return err
-            }
+			var anime models.Anime
+			if err := json.Unmarshal(animeJson, &anime); err != nil {
+				return err
+			}
 
-            anime.Title = string(title)
-            animeSlice = append(animeSlice, anime)
+			anime.Title = string(title)
+			animeSlice = append(animeSlice, anime)
 			return nil
 		}); err != nil {
 			return err
@@ -164,4 +165,27 @@ func (dbh *DBHandler) GetAnimeSlice() ([]models.Anime, error) {
 	}
 
 	return animeSlice, nil
+}
+
+// Возвращает не nil указатель на аниме с названием title из базы данных.
+// Если такого аниме нет в базе данных или произошла ошибка, то возвращает nil и ошибку.
+func (dbh *DBHandler) GetAnime(title string) (*models.Anime, error) {
+	var anime *models.Anime
+
+	if err := dbh.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(animeBucket))
+		animeJson := b.Get([]byte(title))
+        if animeJson == nil {
+            return errors.New("данное аниме не найдено в базе данных")
+        }
+
+		if err := json.Unmarshal(animeJson, &anime); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+    return anime, nil
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"anicliru/internal/api/models"
+	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
 	entryfmt "anicliru/internal/fmt"
@@ -18,8 +19,20 @@ func (a *App) getTitleFromUser() (string, error) {
 }
 
 func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
-	a.startLoading()
-	defer a.stopLoading()
+    var wg sync.WaitGroup
+    quitChan := make(chan struct{})
+
+	wg.Add(1)
+	go func(){
+        defer wg.Done()
+        loading.DisplayLoading(quitChan)
+    }()
+
+	defer func() {
+		defer loading.RestoreTerminal()
+		quitChan <- struct{}{}
+		wg.Wait()
+	}()
 
 	animes, err := a.api.GetAnimesByTitle(searchInput)
 	return animes, err
@@ -69,15 +82,17 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 }
 
 func (a *App) prepareSavedAnime(animeSlice []models.Anime) ([]models.Anime, error) {
-	var animeSlicePrepared []models.Anime
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+
+	var animeSlicePrepared []models.Anime
 	for _, anime := range animeSlice {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			if err := a.api.PrepareSavedAnime(&anime); err != nil {
 				logger.ErrorLog.Println(err)
+				return
 			}
 			// Если онгоинг и новых серий нет, то не выводим
 			if anime.EpCtx.Cur != anime.EpCtx.AiredEpCount {
