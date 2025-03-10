@@ -24,21 +24,21 @@ type animeParser interface {
 	PrepareSavedAnime(anime *models.Anime) error
 }
 
-func NewAnimeParserByName(name string) (animeParser, error) {
+func NewAnimeParserByName(name, fullDomain string) (animeParser, error) {
 	switch name {
 	case "animego":
-		return animego.NewAnimeGoClient(), nil
+		return animego.NewAnimeGoClient(fullDomain), nil
 	case "yummyanime":
-		return yummyanime.NewYummyAnimeClient(), nil
+		return yummyanime.NewYummyAnimeClient(fullDomain), nil
 	}
 	return nil, fmt.Errorf("парсер %s не существует, проверьте конфиг", name)
 }
 
-func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
+func NewAnimeAPI(Providers map[string]string) (*AnimeAPI, error) {
 	a := AnimeAPI{}
 	a.animeParsers = make(map[string]animeParser)
-	for _, name := range animeParserNames {
-		animeParser, err := NewAnimeParserByName(name)
+	for name, fullDomain := range Providers {
+		animeParser, err := NewAnimeParserByName(name, fullDomain)
 		if err != nil {
 			return nil, err
 		}

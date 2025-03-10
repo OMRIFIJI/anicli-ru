@@ -15,7 +15,7 @@ type YummyAnimeClient struct {
 	urlBuild urlBuilder
 }
 
-func NewYummyAnimeClient() *YummyAnimeClient {
+func NewYummyAnimeClient(fullDomain string) *YummyAnimeClient {
 	y := &YummyAnimeClient{}
 	y.http = httpcommon.NewHttpClient(
 		map[string]string{
@@ -24,7 +24,7 @@ func NewYummyAnimeClient() *YummyAnimeClient {
 		httpcommon.WithRetries(2),
 		httpcommon.WithRetryDelay(3),
 	)
-	y.urlBuild = newUrlBuilder()
+	y.urlBuild = newUrlBuilder(fullDomain)
 	return y
 }
 

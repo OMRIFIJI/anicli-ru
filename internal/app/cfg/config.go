@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	Providers []string
+	Providers map[string]string
 }
 
 func getConfigPath() (string, error) {
@@ -24,7 +24,12 @@ func getConfigPath() (string, error) {
 }
 
 func newDefaultConfig(cfgPath string) (*Config, error) {
-	cfg := Config{Providers: []string{"animego", "yummyanime"}}
+    cfg := Config{
+        Providers: map[string]string{
+            "animego": "animego.club", 
+            "yummyanime": "yummy-anime.ru",
+        },
+    }
 
 	dir := filepath.Dir(cfgPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {

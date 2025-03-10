@@ -17,19 +17,19 @@ type AnimeGoClient struct {
 	urlBuild urlBuilder
 }
 
-func NewAnimeGoClient() *AnimeGoClient {
+func NewAnimeGoClient(fullDomain string) *AnimeGoClient {
 	a := &AnimeGoClient{}
 	a.http = httpcommon.NewHttpClient(
 		map[string]string{
 			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
-			"Referer":          "https://animego.club",
+			"Referer":          fmt.Sprintf("https://%s", fullDomain),
 			"X-Requested-With": "XMLHttpRequest",
 			"Accept-Language":  "en-US,en;q=0.5",
 		},
 		httpcommon.WithRetries(2),
 		httpcommon.WithRetryDelay(3),
 	)
-	a.urlBuild = newUrlBuilder()
+	a.urlBuild = newUrlBuilder(fullDomain)
 	return a
 }
 
@@ -43,7 +43,7 @@ func (a *AnimeGoClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 	}
 	defer res.Body.Close()
 
-	animes, err := parser.ParseAnimes(res.Body)
+	animes, err := parser.ParseAnimes(res.Body, a.urlBuild.base)
 	if err != nil {
 		logger.ErrorLog.Printf("Ошибка парсинга HTML. %s\n", err)
 		return nil, err

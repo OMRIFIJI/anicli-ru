@@ -1,6 +1,7 @@
 package animego
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 )
@@ -13,9 +14,9 @@ type urlBuilder struct {
 	epSuf     string
 }
 
-func newUrlBuilder() urlBuilder {
+func newUrlBuilder(fullDomain string) urlBuilder {
 	u := urlBuilder{
-		base:      "https://animego.club/",
+		base:      fmt.Sprintf("https://%s/", fullDomain),
 		searchSuf: "search/anime?q=",
 		animeSuf:  "anime/",
 		playerSuf: "player?_allow=true",

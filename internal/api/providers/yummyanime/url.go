@@ -1,6 +1,7 @@
 package yummyanime
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 )
@@ -13,9 +14,9 @@ type urlBuilder struct {
 	videoSuf   string
 }
 
-func newUrlBuilder() urlBuilder {
+func newUrlBuilder(fullDomain string) urlBuilder {
 	u := urlBuilder{
-		base:       "https://yummy-anime.ru/",
+		base:       fmt.Sprintf("https://%s/", fullDomain),
 		searchSuf:  "api/search?q=",
 		searchConf: "&limit=10&offset=0",
 		animeSuf:   "api/anime/",
