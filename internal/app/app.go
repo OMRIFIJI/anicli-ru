@@ -3,11 +3,8 @@ package app
 import (
 	"anicliru/internal/api"
 	config "anicliru/internal/app/cfg"
-	promptselect "anicliru/internal/cli/prompt/select"
 	"anicliru/internal/db"
 	"anicliru/internal/logger"
-	"anicliru/internal/video"
-	"errors"
 	"flag"
 	"fmt"
 
@@ -57,10 +54,13 @@ func (a *App) RunApp() error {
 
 	helpPtr := flag.Bool("help", false, "выводит сообщение, которое вы сейчас видите")
 	continuePtr := flag.Bool("continue", false, "продолжить просмотр аниме")
+	deletePtr := flag.Bool("delete", false, "удалить запись из базы данных, просматриваемых аниме")
+	deleteAllPtr := flag.Bool("delete-all", false, "удалить все записи из базы данных, просматриваемых аниме")
 
 	getopt.Aliases(
 		"c", "continue",
 		"h", "help",
+		"d", "delete",
 	)
 	getopt.Parse()
 
@@ -70,106 +70,30 @@ func (a *App) RunApp() error {
 	}
 
 	if *continuePtr {
-		if err := a.continueAppPipe(dbh); err != nil {
+		if err := a.continuePipe(dbh); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	if flag.Parsed() {
-		if err := a.defaultAppPipe(dbh); err != nil {
+	if *deletePtr {
+		if err := a.deletePipe(dbh); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (a *App) continueAppPipe(dbh *db.DBHandler) error {
-	animeSlice, err := dbh.GetAnimeSlice()
-	if err != nil {
-		return err
-	}
-
-	animes, err := a.prepareSavedAnime(animeSlice)
-	if err != nil {
-		return err
-	}
-
-	if len(animes) == 0 {
-		return errors.New("нет аниме для продолжения просмотра")
-	}
-
-	oldTermState, err := promptselect.PrepareTerminal()
-	if err != nil {
-		return err
-	}
-	defer promptselect.RestoreTerminal(oldTermState)
-
-	anime, isExitOnQuit, err := a.selectAnimeToCountinue(animes)
-	if err != nil {
-		return err
-	}
-	if isExitOnQuit {
-		return nil
-	}
-	animes = nil
-
-	defer dbh.UpdateAnime(anime)
-
-	animePlayer := video.NewAnimePlayer(anime, a.api)
-	if err := animePlayer.Play(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *App) defaultAppPipe(dbh *db.DBHandler) error {
-	searchInput, err := a.getTitleFromUser()
-	if err != nil {
-		return err
-	}
-
-	animes, err := a.findAnimes(searchInput)
-	if err != nil {
-		return err
-	}
-
-	oldTermState, err := promptselect.PrepareTerminal()
-	if err != nil {
-		return err
-	}
-	defer promptselect.RestoreTerminal(oldTermState)
-
-	anime, isExitOnQuit, err := a.selectAnime(animes)
-	if err != nil {
-		return err
-	}
-	if isExitOnQuit {
 		return nil
 	}
 
-	animeFromDb, err := dbh.GetAnime(anime.Title)
-    // Если ещё не смотрели аниме или не удалось загрузить, то выбираем эпизод
-	if err != nil {
-		isExitOnQuit, err = a.selectEpisode(anime)
-		if err != nil {
+    if *deleteAllPtr {
+		if err := a.deleteAllPipe(dbh); err != nil {
 			return err
 		}
-		if isExitOnQuit {
-			return nil
-		}
-	} else {
-        anime.EpCtx.Cur = animeFromDb.EpCtx.Cur
+		return nil
     }
 
-	// Сохраняет информацию об аниме на выходе
-	defer dbh.UpdateAnime(anime)
-
-	animePlayer := video.NewAnimePlayer(anime, a.api)
-	if err := animePlayer.Play(); err != nil {
-		return err
+	if flag.Parsed() {
+		if err := a.defaultPipe(dbh); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }

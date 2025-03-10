@@ -91,10 +91,10 @@ func initDB(dbPath string) (*bolt.DB, error) {
 	return db, nil
 }
 
-func (dbh *DBHandler) deleteAnime(anime *models.Anime) error {
+func (dbh *DBHandler) DeleteAnime(title string) error {
 	if err := dbh.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(animeBucket))
-		if err := b.Delete([]byte(anime.Title)); err != nil {
+		if err := b.Delete([]byte(title)); err != nil {
 			return err
 		}
 
@@ -112,9 +112,10 @@ func (dbh *DBHandler) deleteAnime(anime *models.Anime) error {
 func (dbh *DBHandler) UpdateAnime(anime *models.Anime) error {
 	// Если просмотрено
 	if anime.EpCtx.Cur == anime.EpCtx.TotalEpCount {
-		if err := dbh.deleteAnime(anime); err != nil {
+		if err := dbh.DeleteAnime(anime.Title); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	if err := dbh.db.Update(func(tx *bolt.Tx) error {
@@ -175,9 +176,9 @@ func (dbh *DBHandler) GetAnime(title string) (*models.Anime, error) {
 	if err := dbh.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(animeBucket))
 		animeJson := b.Get([]byte(title))
-        if animeJson == nil {
-            return errors.New("данное аниме не найдено в базе данных")
-        }
+		if animeJson == nil {
+			return errors.New("данное аниме не найдено в базе данных")
+		}
 
 		if err := json.Unmarshal(animeJson, &anime); err != nil {
 			return err
@@ -187,5 +188,25 @@ func (dbh *DBHandler) GetAnime(title string) (*models.Anime, error) {
 		return nil, err
 	}
 
-    return anime, nil
+	return anime, nil
+}
+
+func (dbh *DBHandler) DeleteAllAnime() error {
+	if err := dbh.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(animeBucket))
+
+		cursor := bucket.Cursor()
+		for key, _ := cursor.First(); key != nil; key, _ = cursor.Next() {
+			err := bucket.Delete(key)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
