@@ -47,7 +47,7 @@ func parseIdToLinks(content string) (map[string]map[string]string, error) {
 	}
 
 	if len(idToLinks) == 0 {
-		return nil, errors.New("Ссылки на плеер не найдены")
+		return nil, errors.New("ссылки на плеер не найдены")
 	}
 
 	return idToLinks, nil

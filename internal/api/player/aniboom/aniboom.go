@@ -63,7 +63,7 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, erro
 	matchDash := reDash.FindStringSubmatch(string(resBody))
 
 	if matchDash == nil {
-		return nil, errors.New("Не удалось обработать ссылку на видео")
+		return nil, errors.New("не удалось обработать ссылку на видео")
 	}
 
 	dash := removeSlashes(matchDash[1])
@@ -106,7 +106,7 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, erro
 	}
 
 	if len(links) == 0 {
-		return nil, errors.New("Не удалось обработать опции видео")
+		return nil, errors.New("не удалось обработать опции видео")
 	}
 
 	return links, nil

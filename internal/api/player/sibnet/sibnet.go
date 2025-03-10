@@ -52,7 +52,7 @@ func (s *Sibnet) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 	match := re.FindStringSubmatch(string(resBody))
 
 	if match == nil {
-		return nil, errors.New("Не удалось обработать ссылку на видео")
+		return nil, errors.New("не удалось обработать ссылку на видео")
 	}
 	link := s.baseUrl + match[1]
 

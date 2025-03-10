@@ -47,14 +47,14 @@ func (vk *VK) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 	matches := re.FindAllStringSubmatch(string(resBody), -1)
 
 	if len(matches) == 0 {
-		return nil, errors.New("Не удалось обработать ссылки на видео")
+		return nil, errors.New("не удалось обработать ссылки на видео")
 	}
 
 	links := make(map[int]common.DecodedEmbed)
 	for _, match := range matches {
         quality, err := strconv.Atoi(match[1])
         if err != nil {
-            return nil, errors.New("Ошибка обработки качества видео")
+            return nil, errors.New("ошибка обработки качества видео")
         }
 		link := removeSlashes(match[2])
 
