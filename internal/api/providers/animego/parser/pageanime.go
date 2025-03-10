@@ -25,7 +25,7 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 	re := regexp.MustCompile("Видео недоступно на территории")
 	match := re.FindString(result.Content)
 	if len(match) != 0 {
-		return nil, 0, errors.New("Не доступно на территории РФ")
+		return nil, 0, errors.New("не доступно на территории РФ")
 	}
 
 	re = regexp.MustCompile(`data-episode="(\d+)"\s*\n*\s*data-id="(\d+)"`)

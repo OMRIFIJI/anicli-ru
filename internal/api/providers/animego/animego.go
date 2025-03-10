@@ -67,13 +67,6 @@ func (a *AnimeGoClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 		}
 	}
 
-	if len(animes) == 0 {
-		NotAvailableError := models.NotAvailableError{
-			Msg: "По вашему запросу нет доступных аниме.",
-		}
-		return nil, &NotAvailableError
-	}
-
 	return animesAvailable, nil
 }
 

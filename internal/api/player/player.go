@@ -89,11 +89,11 @@ func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string
 	}
 
     mu.Lock()
+    defer mu.Unlock()
 	videoLinks[dubRes.dubName] = make(map[int]models.Video)
 	for quality, decodedEmbed := range dubRes.dubLinks {
 		videoLinks[dubRes.dubName][quality] = bestVideo(decodedEmbed)
 	}
-    mu.Unlock()
 }
 
 func IsOriginGreater(a, b common.DecodedEmbed) bool {

@@ -31,7 +31,7 @@ func NewAnimeParserByName(name string) (animeParser, error) {
 	case "yummyanime":
 		return yummyanime.NewYummyAnimeClient(), nil
 	}
-	return nil, fmt.Errorf("парсер %s не существует", name)
+	return nil, fmt.Errorf("парсер %s не существует, проверьте конфиг", name)
 }
 
 func NewAnimeAPI(animeParserNames []string) (*AnimeAPI, error) {
@@ -68,20 +68,21 @@ func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 			}
 
 			mu.Lock()
+            defer mu.Unlock()
 			animes = append(animes, parsedAnimes...)
-			mu.Unlock()
 		}()
 	}
 	wg.Wait()
 
 	if len(animes) == 0 {
-		return nil, errors.New("По вашему запросу ничего не найдено.")
+		return nil, errors.New("по вашему запросу ничего не найдено")
 	}
 
 	animes, err := dropAnimeDuplicates(animes)
 	if err != nil {
 		return nil, err
 	}
+    sortBySearchPos(animes)
 
 	return animes, nil
 }
@@ -111,7 +112,7 @@ func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error 
 func (a *AnimeAPI) PrepareSavedAnime(anime *models.Anime) error {
 	client, ok := a.animeParsers[anime.Provider]
 	if !ok {
-		return fmt.Errorf("парсер %s не доступен", anime.Provider)
+		return fmt.Errorf("парсер %s не доступен, проверьте конфиг", anime.Provider)
 	}
 	if err := client.PrepareSavedAnime(anime); err != nil {
 		return err

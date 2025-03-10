@@ -20,7 +20,7 @@ func parseIdToDub(content string) (map[string]string, error) {
 	}
 
 	if len(idToDub) == 0 {
-		return nil, errors.New("Опции озвучки эпизода не найдены")
+		return nil, errors.New("опции озвучки эпизода не найдены")
 	}
 
 	return idToDub, nil

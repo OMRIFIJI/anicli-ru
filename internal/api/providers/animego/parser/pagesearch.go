@@ -13,7 +13,7 @@ func isAnimeHref(href string) bool {
 	return strings.HasPrefix(href, "https://animego.club/anime")
 }
 
-func parseAnime(n *html.Node) *models.Anime {
+func parseAnime(n *html.Node, searchPos int) *models.Anime {
 	var href, title string
 	for _, attr := range n.Attr {
 		if attr.Key == "href" && isAnimeHref(attr.Val) {
@@ -41,6 +41,7 @@ func parseAnime(n *html.Node) *models.Anime {
 			Uname: uname,
 			Title: title,
             Provider: "animego",
+            SearchPos: searchPos,
 		}
 	} else {
 		return nil
@@ -54,11 +55,13 @@ func ParseAnimes(r io.Reader) ([]*models.Anime, error) {
 	}
 
 	var animeSlice []*models.Anime
+    searchPos := 0
 	for n := range doc.Descendants() {
 		if n.Type == html.ElementNode && n.Data == "a" {
-			anime := parseAnime(n)
+			anime := parseAnime(n, searchPos)
 			if anime != nil {
 				animeSlice = append(animeSlice, anime)
+                searchPos++
 			}
 		}
 	}

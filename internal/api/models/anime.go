@@ -36,19 +36,20 @@ type Anime struct {
 	EpCtx     EpisodesContext `json:"epCtx"`
 	Title     string
 	MediaType string
+	SearchPos int
 }
 
 func (e *EpisodesContext) GetSelectedEp() (*Episode, error) {
 	ep, exists := e.Eps[e.Cur]
 	if !exists {
-		return nil, errors.New("Выбранный эпизод не существует")
+		return nil, errors.New("выбранный эпизод не существует")
 	}
 	return ep, nil
 }
 
 func (e *EpisodesContext) SetCur(cur int) error {
 	if cur < 1 || cur > e.AiredEpCount {
-		return errors.New("Неверное значение курсора")
+		return errors.New("неверное значение курсора")
 	}
 	e.Cur = cur
 	return nil
@@ -56,7 +57,7 @@ func (e *EpisodesContext) SetCur(cur int) error {
 
 func (e *EpisodesContext) SelectNextEp() error {
 	if e.Cur+1 > e.AiredEpCount {
-		return errors.New("Вы посмотрели все серии.")
+		return errors.New("вы посмотрели все серии")
 	}
 	e.Cur++
 	return nil
@@ -64,7 +65,7 @@ func (e *EpisodesContext) SelectNextEp() error {
 
 func (e *EpisodesContext) SelectPreviousEp() error {
 	if e.Cur-1 < 1 {
-		return errors.New("Неверное значение курсора")
+		return errors.New("неверное значение курсора")
 	}
 	e.Cur--
 	return nil

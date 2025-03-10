@@ -39,7 +39,7 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 
 	for i, res := range searchJson.Response {
 		wg.Add(1)
-		go func() {
+		go func(i int, res parser.FoundAnime) {
 			defer wg.Done()
 
 			anime := models.Anime{
@@ -47,6 +47,7 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 				Id:       res.Id,
 				Uname:    res.AnimeUrl,
 				Title:    res.Title,
+                SearchPos: i,
 			}
 
 			typeName := strings.ToLower(res.Type.Name)
@@ -73,7 +74,7 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 			}
 
 			animes[i] = anime
-		}()
+		}(i, res)
 	}
 	wg.Wait()
 
@@ -148,6 +149,9 @@ func (y *YummyAnimeClient) PrepareSavedAnime(anime *models.Anime) error {
 	defer res.Body.Close()
 
     airedEpCount, totalEpCount, err := parser.ParseEpCount(res.Body)
+    if err != nil {
+        return err
+    }
     anime.EpCtx.AiredEpCount = airedEpCount
     anime.EpCtx.TotalEpCount = totalEpCount
 

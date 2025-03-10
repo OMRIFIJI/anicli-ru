@@ -2,6 +2,7 @@ package api
 
 import (
 	"anicliru/internal/api/models"
+	"sort"
 	"strings"
 )
 
@@ -29,4 +30,10 @@ func dropAnimeDuplicates(animes []models.Anime) ([]models.Anime, error) {
 	}
 
 	return uniqueAnimes, nil
+}
+
+func sortBySearchPos(animes []models.Anime) {
+    sort.Slice(animes, func(i, j int) bool {
+         return animes[i].SearchPos <= animes[j].SearchPos
+	})
 }

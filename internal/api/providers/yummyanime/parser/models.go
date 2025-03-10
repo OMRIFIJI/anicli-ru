@@ -2,10 +2,10 @@ package parser
 
 // Облегченная структура json'a, возвращаемого в результате поиска аниме.
 type SearchJson struct {
-	Response []foundAnime `json:"response"`
+	Response []FoundAnime `json:"response"`
 }
 
-type foundAnime struct {
+type FoundAnime struct {
 	Title    string    `json:"title"`
 	AnimeUrl string    `json:"anime_url"`
 	Id       int       `json:"anime_id"`
