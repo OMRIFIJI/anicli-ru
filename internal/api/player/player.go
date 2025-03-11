@@ -11,6 +11,7 @@ import (
 	"anicliru/internal/api/player/sovrom"
 	"anicliru/internal/api/player/vk"
 	"anicliru/internal/logger"
+	"errors"
 	"sync"
 )
 
@@ -78,10 +79,7 @@ func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.
 	wg.Wait()
 
 	if len(videoLinks) == 0 {
-		err := &models.NotFoundError{
-			Msg: "Не удалось найти эту серию.",
-		}
-		return nil, err
+		return nil, errors.New("не удалось найти эту серию")
 	}
 
 	return videoLinks, nil

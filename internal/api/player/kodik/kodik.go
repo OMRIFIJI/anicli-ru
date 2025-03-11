@@ -20,7 +20,7 @@ import (
 
 const (
 	Netloc       = "kodik.info"
-	headerFields = `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
+	headerFields = `--http-header-fields="Referer: https://animego.org","Accept-Language: ru-RU"`
 )
 
 type Kodik struct {
@@ -233,5 +233,5 @@ func decodeUrl(urlEncoded string) (string, error) {
 }
 
 func isDecoded(url string) bool {
-	return strings.Contains(url, "cloud.kodik-storage.com")
+	return strings.Contains(url, "cloud.kodik")
 }

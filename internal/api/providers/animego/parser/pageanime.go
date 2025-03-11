@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"anicliru/internal/api/models"
 	"encoding/json"
 	"errors"
 	"io"
@@ -44,10 +43,8 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 	}
 
 	if len(epIdMap) == 0 {
-		err := models.NotFoundError{
-			Msg: "Нет информации ни об одной серии.",
-		}
-		return nil, 0, &err
+		return nil, 0, errors.New("Нет информации ни об одной серии.")
+
 	}
 
 	return epIdMap, lastEpNum, nil

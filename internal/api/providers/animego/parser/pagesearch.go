@@ -64,12 +64,5 @@ func ParseAnimes(r io.Reader, urlBase string) ([]*models.Anime, error) {
 		}
 	}
 
-	if len(animeSlice) == 0 {
-		notFoundError := models.NotFoundError{
-			Msg: "По вашему запросу не удалось ничего найти.",
-		}
-		return nil, &notFoundError
-	}
-
 	return animeSlice, nil
 }

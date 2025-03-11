@@ -48,6 +48,10 @@ func (a *AnimeGoClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 		logger.ErrorLog.Printf("Ошибка парсинга HTML. %s\n", err)
 		return nil, err
 	}
+    
+    if len(animes) == 0 {
+        return nil, nil
+    }
 
 	var wg sync.WaitGroup
 
