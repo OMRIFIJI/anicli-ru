@@ -87,32 +87,43 @@ func IsValidEp(r io.Reader) bool {
 	return trimmed != ""
 }
 
-func ParseMediaStatus(r io.Reader) (epCount int, mediaType string, err error) {
+func ParseMediaStatus(r io.Reader) (AiredEpCount, TotalEpCount int, mediaType string, err error) {
 	resultByte, err := io.ReadAll(r)
 	if err != nil {
-		return -1, "", err
+		return -1, -1, "", err
 	}
 	result := string(resultByte)
 
 	re := regexp.MustCompile(`Тип\s*<\/dt>\s*\n*\s*<dd.+?>(.+?)<`)
 	match := re.FindStringSubmatch(result)
 	if match == nil {
-		return -1, "", nil
+		return -1, -1, "", nil
 	}
 
 	mediaType = strings.TrimSpace(match[1])
 	mediaType = strings.ToLower(mediaType)
 
-	re = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?>(\d+)<`)
+	// Если онгоинг группы 1 и 4 - текущее и общее количество,
+	// Если вышло, то в группе 1 - общее количество
+	re = regexp.MustCompile(`Эпизоды\s*<\/dt>\s*\n*\s*<dd.+?">(\d*)\s*(.*?|\/)\s*(<span>|.*?)\s*(\d*)\s*(<\/span>|<\/dd>)`)
 	match = re.FindStringSubmatch(result)
 	if match == nil {
-		return -1, mediaType, nil
+		return -1, -1, mediaType, nil
 	}
 
-	// Здесь либо 2 числа, если онгоинг, либо 1, если вышло
-	epCount, err = strconv.Atoi(match[1])
+	AiredEpCount, err = strconv.Atoi(match[1])
 	if err != nil {
-		return -1, mediaType, nil
+		return -1, -1, mediaType, nil
 	}
-	return epCount, mediaType, nil
+
+	// Если онгоинг
+	if len(match[4]) != 0 {
+		TotalEpCount, err = strconv.Atoi(match[4])
+		if err != nil {
+			return AiredEpCount, -1, mediaType, nil
+		}
+		return AiredEpCount, TotalEpCount, mediaType, nil
+	}
+
+	return AiredEpCount, AiredEpCount, mediaType, nil
 }

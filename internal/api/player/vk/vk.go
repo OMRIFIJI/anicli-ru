@@ -52,10 +52,10 @@ func (vk *VK) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 
 	links := make(map[int]common.DecodedEmbed)
 	for _, match := range matches {
-        quality, err := strconv.Atoi(match[1])
-        if err != nil {
-            return nil, errors.New("ошибка обработки качества видео")
-        }
+		quality, err := strconv.Atoi(match[1])
+		if err != nil {
+			return nil, errors.New("ошибка обработки качества видео")
+		}
 		link := removeSlashes(match[2])
 
 		video := models.Video{

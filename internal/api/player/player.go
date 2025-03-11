@@ -2,6 +2,7 @@ package player
 
 import (
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/player/alloha"
 	"anicliru/internal/api/player/aniboom"
 	"anicliru/internal/api/player/common"
 	"anicliru/internal/api/player/kodik"
@@ -25,6 +26,7 @@ func (plc *PlayerLinkConverter) SetPlayerHandlers() {
 	handlers[kodik.Netloc] = kodik.NewKodik()
 	handlers[sibnet.Netloc] = sibnet.NewSibnet()
 	handlers[vk.Netloc] = vk.NewVK()
+	handlers[alloha.Netloc] = alloha.NewAlloha()
 
 	plc.handlers = handlers
 }
@@ -37,7 +39,7 @@ type workerDecodeRes struct {
 // Перемудрил
 func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.VideoLinks, error) {
 	var wg sync.WaitGroup
-    var mu sync.Mutex
+	var mu sync.Mutex
 
 	videoLinks := make(models.VideoLinks)
 	for dubName, playerLinks := range embedLinks {
@@ -47,7 +49,7 @@ func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.
 			plc.decodeDub(dubName, playerLinks, videoLinks, &mu)
 		}()
 	}
-    wg.Wait()
+	wg.Wait()
 
 	if len(videoLinks) == 0 {
 		err := &models.NotFoundError{
@@ -88,8 +90,8 @@ func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string
 		dubLinks: dubLinks,
 	}
 
-    mu.Lock()
-    defer mu.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 	videoLinks[dubRes.dubName] = make(map[int]models.Video)
 	for quality, decodedEmbed := range dubRes.dubLinks {
 		videoLinks[dubRes.dubName][quality] = bestVideo(decodedEmbed)
@@ -108,6 +110,12 @@ func IsOriginGreater(a, b common.DecodedEmbed) bool {
 	case vk.Netloc:
 		switch b.Origin {
 		case aniboom.Netloc, kodik.Netloc:
+			return false
+		}
+		return true
+    case alloha.Netloc:
+		switch b.Origin {
+		case aniboom.Netloc, kodik.Netloc, vk.Netloc:
 			return false
 		}
 		return true

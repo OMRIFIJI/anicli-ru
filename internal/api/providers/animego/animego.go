@@ -124,7 +124,7 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 	}
 	defer res.Body.Close()
 
-	epCount, mediaType, err := parser.ParseMediaStatus(res.Body)
+	airedEpCount, totalEpCount, mediaType, err := parser.ParseMediaStatus(res.Body)
 	if mediaType == "фильм" {
 		anime.MediaType = mediaType
 
@@ -139,7 +139,8 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 		return fmt.Errorf("ошибка обработки медиа информации %s %s", anime.Title, err)
 	}
 
-	anime.EpCtx.TotalEpCount = epCount
+	anime.EpCtx.AiredEpCount = airedEpCount
+	anime.EpCtx.TotalEpCount = totalEpCount
 	anime.MediaType = mediaType
 
 	return nil

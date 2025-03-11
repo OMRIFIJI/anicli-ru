@@ -89,10 +89,10 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 		return nil
 	}
 
-    // Если источник больше не отвечает, ищем аниме заново во всех источниках.
+	// Если источник больше не отвечает, ищем аниме заново во всех источниках.
 	if anime.Provider == "" {
-        dbCur := anime.EpCtx.Cur
-	    animes, err := a.api.GetAnimesByTitle(anime.Title)
+		dbCur := anime.EpCtx.Cur
+		animes, err := a.api.GetAnimesByTitle(anime.Title)
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 			return nil
 		}
 
-        anime.EpCtx.Cur = dbCur
+		anime.EpCtx.Cur = dbCur
 	}
 
 	defer dbh.UpdateAnime(anime)

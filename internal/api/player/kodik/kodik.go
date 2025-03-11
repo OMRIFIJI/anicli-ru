@@ -11,38 +11,51 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
-const Netloc = "kodik.info"
+const (
+	Netloc       = "kodik.info"
+	headerFields = `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
+)
 
 type Kodik struct {
-	client  *httpcommon.HttpClient
-	baseUrl string
+	client     *httpcommon.HttpClient
+	postClient http.Client
+	baseUrl    string
+	apiPath    string
 }
 
 func NewKodik() *Kodik {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
-			"Referer":         "https://animego.org/",
+			"Referer":         common.DefaultReferer,
 			"Accept-Language": "ru-RU",
 		},
 		httpcommon.WithRetries(2),
 	)
 
-	k := Kodik{
-		client:  client,
-		baseUrl: "https://kodik.info/",
+	tr := &http.Transport{
+		MaxIdleConns:       70,
+		DisableCompression: true,
 	}
-	return &k
-}
+	postClient := http.Client{
+		Transport: tr,
+		Timeout:   5 * time.Second,
+	}
 
-type kodikVideoData struct {
-	Links map[string][]struct {
-		Src string `json:"src"`
-	} `json:"links"`
+	k := Kodik{
+		client:     client,
+		baseUrl:    fmt.Sprintf("https://%s", Netloc),
+		apiPath:    fmt.Sprintf("https://%s/ftor", Netloc),
+		postClient: postClient,
+	}
+
+	return &k
 }
 
 func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
@@ -63,17 +76,16 @@ func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error)
 		return nil, err
 	}
 
-	apiPath := k.baseUrl + "ftor"
-
 	clientApi := httpcommon.NewHttpClient(
 		map[string]string{
 			"Origin":  k.baseUrl,
 			"Referer": embedLink,
 			"Accept":  "application/json, text/javascript, */*; q=0.01",
 		},
+		httpcommon.FromClient(&k.postClient),
 	)
 
-	resApi, err := clientApi.Post(apiPath, bytes.NewBuffer(payload))
+	resApi, err := clientApi.Post(k.apiPath, bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +96,13 @@ func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error)
 		return nil, err
 	}
 
-	var videoData kodikVideoData
-	err = json.Unmarshal(resApiBody, &videoData)
+	var vidData videoData
+	err = json.Unmarshal(resApiBody, &vidData)
 	if err != nil {
 		return nil, err
 	}
 
-	links := k.videoDataToLinks(videoData)
+	links := k.videoDataToLinks(vidData)
 	if len(links) == 0 {
 		return nil, errors.New("не найдено ни одной ссылки")
 	}
@@ -98,14 +110,14 @@ func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error)
 	return links, nil
 }
 
-func (k *Kodik) videoDataToLinks(videoData kodikVideoData) map[int]common.DecodedEmbed {
+func (k *Kodik) videoDataToLinks(vidData videoData) map[int]common.DecodedEmbed {
 	links := make(map[int]common.DecodedEmbed)
 
 	mpvOpts := []string{
-		`--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`,
+		headerFields,
 	}
 
-	for key, val := range videoData.Links {
+	for key, val := range vidData.Links {
 		if len(val) == 0 {
 			logger.ErrorLog.Println("Ошибка обработки json в Kodik.")
 			continue
@@ -215,7 +227,7 @@ func decodeUrl(urlEncoded string) (string, error) {
 	}
 	decodedURL := string(decodedBytes)
 
-    decodedURL = appendHttp(decodedURL)
+	decodedURL = appendHttp(decodedURL)
 
 	return decodedURL, nil
 }
@@ -228,5 +240,5 @@ func appendHttp(url string) string {
 	if !strings.HasPrefix(url, "https") {
 		return "https:" + url
 	}
-    return url
+	return url
 }

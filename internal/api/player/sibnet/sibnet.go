@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 )
 
 const Netloc = "video.sibnet.ru"
@@ -20,7 +21,7 @@ type Sibnet struct {
 func NewSibnet() *Sibnet {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
-			"Referer":                   "https://animego.org/",
+			"Referer":                   common.DefaultReferer,
 			"User-Agent":                "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
 			"Upgrade-Insecure-Requests": "1",
 			"Accept-Language":           "ru-RU",
@@ -36,7 +37,9 @@ func NewSibnet() *Sibnet {
 }
 
 func (s *Sibnet) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
-	embedLink = "https:" + embedLink
+    if !strings.HasPrefix(embedLink, "https:") {
+        embedLink = "https:" + embedLink
+    }
 	res, err := s.client.Get(embedLink)
 	if err != nil {
 		return nil, err
@@ -57,16 +60,16 @@ func (s *Sibnet) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 	link := s.baseUrl + match[1]
 
 	links := make(map[int]common.DecodedEmbed)
-	headersOpt := fmt.Sprintf(`--http-header-fields="Referer: %s","Upgrade-Insecure-Requests: 1"`, embedLink)
+	headerFields := fmt.Sprintf(`--http-header-fields="Referer: %s","Upgrade-Insecure-Requests: 1"`, embedLink)
 
-    // Всего одна ссылка
-    video := models.Video{
+	// Всего одна ссылка
+	video := models.Video{
 		Link:    link,
-		MpvOpts: []string{headersOpt},
+		MpvOpts: []string{headerFields},
 	}
 	links[480] = common.DecodedEmbed{
-        Video: video,
-        Origin: Netloc,
-    }
+		Video:  video,
+		Origin: Netloc,
+	}
 	return links, nil
 }

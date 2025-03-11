@@ -12,7 +12,10 @@ import (
 	"strings"
 )
 
-const Netloc = "aniboom.one"
+const (
+	Netloc     = "aniboom.one"
+	headerFields = `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
+)
 
 type Aniboom struct {
 	client     *httpcommon.HttpClient
@@ -22,7 +25,7 @@ type Aniboom struct {
 func NewAniboom() *Aniboom {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
-			"Referer":         "https://animego.org/",
+			"Referer":         common.DefaultReferer,
 			"Accept-Language": "ru-RU",
 		},
 		httpcommon.WithRetries(2),
@@ -83,7 +86,6 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, erro
 	matchOpts := reOpts.FindAllStringSubmatch(string(resBody), -1)
 
 	links := make(map[int]common.DecodedEmbed)
-	headersOpt := `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
 	for i, match := range matchOpts {
 		quality, err := strconv.Atoi(match[1])
 		if err != nil {
@@ -91,7 +93,7 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, erro
 		}
 
 		mpvOpts := []string{
-			headersOpt,
+			headerFields,
 			fmt.Sprintf("--vid=%d", i+1),
 		}
 
