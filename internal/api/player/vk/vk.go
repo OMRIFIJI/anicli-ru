@@ -31,7 +31,8 @@ func NewVK() *VK {
 }
 
 func (vk *VK) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
-	embedLink = "https:" + embedLink
+	embedLink = common.AppendHttp(embedLink)
+
 	res, err := vk.client.Get(embedLink)
 	if err != nil {
 		return nil, err

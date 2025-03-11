@@ -53,6 +53,7 @@ func NewAlloha() *Alloha {
 }
 
 func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
+    embedLink = common.AppendHttp(embedLink)
 	animeId, acceptsContorls, payload, err := a.getPayload(embedLink)
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 	clientApi := httpcommon.NewHttpClient(
 		map[string]string{
 			"Origin":           a.client.Headers["Origin"],
-			"Referer":          "https:" + embedLink,
+			"Referer":          embedLink,
 			"Accepts-Controls": acceptsContorls,
 			"Content-Type":     "application/x-www-form-urlencoded; charset=UTF-8",
 			"Content-Length":   strconv.Itoa(len(payload)),
@@ -113,11 +114,14 @@ func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 		}
 	}
 
+	if len(links) == 0 {
+		return nil, errors.New("не найдено ни одной ссылки")
+	}
+
 	return links, nil
 }
 
 func (a *Alloha) getPayload(embedLink string) (int, string, []byte, error) {
-	embedLink = "https:" + embedLink
 	res, err := a.client.Get(embedLink)
 	if err != nil {
 		return 0, "", nil, err

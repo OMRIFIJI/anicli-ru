@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strings"
 )
 
 const Netloc = "video.sibnet.ru"
@@ -37,9 +36,8 @@ func NewSibnet() *Sibnet {
 }
 
 func (s *Sibnet) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
-    if !strings.HasPrefix(embedLink, "https:") {
-        embedLink = "https:" + embedLink
-    }
+	embedLink = common.AppendHttp(embedLink)
+
 	res, err := s.client.Get(embedLink)
 	if err != nil {
 		return nil, err

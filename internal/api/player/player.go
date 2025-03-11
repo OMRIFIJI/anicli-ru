@@ -2,11 +2,13 @@ package player
 
 import (
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/player/aksor"
 	"anicliru/internal/api/player/alloha"
 	"anicliru/internal/api/player/aniboom"
 	"anicliru/internal/api/player/common"
 	"anicliru/internal/api/player/kodik"
 	"anicliru/internal/api/player/sibnet"
+	"anicliru/internal/api/player/sovrom"
 	"anicliru/internal/api/player/vk"
 	"anicliru/internal/logger"
 	"sync"
@@ -17,7 +19,15 @@ type embedHandler interface {
 }
 
 type PlayerLinkConverter struct {
-	handlers map[string]embedHandler
+	handlers    map[string]embedHandler
+	priorityMap map[string]int
+}
+
+func NewPlayerLinkConverter() *PlayerLinkConverter {
+	plc := PlayerLinkConverter{}
+	plc.SetPlayerHandlers()
+	plc.SetPriorityMap()
+	return &plc
 }
 
 func (plc *PlayerLinkConverter) SetPlayerHandlers() {
@@ -27,8 +37,24 @@ func (plc *PlayerLinkConverter) SetPlayerHandlers() {
 	handlers[sibnet.Netloc] = sibnet.NewSibnet()
 	handlers[vk.Netloc] = vk.NewVK()
 	handlers[alloha.Netloc] = alloha.NewAlloha()
+	handlers[aksor.Netloc] = aksor.NewAksor()
+	handlers[sovrom.Netloc] = sovrom.NewSovrom()
 
 	plc.handlers = handlers
+}
+
+// Задаёт приоритет плееров.
+// При удалении дубликатов остаются видео плеера высшего приоритета.
+func (plc *PlayerLinkConverter) SetPriorityMap() {
+	plc.priorityMap = map[string]int{
+		aniboom.Netloc: 6, // Высокий приоритет
+		kodik.Netloc:   5,
+		vk.Netloc:      4,
+		alloha.Netloc:  3,
+		aksor.Netloc:   2,
+		sovrom.Netloc:  1,
+		sibnet.Netloc:  0, // Низкий приоритет
+	}
 }
 
 type workerDecodeRes struct {
@@ -94,43 +120,19 @@ func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string
 	defer mu.Unlock()
 	videoLinks[dubRes.dubName] = make(map[int]models.Video)
 	for quality, decodedEmbed := range dubRes.dubLinks {
-		videoLinks[dubRes.dubName][quality] = bestVideo(decodedEmbed)
+		videoLinks[dubRes.dubName][quality] = plc.bestVideo(decodedEmbed)
 	}
 }
 
-func IsOriginGreater(a, b common.DecodedEmbed) bool {
-	switch a.Origin {
-	case aniboom.Netloc:
-		return true
-	case kodik.Netloc:
-		if b.Origin == aniboom.Netloc {
-			return false
-		}
-		return true
-	case vk.Netloc:
-		switch b.Origin {
-		case aniboom.Netloc, kodik.Netloc:
-			return false
-		}
-		return true
-    case alloha.Netloc:
-		switch b.Origin {
-		case aniboom.Netloc, kodik.Netloc, vk.Netloc:
-			return false
-		}
-		return true
-	case sibnet.Netloc:
-		return false
-	}
-
-	return false
+func (plc *PlayerLinkConverter) isOriginGreater(a, b common.DecodedEmbed) bool {
+	return plc.priorityMap[a.Origin] > plc.priorityMap[b.Origin]
 }
 
-func bestVideo(decodedEmbed []common.DecodedEmbed) models.Video {
+func (plc *PlayerLinkConverter) bestVideo(decodedEmbed []common.DecodedEmbed) models.Video {
 	bestDecode := decodedEmbed[0]
 
 	for _, decode := range decodedEmbed {
-		if IsOriginGreater(decode, bestDecode) {
+		if plc.isOriginGreater(decode, bestDecode) {
 			bestDecode = decode
 		}
 	}

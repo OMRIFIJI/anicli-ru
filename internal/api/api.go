@@ -125,7 +125,5 @@ func (a *AnimeAPI) PrepareSavedAnime(anime *models.Anime) error {
 }
 
 func NewPlayerLinkConverter() *player.PlayerLinkConverter {
-	p := player.PlayerLinkConverter{}
-	p.SetPlayerHandlers()
-	return &p
+	return player.NewPlayerLinkConverter()
 }

@@ -215,7 +215,7 @@ func padBase64(base64Str string) string {
 
 func decodeUrl(urlEncoded string) (string, error) {
 	if isDecoded(urlEncoded) {
-		return appendHttp(urlEncoded), nil
+		return common.AppendHttp(urlEncoded), nil
 	}
 
 	base64URL := decodeRot13(urlEncoded)
@@ -227,18 +227,11 @@ func decodeUrl(urlEncoded string) (string, error) {
 	}
 	decodedURL := string(decodedBytes)
 
-	decodedURL = appendHttp(decodedURL)
+	decodedURL = common.AppendHttp(decodedURL)
 
 	return decodedURL, nil
 }
 
 func isDecoded(url string) bool {
 	return strings.Contains(url, "cloud.kodik-storage.com")
-}
-
-func appendHttp(url string) string {
-	if !strings.HasPrefix(url, "https") {
-		return "https:" + url
-	}
-	return url
 }
