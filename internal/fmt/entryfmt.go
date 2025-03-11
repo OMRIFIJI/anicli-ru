@@ -34,6 +34,9 @@ func wrapAnimeTitleAired(anime models.Anime) string {
 }
 
 func wrapAnimeTitleWatched(anime models.Anime) string {
+	if anime.Provider == "" {
+		return fmt.Sprintf("%s (не доступно, нажмите, чтобы найти в другом источнике)", anime.Title)
+	}
 	if anime.MediaType == "фильм" {
 		return fmt.Sprintf("%s (фильм)", anime.Title)
 	}

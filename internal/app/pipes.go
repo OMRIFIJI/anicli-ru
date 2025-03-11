@@ -32,7 +32,7 @@ func (a *App) defaultPipe(dbh *db.DBHandler) error {
 		return nil
 	}
 
-	animeFromDb, err := dbh.GetAnime(anime.Title)
+	animeFromDB, err := dbh.GetAnime(anime.Title)
 	// Если ещё не смотрели аниме или не удалось загрузить, то выбираем эпизод
 	if err != nil {
 		isExitOnQuit, err = a.selectEpisode(anime)
@@ -43,7 +43,10 @@ func (a *App) defaultPipe(dbh *db.DBHandler) error {
 			return nil
 		}
 	} else {
-		anime.EpCtx.Cur = animeFromDb.EpCtx.Cur
+		if animeFromDB.EpCtx.Cur == anime.EpCtx.AiredEpCount {
+			return errors.New("вы просмотрели все доступные серии")
+		}
+		anime.EpCtx.Cur = animeFromDB.EpCtx.Cur
 	}
 
 	// Сохраняет информацию об аниме на выходе
@@ -78,14 +81,32 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 	}
 	defer promptselect.RestoreTerminal(oldTermState)
 
-	anime, isExitOnQuit, err := a.selectAnimeToCountinue(animes)
+	anime, isExitOnQuit, err := a.selectAnimeWithState(animes)
 	if err != nil {
 		return err
 	}
 	if isExitOnQuit {
 		return nil
 	}
-	animes = nil
+
+    // Если источник больше не отвечает, ищем аниме заново во всех источниках.
+	if anime.Provider == "" {
+        dbCur := anime.EpCtx.Cur
+	    animes, err := a.api.GetAnimesByTitle(anime.Title)
+		if err != nil {
+			return err
+		}
+
+		anime, isExitOnQuit, err = a.selectAnime(animes)
+		if err != nil {
+			return err
+		}
+		if isExitOnQuit {
+			return nil
+		}
+
+        anime.EpCtx.Cur = dbCur
+	}
 
 	defer dbh.UpdateAnime(anime)
 
@@ -113,7 +134,7 @@ func (a *App) deletePipe(dbh *db.DBHandler) error {
 	}
 	defer promptselect.RestoreTerminal(oldTermState)
 
-	anime, isExitOnQuit, err := a.selectAnimeToCountinue(animes)
+	anime, isExitOnQuit, err := a.selectAnimeWithState(animes)
 	if err != nil {
 		return err
 	}
@@ -126,9 +147,9 @@ func (a *App) deletePipe(dbh *db.DBHandler) error {
 }
 
 func (a *App) deleteAllPipe(dbh *db.DBHandler) error {
-    if err := dbh.DeleteAllAnime(); err != nil {
-        return err
-    }
+	if err := dbh.DeleteAllAnime(); err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }

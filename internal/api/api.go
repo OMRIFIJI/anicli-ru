@@ -112,9 +112,13 @@ func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error 
 func (a *AnimeAPI) PrepareSavedAnime(anime *models.Anime) error {
 	client, ok := a.animeParsers[anime.Provider]
 	if !ok {
+        // Зануляем источник, если его больше нет в конфиге
+        anime.Provider = ""
 		return fmt.Errorf("парсер %s не доступен, проверьте конфиг", anime.Provider)
 	}
 	if err := client.PrepareSavedAnime(anime); err != nil {
+        // Зануляем источник, если больше нет ответа
+        anime.Provider = ""
 		return err
 	}
 	return nil

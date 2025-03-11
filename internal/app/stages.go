@@ -6,7 +6,6 @@ import (
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
 	entryfmt "anicliru/internal/fmt"
-	"anicliru/internal/logger"
 	"sync"
 )
 
@@ -19,14 +18,14 @@ func (a *App) getTitleFromUser() (string, error) {
 }
 
 func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
-    var wg sync.WaitGroup
-    quitChan := make(chan struct{})
+	var wg sync.WaitGroup
+	quitChan := make(chan struct{})
 
 	wg.Add(1)
-	go func(){
-        defer wg.Done()
-        loading.DisplayLoading(quitChan)
-    }()
+	go func() {
+		defer wg.Done()
+		loading.DisplayLoading(quitChan)
+	}()
 
 	defer func() {
 		defer loading.RestoreTerminal()
@@ -49,14 +48,17 @@ func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
 	return &animes[cur], isExitOnQuit, err
 }
 
-func (a *App) selectAnimeToCountinue(animes []models.Anime) (*models.Anime, bool, error) {
+func (a *App) selectAnimeWithState(animes []models.Anime) (*models.Anime, bool, error) {
 	animeEntries := entryfmt.WrapAnimeTitlesWatched(animes)
 	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
 
-	a.api.SetAllEmbedLinks(&animes[cur])
+    // Если источник доступен, то заполняем эмбеды
+    if animes[cur].Provider != "" {
+        a.api.SetAllEmbedLinks(&animes[cur])
+    }
 	return &animes[cur], isExitOnQuit, err
 }
 
@@ -90,16 +92,16 @@ func (a *App) prepareSavedAnime(animeSlice []models.Anime) ([]models.Anime, erro
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := a.api.PrepareSavedAnime(&anime); err != nil {
-				logger.ErrorLog.Println(err)
+			err := a.api.PrepareSavedAnime(&anime)
+			// Если удалось загрузить и новых серий нет, то не выводим
+			if anime.EpCtx.Cur == anime.EpCtx.AiredEpCount && err == nil {
 				return
 			}
-			// Если онгоинг и новых серий нет, то не выводим
-			if anime.EpCtx.Cur != anime.EpCtx.AiredEpCount {
-				mu.Lock()
-				defer mu.Unlock()
-				animeSlicePrepared = append(animeSlicePrepared, anime)
-			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			animeSlicePrepared = append(animeSlicePrepared, anime)
+
 		}()
 	}
 	wg.Wait()

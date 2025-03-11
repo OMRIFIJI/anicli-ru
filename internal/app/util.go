@@ -5,7 +5,6 @@ import (
 	promptselect "anicliru/internal/cli/prompt/select"
 )
 
-
 func promptAnime(animes []models.Anime, entries []string) (int, bool, error) {
 	promptMessage := "Выберите аниме из списка:"
 
