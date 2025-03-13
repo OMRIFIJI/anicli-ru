@@ -71,7 +71,7 @@ func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
 			newDomains = append(newDomains, domainMap[origin])
 		}
 
-        cfg.Players.Domains = newDomains
+		cfg.Players.Domains = newDomains
 		cfg.Write()
 		dbh.UpdateLastSyncTime(currentTime)
 	} else {

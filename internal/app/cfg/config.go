@@ -2,27 +2,32 @@ package config
 
 import (
 	"anicliru/internal/api/player/common"
+	"anicliru/internal/api/providers"
 	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
 )
 
-type ConverterCfg struct {
+type VideoCfg struct {
+	Dub     string `toml:"dub"`
+	Quality int    `toml:"quality"`
+}
+
+type converterCfg struct {
 	SyncInterval string   `toml:"syncInterval"`
 	Domains      []string `toml:"domains,omitempty"`
 }
 
 type Config struct {
-	cfgPath   string            `toml:"-"`
+	cfgPath   string `toml:"-"`
+	Video     VideoCfg
 	Providers map[string]string `toml:"Providers,omitempty"`
-	Players   ConverterCfg
+	Players   converterCfg
 }
 
 func (cfg *Config) Write() error {
@@ -64,9 +69,13 @@ func newDefaultConfig(cfgPath string) (*Config, error) {
 			"animego":    "animego.club",
 			"yummyanime": "yummy-anime.ru",
 		},
-		Players: ConverterCfg{
+		Players: converterCfg{
 			Domains:      domains,
 			SyncInterval: defaultSyncInterval,
+		},
+		Video: VideoCfg{
+			Dub:     "",
+			Quality: 1080,
 		},
 	}
 
@@ -105,19 +114,45 @@ func LoadConfig() (*Config, error) {
 		return nil, errors.New("не удалось загрузить конфиг")
 	}
 
-	if len(cfg.Providers) == 0 {
-		return nil, errors.New("все источники отключены в конфиге")
-	}
-
-	if len(cfg.Players.Domains) == 0 {
-		return nil, errors.New("все плееры отключены в конфиге")
-	}
-
-	if !isDayInterval(cfg.Players.SyncInterval) {
-		return nil, errors.New("некорректная дата обновления в конфиге")
+	if err := cfg.check(); err != nil {
+		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func (cfg *Config) check() error {
+	if len(cfg.Providers) == 0 {
+		return errors.New("все источники отключены в конфиге")
+	}
+
+	availableProviders := providers.GetProviders()
+	for provider := range cfg.Providers {
+		if !isInSlice(provider, availableProviders) {
+			return fmt.Errorf("в конфиге указан не существующий источник %s", provider)
+		}
+	}
+
+	availablePlayers := common.GetPlayerDomains()
+	for _, provider := range cfg.Players.Domains {
+		if !isInSlice(provider, availablePlayers) {
+			return fmt.Errorf("в конфиге указан домен не существующего плеера %s", provider)
+		}
+	}
+
+	if len(cfg.Players.Domains) == 0 {
+		return errors.New("все плееры отключены в конфиге")
+	}
+
+	if !isDayInterval(cfg.Players.SyncInterval) {
+		return errors.New("некорректная дата обновления в конфиге")
+	}
+
+	if cfg.Video.Quality <= 0 {
+		return errors.New("неверное значение качества видео в конфиге")
+	}
+
+	return nil
 }
 
 func prettyMarshal(cfg *Config) ([]byte, error) {
@@ -130,27 +165,4 @@ func prettyMarshal(cfg *Config) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}
-
-func isDayInterval(syncInterval string) bool {
-	// Пустую строку допускаем - отключает синхронизацию
-	if len(syncInterval) == 0 {
-		return true
-	}
-	// Проверяем является ли "{положительное число}d"
-	before, after, found := strings.Cut(syncInterval, "d")
-	if !found {
-		return false
-	}
-	if len(after) != 0 {
-		return false
-	}
-	daysCount, err := strconv.Atoi(before)
-	if err != nil {
-		return false
-	}
-	if daysCount <= 0 {
-		return false
-	}
-	return true
 }

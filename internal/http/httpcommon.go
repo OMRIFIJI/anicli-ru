@@ -8,6 +8,15 @@ import (
 	"time"
 )
 
+const (
+	timeoutClientDefault = 2
+	maxRetriesDefault    = 1
+	RetryDelayDefault    = 0
+	maxIdleConnsDefault  = 20
+
+	timeoutDialerDefault = 2
+)
+
 type HttpClient struct {
 	Client     *http.Client
 	Headers    map[string]string
@@ -25,9 +34,9 @@ func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *Htt
 		Client:  nil,
 		Headers: headers,
 	}
-	hc.MaxRetries = 1
-	hc.RetryDelay = 0
-	hc.Timeout = time.Duration(2) * time.Second
+	hc.MaxRetries = maxRetriesDefault
+	hc.RetryDelay = RetryDelayDefault
+	hc.Timeout = time.Duration(timeoutClientDefault) * time.Second
 
 	for _, o := range options {
 		o(hc)
@@ -35,7 +44,7 @@ func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *Htt
 
 	if hc.Client == nil {
 		tr := &http.Transport{
-			MaxIdleConns:       20,
+			MaxIdleConns:       maxIdleConnsDefault,
 			DisableCompression: true,
 		}
 		client := http.Client{
@@ -142,7 +151,7 @@ func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) 
 }
 
 func NewDialer() *Dialer {
-	timeout := time.Duration(2) * time.Second
+	timeout := time.Duration(timeoutDialerDefault) * time.Second
 	return &Dialer{
 		client: &http.Client{
 			Timeout: timeout,

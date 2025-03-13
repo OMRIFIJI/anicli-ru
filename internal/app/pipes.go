@@ -1,6 +1,7 @@
 package app
 
 import (
+	config "anicliru/internal/app/cfg"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"anicliru/internal/db"
 	"anicliru/internal/video"
@@ -8,7 +9,12 @@ import (
 )
 
 func defaultPipe(dbh *db.DBHandler) error {
-	api, err := initApi(dbh)
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	api, err := initApi(dbh, cfg)
 	if err != nil {
 		return err
 	}
@@ -57,7 +63,7 @@ func defaultPipe(dbh *db.DBHandler) error {
 	// Сохраняет информацию об аниме на выходе
 	defer dbh.UpdateAnime(anime)
 
-	animePlayer := video.NewAnimePlayer(anime, api)
+	animePlayer := video.NewAnimePlayer(anime, api, &cfg.Video)
 	if err := animePlayer.Play(); err != nil {
 		return err
 	}
@@ -66,7 +72,11 @@ func defaultPipe(dbh *db.DBHandler) error {
 }
 
 func continuePipe(dbh *db.DBHandler) error {
-	api, err := initApi(dbh)
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return err
+	}
+	api, err := initApi(dbh, cfg)
 	if err != nil {
 		return err
 	}
@@ -120,7 +130,7 @@ func continuePipe(dbh *db.DBHandler) error {
 
 	defer dbh.UpdateAnime(anime)
 
-	animePlayer := video.NewAnimePlayer(anime, api)
+	animePlayer := video.NewAnimePlayer(anime, api, &cfg.Video)
 	if err := animePlayer.Play(); err != nil {
 		return err
 	}
@@ -129,7 +139,12 @@ func continuePipe(dbh *db.DBHandler) error {
 }
 
 func deletePipe(dbh *db.DBHandler) error {
-	api, err := initApi(dbh)
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	api, err := initApi(dbh, cfg)
 	if err != nil {
 		return err
 	}

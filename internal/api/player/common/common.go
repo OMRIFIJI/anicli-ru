@@ -32,7 +32,17 @@ const (
 	VK
 )
 
-const playerOriginName = "aksor.yani.tvalloha.yani.tvaniboom.one"
+func GetPlayerDomains() []string {
+	return []string{
+		AksorDomain,
+		AllohaDomain,
+		AniboomDomain,
+		KodikDomain,
+		SibnetDomain,
+		SovromDomain,
+		VKDomain,
+	}
+}
 
 func NewPlayerOriginMap() map[string]PlayerOrigin {
 	return map[string]PlayerOrigin{

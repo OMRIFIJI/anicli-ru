@@ -53,7 +53,7 @@ func (vs *videoSelector) selectDub(promptMessage string, player *videoPlayer) (b
 }
 
 func (vs *videoSelector) selectQuality(promptMessage string, player *videoPlayer) (bool, error) {
-	qualities, err := player.GetQualities(player.cfg.CurrentDub)
+	qualities, err := player.GetQualities(player.cfg.Dub)
     if err != nil {
         return false, err
     }

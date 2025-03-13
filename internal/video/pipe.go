@@ -3,6 +3,7 @@ package video
 import (
 	"anicliru/internal/api"
 	"anicliru/internal/api/models"
+	config "anicliru/internal/app/cfg"
 	"context"
 	"errors"
 	"fmt"
@@ -17,36 +18,27 @@ type AnimePlayer struct {
 	replayVideo bool
 }
 
-func NewAnimePlayer(anime *models.Anime, api *api.AnimeAPI, options ...func(*AnimePlayer)) *AnimePlayer {
+func NewAnimePlayer(anime *models.Anime, api *api.AnimeAPI, cfg *config.VideoCfg) *AnimePlayer {
 	ap := &AnimePlayer{
 		anime:    anime,
 		api:      api,
 		selector: newSelector(),
-		player:   newVideoPlayer(),
+		player:   newVideoPlayer(cfg),
 		noDubErr: &noDubError{},
-	}
-
-	for _, o := range options {
-		o(ap)
 	}
 
 	return ap
 }
 
-// Для продолжения просмотра
-func WithVideoPlayerConfig(cfg videoPlayerConfig) func(*AnimePlayer) {
-	return func(ap *AnimePlayer) {
-		ap.player = &videoPlayer{cfg: cfg}
-	}
-}
-
 func (ap *AnimePlayer) Play() error {
 	err := ap.updateLink()
-	if err != nil && !errors.As(err, &ap.noDubErr) {
-		return err
-	}
+	if err != nil {
+		// Обычная ошибка
+		if !errors.As(err, &ap.noDubErr) {
+			return err
+		}
 
-	if ap.player.cfg.isEmpty() {
+		// Не нашлась озвучка из конфига
 		promptMessage := "Выберите озвучку. " + ap.anime.Title
 		isExitOnQuit, err := ap.selector.selectDub(promptMessage, ap.player)
 		if err != nil {
@@ -57,8 +49,11 @@ func (ap *AnimePlayer) Play() error {
 		}
 	}
 
-	err = ap.spinPlay()
-	return err
+	if err := ap.spin(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ap *AnimePlayer) updateLink() error {
@@ -87,7 +82,7 @@ func (ap *AnimePlayer) startMpvWrapped(ctx context.Context) error {
 	return err
 }
 
-func (ap *AnimePlayer) spinPlay() error {
+func (ap *AnimePlayer) spin() error {
 	backgroundCtx := context.Background()
 	ctx, cancel := context.WithCancelCause(backgroundCtx)
 
@@ -188,7 +183,7 @@ func (ap *AnimePlayer) handleEpisodeSwitch(menuOption string) (replayVideo bool,
 }
 
 func (ap *AnimePlayer) handleChangeDub() (replayVideo bool, err error) {
-	promptMessage := fmt.Sprintf("Выберите новую озвучку. Сейчас выбрана %s. %s.", ap.player.cfg.CurrentDub, ap.anime.Title)
+	promptMessage := fmt.Sprintf("Выберите новую озвучку. Сейчас выбрана %s. %s.", ap.player.cfg.Dub, ap.anime.Title)
 	isExitOnQuit, err := ap.selector.selectDub(promptMessage, ap.player)
 	if err != nil {
 		return false, err
@@ -200,7 +195,7 @@ func (ap *AnimePlayer) handleChangeDub() (replayVideo bool, err error) {
 }
 
 func (ap *AnimePlayer) handleChangeQuality() (replayVideo bool, err error) {
-	promptMessage := fmt.Sprintf("Выберите новое качество видео. Сейчас выбрано %d. %s.", ap.player.cfg.CurrentQuality, ap.anime.Title)
+	promptMessage := fmt.Sprintf("Выберите новое качество видео. Сейчас выбрано %d. %s.", ap.player.cfg.Quality, ap.anime.Title)
 	isExitOnQuit, err := ap.selector.selectQuality(promptMessage, ap.player)
 	if err != nil {
 		return false, err

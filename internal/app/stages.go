@@ -12,12 +12,7 @@ import (
 	"sync"
 )
 
-func initApi(dbh *db.DBHandler) (*api.AnimeAPI, error) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return nil, err
-	}
-
+func initApi(dbh *db.DBHandler, cfg *config.Config) (*api.AnimeAPI, error) {
 	api, err := api.NewAnimeAPI(cfg, dbh)
 	if err != nil {
 		return nil, err
