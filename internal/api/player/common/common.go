@@ -1,5 +1,3 @@
-//go:generate stringer -type=PlayerOrigin
-
 package common
 
 import (
