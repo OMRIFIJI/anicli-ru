@@ -60,7 +60,7 @@ func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
 	currentTime := time.Now().UTC()
 
 	if isTimeToSync(cfg, dbh, currentTime) {
-		converter, err = player.NewPlayerLinkConverter(dbh, cfg, player.WithSync())
+		converter, err = player.NewPlayerLinkConverter(player.WithSync(dbh))
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +75,7 @@ func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
 		cfg.Write()
 		dbh.UpdateLastSyncTime(currentTime)
 	} else {
-		converter, err = player.NewPlayerLinkConverter(dbh, cfg, player.FromConfig())
+		converter, err = player.NewPlayerLinkConverter(player.FromConfig(cfg))
 		if err != nil {
 			return nil, err
 		}

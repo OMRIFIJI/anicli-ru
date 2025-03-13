@@ -15,9 +15,7 @@ import (
 	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
 	"errors"
-	"strconv"
 	"sync"
-	"time"
 )
 
 type embedHandler interface {
@@ -30,7 +28,7 @@ type PlayerLinkConverter struct {
 	playerOriginMap map[string]common.PlayerOrigin
 }
 
-func NewPlayerLinkConverter(dbh *db.DBHandler, cfg *config.Config, opts ...func(*PlayerLinkConverter, map[string]func() embedHandler)) (*PlayerLinkConverter, error) {
+func NewPlayerLinkConverter(opts ...func(*PlayerLinkConverter, map[string]func() embedHandler)) (*PlayerLinkConverter, error) {
 	playerOriginMap := common.NewPlayerOriginMap()
 	priorityMap := getPriorityMap()
 
@@ -56,20 +54,20 @@ func NewPlayerLinkConverter(dbh *db.DBHandler, cfg *config.Config, opts ...func(
 	return &plc, nil
 }
 
-func FromConfig() func(*PlayerLinkConverter, map[string]func() embedHandler) {
+func FromConfig(cfg *config.Config) func(*PlayerLinkConverter, map[string]func() embedHandler) {
 	return func(plc *PlayerLinkConverter, newHandlerMap map[string]func() embedHandler) {
 		handlers := make(map[common.PlayerOrigin]embedHandler)
 
-		for domain, newHandler := range newHandlerMap {
+		for _, domain := range cfg.Players.Domains {
 			origin := plc.playerOriginMap[domain]
-			handlers[origin] = newHandler()
+			handlers[origin] = newHandlerMap[domain]()
 		}
 
 		plc.Handlers = handlers
 	}
 }
 
-func WithSync() func(*PlayerLinkConverter, map[string]func() embedHandler) {
+func WithSync(db *db.DBHandler) func(*PlayerLinkConverter, map[string]func() embedHandler) {
 	return func(plc *PlayerLinkConverter, newHandlerMap map[string]func() embedHandler) {
 		handlers := make(map[common.PlayerOrigin]embedHandler)
 
@@ -112,94 +110,6 @@ func WithSync() func(*PlayerLinkConverter, map[string]func() embedHandler) {
 
 		plc.Handlers = handlers
 	}
-}
-
-func getPlayerHandlers(playerOriginMap map[string]common.PlayerOrigin, dbh *db.DBHandler, cfg *config.Config) (map[common.PlayerOrigin]embedHandler, error) {
-	handlers := make(map[common.PlayerOrigin]embedHandler)
-
-	// Не красивое решение, но лучшее, что пока придумал
-	newHandlerMap := map[string]func() embedHandler{
-		common.AniboomDomain: func() embedHandler { return aniboom.NewAniboom() },
-		common.KodikDomain:   func() embedHandler { return kodik.NewKodik() },
-		common.SibnetDomain:  func() embedHandler { return sibnet.NewSibnet() },
-		common.VKDomain:      func() embedHandler { return vk.NewVK() },
-		common.AllohaDomain:  func() embedHandler { return alloha.NewAlloha() },
-		common.AksorDomain:   func() embedHandler { return aksor.NewAksor() },
-		common.SovromDomain:  func() embedHandler { return sovrom.NewSovrom() },
-	}
-
-	// Загрузка handler'ов плееров из конфига
-	handlersFromCfg := func() {
-		for domain, newHandler := range newHandlerMap {
-			origin := playerOriginMap[domain]
-			handlers[origin] = newHandler()
-		}
-	}
-
-	// Проверяем надо ли синхронизировать список плееров
-	currentTime := time.Now().UTC()
-	lastSyncTime, err := dbh.GetLastSyncTime()
-	if err != nil {
-		dbh.UpdateLastSyncTime(currentTime)
-		lastSyncTime = &currentTime
-	}
-	diff := currentTime.Sub(*lastSyncTime)
-	days := int(diff.Hours() / 24)
-
-	// Пустая строка - синхронизация отключена
-	if len(cfg.Players.SyncInterval) == 0 {
-		handlersFromCfg()
-		return handlers, nil
-	}
-
-	syncInterval, err := strconv.Atoi(cfg.Players.SyncInterval[:len(cfg.Players.SyncInterval)-1])
-	if days < syncInterval {
-		handlersFromCfg()
-		return handlers, nil
-	}
-
-	// Синхронизация плееров
-	dialer := httpcommon.NewDialer()
-	var wg sync.WaitGroup
-
-	domainChan := make(chan string)
-
-	// Добавляет handler плеера, если сервер плеера отвечает
-	addHandler := func(domain string) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			url := "https://" + domain
-			if _, err := dialer.Ping(url); err != nil {
-				return
-			}
-
-			domainChan <- domain
-		}()
-	}
-
-	for key, _ := range playerOriginMap {
-		addHandler(key)
-	}
-
-	go func() {
-		wg.Wait()
-		close(domainChan)
-	}()
-
-	var reachableDomains []string
-	for domain := range domainChan {
-		reachableDomains = append(reachableDomains, domain)
-
-		origin := playerOriginMap[domain]
-		handlers[origin] = newHandlerMap[domain]()
-	}
-
-	cfg.Write()
-	dbh.UpdateLastSyncTime(currentTime)
-
-	return handlers, nil
 }
 
 // Задаёт приоритет плееров.
@@ -252,7 +162,6 @@ func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string
 		}
 		handler, ok := plc.Handlers[playerOrigin]
 		if !ok {
-			logger.WarnLog.Printf("Нет реализации обработки плеера %s %s\n", playerName, link)
 			return
 		}
 
