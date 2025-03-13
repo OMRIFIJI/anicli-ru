@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/adrg/xdg"
 	bolt "go.etcd.io/bbolt"
 )
 
-const animeBucket = "anime"
+const (
+	animeBucket  = "anime"
+	playerBucket = "player"
+)
 
 type DBHandler struct {
 	db *bolt.DB
@@ -59,6 +63,22 @@ func openDB(dbPath string) (*bolt.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Создать bucket, если нет
+	if err := db.Update(func(tx *bolt.Tx) error {
+		_, err = tx.CreateBucketIfNotExists([]byte(animeBucket))
+		if err != nil {
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte(playerBucket))
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -74,17 +94,6 @@ func initDB(dbPath string) (*bolt.DB, error) {
 
 	db, err := openDB(dbPath)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(animeBucket))
-		if err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		db.Close()
 		return nil, err
 	}
 
@@ -208,5 +217,53 @@ func (dbh *DBHandler) DeleteAllAnime() error {
 		return err
 	}
 
+	return nil
+}
+
+func (dbh *DBHandler) GetLastSyncTime() (*time.Time, error) {
+	var t time.Time
+
+	if err := dbh.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(playerBucket))
+
+		timeBytes := b.Get([]byte("lastSyncTime"))
+		if timeBytes == nil {
+			return errors.New("последнее время обновления не задано")
+		}
+
+		if err := t.UnmarshalBinary(timeBytes); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return &t, nil
+}
+
+func (dbh *DBHandler) UpdateLastSyncTime(t time.Time) error {
+	if err := dbh.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(playerBucket))
+
+		// Ничего не делает, если удалять нечего
+		if err := b.Delete([]byte("lastSyncTime")); err != nil {
+			return err
+		}
+
+		timeBytes, err := t.MarshalBinary()
+		if err != nil {
+			return err
+		}
+
+		if err := b.Put([]byte("lastSyncTime"), timeBytes); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
 	return nil
 }

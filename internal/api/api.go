@@ -3,16 +3,21 @@ package api
 import (
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player"
+	"anicliru/internal/api/player/common"
 	"anicliru/internal/api/providers/animego"
 	"anicliru/internal/api/providers/yummyanime"
+	config "anicliru/internal/app/cfg"
+	"anicliru/internal/db"
 	"anicliru/internal/logger"
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 type AnimeAPI struct {
 	animeParsers map[string]animeParser
+	Converter    *player.PlayerLinkConverter
 }
 
 // TODO: исправить логику с embed'ами.
@@ -34,21 +39,52 @@ func NewAnimeParserByName(name, fullDomain string) (animeParser, error) {
 	return nil, fmt.Errorf("парсер %s не существует, проверьте конфиг", name)
 }
 
-func NewAnimeAPI(Providers map[string]string) (*AnimeAPI, error) {
-	a := AnimeAPI{}
-	a.animeParsers = make(map[string]animeParser)
-	for name, fullDomain := range Providers {
+func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
+	providers := cfg.Providers
+	animeParsers := make(map[string]animeParser)
+
+	for name, fullDomain := range providers {
 		animeParser, err := NewAnimeParserByName(name, fullDomain)
 		if err != nil {
 			return nil, err
 		}
-		a.animeParsers[name] = animeParser
+		animeParsers[name] = animeParser
 	}
 
-	if len(a.animeParsers) == 0 {
+	if len(animeParsers) == 0 {
 		return nil, errors.New("не удалось найти ни один парсер в конфиге")
 	}
 
+	var converter *player.PlayerLinkConverter
+	var err error
+	currentTime := time.Now().UTC()
+
+	if isTimeToSync(cfg, dbh, currentTime) {
+		converter, err = player.NewPlayerLinkConverter(dbh, cfg, player.WithSync())
+		if err != nil {
+			return nil, err
+		}
+
+		domainMap := common.NewPlayerDomainMap()
+		var newDomains []string
+		for origin := range converter.Handlers {
+			newDomains = append(newDomains, domainMap[origin])
+		}
+
+        cfg.Players.Domains = newDomains
+		cfg.Write()
+		dbh.UpdateLastSyncTime(currentTime)
+	} else {
+		converter, err = player.NewPlayerLinkConverter(dbh, cfg, player.FromConfig())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	a := AnimeAPI{
+		animeParsers: animeParsers,
+		Converter:    converter,
+	}
 	return &a, nil
 }
 
@@ -68,7 +104,7 @@ func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 			}
 
 			mu.Lock()
-            defer mu.Unlock()
+			defer mu.Unlock()
 			animes = append(animes, parsedAnimes...)
 		}()
 	}
@@ -82,7 +118,7 @@ func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 	if err != nil {
 		return nil, err
 	}
-    sortBySearchPos(animes)
+	sortBySearchPos(animes)
 
 	return animes, nil
 }
@@ -112,18 +148,14 @@ func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error 
 func (a *AnimeAPI) PrepareSavedAnime(anime *models.Anime) error {
 	client, ok := a.animeParsers[anime.Provider]
 	if !ok {
-        // Зануляем источник, если его больше нет в конфиге
-        anime.Provider = ""
+		// Зануляем источник, если его больше нет в конфиге
+		anime.Provider = ""
 		return fmt.Errorf("парсер %s не доступен, проверьте конфиг", anime.Provider)
 	}
 	if err := client.PrepareSavedAnime(anime); err != nil {
-        // Зануляем источник, если больше нет ответа
-        anime.Provider = ""
+		// Зануляем источник, если больше нет ответа
+		anime.Provider = ""
 		return err
 	}
 	return nil
-}
-
-func NewPlayerLinkConverter() *player.PlayerLinkConverter {
-	return player.NewPlayerLinkConverter()
 }

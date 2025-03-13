@@ -10,9 +10,14 @@ import (
 	"anicliru/internal/api/player/sibnet"
 	"anicliru/internal/api/player/sovrom"
 	"anicliru/internal/api/player/vk"
+	config "anicliru/internal/app/cfg"
+	"anicliru/internal/db"
+	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
 	"errors"
+	"strconv"
 	"sync"
+	"time"
 )
 
 type embedHandler interface {
@@ -20,41 +25,194 @@ type embedHandler interface {
 }
 
 type PlayerLinkConverter struct {
-	handlers    map[string]embedHandler
-	priorityMap map[string]int
+	Handlers        map[common.PlayerOrigin]embedHandler
+	priorityMap     map[common.PlayerOrigin]int
+	playerOriginMap map[string]common.PlayerOrigin
 }
 
-func NewPlayerLinkConverter() *PlayerLinkConverter {
-	plc := PlayerLinkConverter{}
-	plc.SetPlayerHandlers()
-	plc.SetPriorityMap()
-	return &plc
+func NewPlayerLinkConverter(dbh *db.DBHandler, cfg *config.Config, opts ...func(*PlayerLinkConverter, map[string]func() embedHandler)) (*PlayerLinkConverter, error) {
+	playerOriginMap := common.NewPlayerOriginMap()
+	priorityMap := getPriorityMap()
+
+	plc := PlayerLinkConverter{
+		priorityMap:     priorityMap,
+		playerOriginMap: playerOriginMap,
+	}
+
+	newHandlerMap := map[string]func() embedHandler{
+		common.AniboomDomain: func() embedHandler { return aniboom.NewAniboom() },
+		common.KodikDomain:   func() embedHandler { return kodik.NewKodik() },
+		common.SibnetDomain:  func() embedHandler { return sibnet.NewSibnet() },
+		common.VKDomain:      func() embedHandler { return vk.NewVK() },
+		common.AllohaDomain:  func() embedHandler { return alloha.NewAlloha() },
+		common.AksorDomain:   func() embedHandler { return aksor.NewAksor() },
+		common.SovromDomain:  func() embedHandler { return sovrom.NewSovrom() },
+	}
+
+	for _, o := range opts {
+		o(&plc, newHandlerMap)
+	}
+
+	return &plc, nil
 }
 
-func (plc *PlayerLinkConverter) SetPlayerHandlers() {
-	handlers := make(map[string]embedHandler)
-	handlers[aniboom.Netloc] = aniboom.NewAniboom()
-	handlers[kodik.Netloc] = kodik.NewKodik()
-	handlers[sibnet.Netloc] = sibnet.NewSibnet()
-	handlers[vk.Netloc] = vk.NewVK()
-	handlers[alloha.Netloc] = alloha.NewAlloha()
-	handlers[aksor.Netloc] = aksor.NewAksor()
-	handlers[sovrom.Netloc] = sovrom.NewSovrom()
+func FromConfig() func(*PlayerLinkConverter, map[string]func() embedHandler) {
+	return func(plc *PlayerLinkConverter, newHandlerMap map[string]func() embedHandler) {
+		handlers := make(map[common.PlayerOrigin]embedHandler)
 
-	plc.handlers = handlers
+		for domain, newHandler := range newHandlerMap {
+			origin := plc.playerOriginMap[domain]
+			handlers[origin] = newHandler()
+		}
+
+		plc.Handlers = handlers
+	}
+}
+
+func WithSync() func(*PlayerLinkConverter, map[string]func() embedHandler) {
+	return func(plc *PlayerLinkConverter, newHandlerMap map[string]func() embedHandler) {
+		handlers := make(map[common.PlayerOrigin]embedHandler)
+
+		dialer := httpcommon.NewDialer()
+		var wg sync.WaitGroup
+
+		domainChan := make(chan string)
+
+		// Добавляет handler плеера, если сервер плеера отвечает
+		addHandler := func(domain string) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				url := "https://" + domain
+				if _, err := dialer.Ping(url); err != nil {
+					return
+				}
+
+				domainChan <- domain
+			}()
+		}
+
+		for key, _ := range plc.playerOriginMap {
+			addHandler(key)
+		}
+
+		go func() {
+			wg.Wait()
+			close(domainChan)
+		}()
+
+		var reachableDomains []string
+		for domain := range domainChan {
+			reachableDomains = append(reachableDomains, domain)
+
+			origin := plc.playerOriginMap[domain]
+			handlers[origin] = newHandlerMap[domain]()
+		}
+
+		plc.Handlers = handlers
+	}
+}
+
+func getPlayerHandlers(playerOriginMap map[string]common.PlayerOrigin, dbh *db.DBHandler, cfg *config.Config) (map[common.PlayerOrigin]embedHandler, error) {
+	handlers := make(map[common.PlayerOrigin]embedHandler)
+
+	// Не красивое решение, но лучшее, что пока придумал
+	newHandlerMap := map[string]func() embedHandler{
+		common.AniboomDomain: func() embedHandler { return aniboom.NewAniboom() },
+		common.KodikDomain:   func() embedHandler { return kodik.NewKodik() },
+		common.SibnetDomain:  func() embedHandler { return sibnet.NewSibnet() },
+		common.VKDomain:      func() embedHandler { return vk.NewVK() },
+		common.AllohaDomain:  func() embedHandler { return alloha.NewAlloha() },
+		common.AksorDomain:   func() embedHandler { return aksor.NewAksor() },
+		common.SovromDomain:  func() embedHandler { return sovrom.NewSovrom() },
+	}
+
+	// Загрузка handler'ов плееров из конфига
+	handlersFromCfg := func() {
+		for domain, newHandler := range newHandlerMap {
+			origin := playerOriginMap[domain]
+			handlers[origin] = newHandler()
+		}
+	}
+
+	// Проверяем надо ли синхронизировать список плееров
+	currentTime := time.Now().UTC()
+	lastSyncTime, err := dbh.GetLastSyncTime()
+	if err != nil {
+		dbh.UpdateLastSyncTime(currentTime)
+		lastSyncTime = &currentTime
+	}
+	diff := currentTime.Sub(*lastSyncTime)
+	days := int(diff.Hours() / 24)
+
+	// Пустая строка - синхронизация отключена
+	if len(cfg.Players.SyncInterval) == 0 {
+		handlersFromCfg()
+		return handlers, nil
+	}
+
+	syncInterval, err := strconv.Atoi(cfg.Players.SyncInterval[:len(cfg.Players.SyncInterval)-1])
+	if days < syncInterval {
+		handlersFromCfg()
+		return handlers, nil
+	}
+
+	// Синхронизация плееров
+	dialer := httpcommon.NewDialer()
+	var wg sync.WaitGroup
+
+	domainChan := make(chan string)
+
+	// Добавляет handler плеера, если сервер плеера отвечает
+	addHandler := func(domain string) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			url := "https://" + domain
+			if _, err := dialer.Ping(url); err != nil {
+				return
+			}
+
+			domainChan <- domain
+		}()
+	}
+
+	for key, _ := range playerOriginMap {
+		addHandler(key)
+	}
+
+	go func() {
+		wg.Wait()
+		close(domainChan)
+	}()
+
+	var reachableDomains []string
+	for domain := range domainChan {
+		reachableDomains = append(reachableDomains, domain)
+
+		origin := playerOriginMap[domain]
+		handlers[origin] = newHandlerMap[domain]()
+	}
+
+	cfg.Write()
+	dbh.UpdateLastSyncTime(currentTime)
+
+	return handlers, nil
 }
 
 // Задаёт приоритет плееров.
 // При удалении дубликатов остаются видео плеера высшего приоритета.
-func (plc *PlayerLinkConverter) SetPriorityMap() {
-	plc.priorityMap = map[string]int{
-		aniboom.Netloc: 6, // Высокий приоритет
-		kodik.Netloc:   5,
-		vk.Netloc:      4,
-		alloha.Netloc:  3,
-		aksor.Netloc:   2,
-		sovrom.Netloc:  1,
-		sibnet.Netloc:  0, // Низкий приоритет
+func getPriorityMap() map[common.PlayerOrigin]int {
+	return map[common.PlayerOrigin]int{
+		aniboom.Origin: 6, // Высокий приоритет
+		kodik.Origin:   5,
+		vk.Origin:      4,
+		alloha.Origin:  3,
+		aksor.Origin:   2,
+		sovrom.Origin:  1,
+		sibnet.Origin:  0, // Низкий приоритет
 	}
 }
 
@@ -63,7 +221,6 @@ type workerDecodeRes struct {
 	dubLinks map[int][]common.DecodedEmbed
 }
 
-// Перемудрил
 func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.VideoLinks, error) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -88,8 +245,13 @@ func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.
 func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string]string, videoLinks models.VideoLinks, mu *sync.Mutex) {
 	dubLinks := make(map[int][]common.DecodedEmbed)
 	for playerName, link := range playerLinks {
-		handler, exists := plc.handlers[playerName]
-		if !exists {
+		playerOrigin, ok := plc.playerOriginMap[playerName]
+		if !ok {
+			logger.WarnLog.Printf("Нет реализации обработки плеера %s %s\n", playerName, link)
+			return
+		}
+		handler, ok := plc.Handlers[playerOrigin]
+		if !ok {
 			logger.WarnLog.Printf("Нет реализации обработки плеера %s %s\n", playerName, link)
 			return
 		}

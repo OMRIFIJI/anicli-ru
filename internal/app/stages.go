@@ -1,15 +1,32 @@
 package app
 
 import (
+	"anicliru/internal/api"
 	"anicliru/internal/api/models"
+	config "anicliru/internal/app/cfg"
 	"anicliru/internal/cli/loading"
 	promptsearch "anicliru/internal/cli/prompt/search"
 	promptselect "anicliru/internal/cli/prompt/select"
+	"anicliru/internal/db"
 	entryfmt "anicliru/internal/fmt"
 	"sync"
 )
 
-func (a *App) getTitleFromUser() (string, error) {
+func initApi(dbh *db.DBHandler) (*api.AnimeAPI, error) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	api, err := api.NewAnimeAPI(cfg, dbh)
+	if err != nil {
+		return nil, err
+	}
+
+	return api, nil
+}
+
+func getTitleFromUser() (string, error) {
 	searchInput, err := promptsearch.PromptSearchInput()
 	if err != nil {
 		return "", err
@@ -17,7 +34,7 @@ func (a *App) getTitleFromUser() (string, error) {
 	return searchInput, nil
 }
 
-func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
+func findAnimes(searchInput string, api *api.AnimeAPI) ([]models.Anime, error) {
 	var wg sync.WaitGroup
 	quitChan := make(chan struct{})
 
@@ -33,36 +50,36 @@ func (a *App) findAnimes(searchInput string) ([]models.Anime, error) {
 		wg.Wait()
 	}()
 
-	animes, err := a.api.GetAnimesByTitle(searchInput)
+	animes, err := api.GetAnimesByTitle(searchInput)
 	return animes, err
 }
 
-func (a *App) selectAnime(animes []models.Anime) (*models.Anime, bool, error) {
+func selectAnime(animes []models.Anime, api *api.AnimeAPI) (*models.Anime, bool, error) {
 	animeEntries := entryfmt.WrapAnimeTitlesAired(animes)
 	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
 
-	a.api.SetAllEmbedLinks(&animes[cur])
+	api.SetAllEmbedLinks(&animes[cur])
 	return &animes[cur], isExitOnQuit, err
 }
 
-func (a *App) selectAnimeWithState(animes []models.Anime) (*models.Anime, bool, error) {
+func selectAnimeWithState(animes []models.Anime, api *api.AnimeAPI) (*models.Anime, bool, error) {
 	animeEntries := entryfmt.WrapAnimeTitlesWatched(animes)
 	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
 
-    // Если источник доступен, то заполняем эмбеды
-    if animes[cur].Provider != "" {
-        a.api.SetAllEmbedLinks(&animes[cur])
-    }
+	// Если источник доступен, то заполняем эмбеды
+	if animes[cur].Provider != "" {
+		api.SetAllEmbedLinks(&animes[cur])
+	}
 	return &animes[cur], isExitOnQuit, err
 }
 
-func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
+func selectEpisode(anime *models.Anime) (bool, error) {
 	episodeEntries := entryfmt.EpisodeEntries(anime.EpCtx)
 	promptMessage := "Выберите серию. " + anime.Title
 
@@ -83,16 +100,16 @@ func (a *App) selectEpisode(anime *models.Anime) (bool, error) {
 	return isExitOnQuit, nil
 }
 
-func (a *App) prepareSavedAnime(animeSlice []models.Anime) ([]models.Anime, error) {
+func prepareSavedAnime(animes []models.Anime, api *api.AnimeAPI) ([]models.Anime, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	var animeSlicePrepared []models.Anime
-	for _, anime := range animeSlice {
+	var animesPrepared []models.Anime
+	for _, anime := range animes {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := a.api.PrepareSavedAnime(&anime)
+			err := api.PrepareSavedAnime(&anime)
 			// Если удалось загрузить и новых серий нет, то не выводим
 			if anime.EpCtx.Cur == anime.EpCtx.AiredEpCount && err == nil {
 				return
@@ -100,11 +117,11 @@ func (a *App) prepareSavedAnime(animeSlice []models.Anime) ([]models.Anime, erro
 
 			mu.Lock()
 			defer mu.Unlock()
-			animeSlicePrepared = append(animeSlicePrepared, anime)
+			animesPrepared = append(animesPrepared, anime)
 
 		}()
 	}
 	wg.Wait()
 
-	return animeSlicePrepared, nil
+	return animesPrepared, nil
 }

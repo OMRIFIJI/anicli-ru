@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const Netloc = "vk.com"
+const Origin = common.VK
 
 type VK struct {
 	client *httpcommon.HttpClient
@@ -65,7 +65,7 @@ func (vk *VK) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 		}
 		links[quality] = common.DecodedEmbed{
 			Video:  video,
-			Origin: Netloc,
+			Origin: Origin,
 		}
 	}
 	return links, nil

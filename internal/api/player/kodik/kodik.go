@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	Netloc       = "kodik.info"
+	Origin       = common.Kodik
+	baseUrl      = "https://kodik.info"
 	headerFields = `--http-header-fields="Referer: https://animego.org","Accept-Language: ru-RU"`
 )
 
@@ -50,8 +51,8 @@ func NewKodik() *Kodik {
 
 	k := Kodik{
 		client:     client,
-		baseUrl:    fmt.Sprintf("https://%s", Netloc),
-		apiPath:    fmt.Sprintf("https://%s/ftor", Netloc),
+		baseUrl:    baseUrl,
+		apiPath:    baseUrl + "/ftor",
 		postClient: postClient,
 	}
 
@@ -148,7 +149,7 @@ func (k *Kodik) videoDataToLinks(vidData videoData) map[int]common.DecodedEmbed 
 		}
 		links[quality] = common.DecodedEmbed{
 			Video:  video,
-			Origin: Netloc,
+			Origin: Origin,
 		}
 	}
 

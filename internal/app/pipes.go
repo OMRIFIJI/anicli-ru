@@ -7,13 +7,18 @@ import (
 	"errors"
 )
 
-func (a *App) defaultPipe(dbh *db.DBHandler) error {
-	searchInput, err := a.getTitleFromUser()
+func defaultPipe(dbh *db.DBHandler) error {
+	api, err := initApi(dbh)
 	if err != nil {
 		return err
 	}
 
-	animes, err := a.findAnimes(searchInput)
+	searchInput, err := getTitleFromUser()
+	if err != nil {
+		return err
+	}
+
+	animes, err := findAnimes(searchInput, api)
 	if err != nil {
 		return err
 	}
@@ -24,7 +29,7 @@ func (a *App) defaultPipe(dbh *db.DBHandler) error {
 	}
 	defer promptselect.RestoreTerminal(oldTermState)
 
-	anime, isExitOnQuit, err := a.selectAnime(animes)
+	anime, isExitOnQuit, err := selectAnime(animes, api)
 	if err != nil {
 		return err
 	}
@@ -35,7 +40,7 @@ func (a *App) defaultPipe(dbh *db.DBHandler) error {
 	animeFromDB, err := dbh.GetAnime(anime.Title)
 	// Если ещё не смотрели аниме или не удалось загрузить, то выбираем эпизод
 	if err != nil {
-		isExitOnQuit, err = a.selectEpisode(anime)
+		isExitOnQuit, err = selectEpisode(anime)
 		if err != nil {
 			return err
 		}
@@ -52,7 +57,7 @@ func (a *App) defaultPipe(dbh *db.DBHandler) error {
 	// Сохраняет информацию об аниме на выходе
 	defer dbh.UpdateAnime(anime)
 
-	animePlayer := video.NewAnimePlayer(anime, a.api)
+	animePlayer := video.NewAnimePlayer(anime, api)
 	if err := animePlayer.Play(); err != nil {
 		return err
 	}
@@ -60,13 +65,18 @@ func (a *App) defaultPipe(dbh *db.DBHandler) error {
 	return nil
 }
 
-func (a *App) continuePipe(dbh *db.DBHandler) error {
-	animeSlice, err := dbh.GetAnimeSlice()
+func continuePipe(dbh *db.DBHandler) error {
+	api, err := initApi(dbh)
 	if err != nil {
 		return err
 	}
 
-	animes, err := a.prepareSavedAnime(animeSlice)
+	animes, err := dbh.GetAnimeSlice()
+	if err != nil {
+		return err
+	}
+
+	animes, err = prepareSavedAnime(animes, api)
 	if err != nil {
 		return err
 	}
@@ -81,7 +91,7 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 	}
 	defer promptselect.RestoreTerminal(oldTermState)
 
-	anime, isExitOnQuit, err := a.selectAnimeWithState(animes)
+	anime, isExitOnQuit, err := selectAnimeWithState(animes, api)
 	if err != nil {
 		return err
 	}
@@ -92,12 +102,12 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 	// Если источник больше не отвечает, ищем аниме заново во всех источниках.
 	if anime.Provider == "" {
 		dbCur := anime.EpCtx.Cur
-		animes, err := a.api.GetAnimesByTitle(anime.Title)
+		animes, err := api.GetAnimesByTitle(anime.Title)
 		if err != nil {
 			return err
 		}
 
-		anime, isExitOnQuit, err = a.selectAnime(animes)
+		anime, isExitOnQuit, err = selectAnime(animes, api)
 		if err != nil {
 			return err
 		}
@@ -110,7 +120,7 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 
 	defer dbh.UpdateAnime(anime)
 
-	animePlayer := video.NewAnimePlayer(anime, a.api)
+	animePlayer := video.NewAnimePlayer(anime, api)
 	if err := animePlayer.Play(); err != nil {
 		return err
 	}
@@ -118,8 +128,18 @@ func (a *App) continuePipe(dbh *db.DBHandler) error {
 	return nil
 }
 
-func (a *App) deletePipe(dbh *db.DBHandler) error {
+func deletePipe(dbh *db.DBHandler) error {
+	api, err := initApi(dbh)
+	if err != nil {
+		return err
+	}
+
 	animes, err := dbh.GetAnimeSlice()
+	if err != nil {
+		return err
+	}
+
+	animes, err = prepareSavedAnime(animes, api)
 	if err != nil {
 		return err
 	}
@@ -134,7 +154,7 @@ func (a *App) deletePipe(dbh *db.DBHandler) error {
 	}
 	defer promptselect.RestoreTerminal(oldTermState)
 
-	anime, isExitOnQuit, err := a.selectAnimeWithState(animes)
+	anime, isExitOnQuit, err := selectAnimeWithState(animes, api)
 	if err != nil {
 		return err
 	}
@@ -146,7 +166,7 @@ func (a *App) deletePipe(dbh *db.DBHandler) error {
 	return nil
 }
 
-func (a *App) deleteAllPipe(dbh *db.DBHandler) error {
+func deleteAllPipe(dbh *db.DBHandler) error {
 	if err := dbh.DeleteAllAnime(); err != nil {
 		return err
 	}

@@ -10,9 +10,7 @@ import (
 	"regexp"
 )
 
-const (
-	Netloc = "sovetromantica.com"
-)
+const Origin = common.Sovrom
 
 type Sovrom struct {
 	client *httpcommon.HttpClient
@@ -62,7 +60,7 @@ func (a *Sovrom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 
 	links[quality] = common.DecodedEmbed{
 		Video:  models.Video{Link: link},
-		Origin: Netloc,
+		Origin: Origin,
 	}
 
 	return links, nil

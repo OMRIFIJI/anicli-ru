@@ -5,7 +5,6 @@ package main
 import (
 	"anicliru/internal/app"
 	"fmt"
-	"log"
 	"os"
 
 	"golang.org/x/sys/windows"
@@ -30,12 +29,7 @@ func main() {
 	originalMode := prepareTerminal()
 	defer restoreTerminal(originalMode)
 
-	a, err := app.NewApp()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := a.RunApp(); err != nil {
+	if err := app.RunApp(); err != nil {
 		fmt.Println(err)
 	}
 }

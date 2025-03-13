@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	Netloc       = "alloha.yani.tv"
+	Origin       = common.Alloha
 	headerFields = `--http-header-fields="Origin: https://alloha.yani.tv/","Referer: https://animego.org/"`
+    baseUrl = "https://alloha.yani.tv"
 )
 
 type Alloha struct {
@@ -30,7 +31,7 @@ func NewAlloha() *Alloha {
 	client := httpcommon.NewHttpClient(
 		map[string]string{
 			"Referer":         common.DefaultReferer,
-			"Origin":          "https://alloha.yani.tv",
+			"Origin":          baseUrl,
 			"Accept-Language": "ru-RU",
 		},
 		httpcommon.WithRetries(2),
@@ -53,7 +54,7 @@ func NewAlloha() *Alloha {
 }
 
 func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
-    embedLink = common.AppendHttp(embedLink)
+	embedLink = common.AppendHttp(embedLink)
 	animeId, acceptsContorls, payload, err := a.getPayload(embedLink)
 	if err != nil {
 		return nil, err
@@ -70,7 +71,7 @@ func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 		httpcommon.FromClient(&a.postClient),
 	)
 
-	dest := fmt.Sprintf("https://%s/movie/%d", Netloc, animeId)
+	dest := fmt.Sprintf("%s/movie/%d", baseUrl, animeId)
 	res, err := clientApi.Post(dest, bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
@@ -110,7 +111,7 @@ func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 				Link:    link,
 				MpvOpts: []string{headerFields},
 			},
-			Origin: Netloc,
+			Origin: Origin,
 		}
 	}
 

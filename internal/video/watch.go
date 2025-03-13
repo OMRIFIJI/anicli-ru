@@ -3,7 +3,6 @@ package video
 import (
 	"anicliru/internal/api"
 	"anicliru/internal/api/models"
-	"anicliru/internal/api/player"
 	"context"
 	"errors"
 	"fmt"
@@ -12,21 +11,19 @@ import (
 type AnimePlayer struct {
 	api         *api.AnimeAPI
 	anime       *models.Anime
-	converter   *player.PlayerLinkConverter
 	selector    *videoSelector
 	player      *videoPlayer
 	noDubErr    *noDubError
 	replayVideo bool
 }
 
-func NewAnimePlayer(anime *models.Anime, apiPtr *api.AnimeAPI, options ...func(*AnimePlayer)) *AnimePlayer {
+func NewAnimePlayer(anime *models.Anime, api *api.AnimeAPI, options ...func(*AnimePlayer)) *AnimePlayer {
 	ap := &AnimePlayer{
-		anime:     anime,
-		converter: api.NewPlayerLinkConverter(),
-		api:       apiPtr,
-		selector:  newSelector(),
-		player:    newVideoPlayer(),
-		noDubErr:  &noDubError{},
+		anime:    anime,
+		api:      api,
+		selector: newSelector(),
+		player:   newVideoPlayer(),
+		noDubErr: &noDubError{},
 	}
 
 	for _, o := range options {
@@ -75,7 +72,7 @@ func (ap *AnimePlayer) updateLink() error {
 		return err
 	}
 
-	videos, err := ap.converter.GetVideos(ep.EmbedLinks)
+	videos, err := ap.api.Converter.GetVideos(ep.EmbedLinks)
 	if err != nil {
 		return err
 	}

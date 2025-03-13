@@ -1,8 +1,6 @@
 package app
 
 import (
-	"anicliru/internal/api"
-	config "anicliru/internal/app/cfg"
 	"anicliru/internal/db"
 	"anicliru/internal/logger"
 	"flag"
@@ -11,36 +9,8 @@ import (
 	"rsc.io/getopt"
 )
 
-type App struct {
-	api *api.AnimeAPI
-}
-
-func NewApp() (*App, error) {
-	a := App{}
-	if err := a.init(); err != nil {
-		return nil, err
-	}
-	return &a, nil
-}
-
-func (a *App) init() error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return err
-	}
-
-	api, err := api.NewAnimeAPI(cfg.Providers)
-	if err != nil {
-		return err
-	}
-	a.api = api
-
+func RunApp() error {
 	logger.Init()
-
-	return nil
-}
-
-func (a *App) RunApp() error {
 	dbh, err := db.NewDBHandler()
 	if err != nil {
 		return err
@@ -70,28 +40,28 @@ func (a *App) RunApp() error {
 	}
 
 	if *continuePtr {
-		if err := a.continuePipe(dbh); err != nil {
+		if err := continuePipe(dbh); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	if *deletePtr {
-		if err := a.deletePipe(dbh); err != nil {
+		if err := deletePipe(dbh); err != nil {
 			return err
 		}
 		return nil
 	}
 
-    if *deleteAllPtr {
-		if err := a.deleteAllPipe(dbh); err != nil {
+	if *deleteAllPtr {
+		if err := deleteAllPipe(dbh); err != nil {
 			return err
 		}
 		return nil
-    }
+	}
 
 	if flag.Parsed() {
-		if err := a.defaultPipe(dbh); err != nil {
+		if err := defaultPipe(dbh); err != nil {
 			return err
 		}
 	}

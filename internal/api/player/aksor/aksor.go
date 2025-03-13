@@ -11,9 +11,7 @@ import (
 	"strings"
 )
 
-const (
-	Netloc = "aksor.yani.tv"
-)
+const Origin = common.Aksor
 
 type Aksor struct {
 	client *httpcommon.HttpClient
@@ -70,7 +68,7 @@ func (a *Aksor) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error)
 
 	links[quality] = common.DecodedEmbed{
 		Video:  models.Video{Link: link},
-		Origin: Netloc,
+		Origin: Origin,
 	}
 
 	return links, nil

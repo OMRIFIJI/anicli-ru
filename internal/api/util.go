@@ -2,8 +2,14 @@ package api
 
 import (
 	"anicliru/internal/api/models"
+	config "anicliru/internal/app/cfg"
+	"anicliru/internal/db"
+	httpcommon "anicliru/internal/http"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 func tryToAppendTitle(targetAnime models.Anime, uniqueAnimesMap map[string]models.Anime) {
@@ -33,7 +39,48 @@ func dropAnimeDuplicates(animes []models.Anime) ([]models.Anime, error) {
 }
 
 func sortBySearchPos(animes []models.Anime) {
-    sort.Slice(animes, func(i, j int) bool {
-         return animes[i].SearchPos <= animes[j].SearchPos
+	sort.Slice(animes, func(i, j int) bool {
+		return animes[i].SearchPos <= animes[j].SearchPos
 	})
+}
+
+func removeUnreachableProviders(providers map[string]string, dialer *httpcommon.Dialer) {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for key, domain := range providers {
+		wg.Add(1)
+		go func(string, string) {
+			defer wg.Done()
+			url := "https://" + domain
+
+			_, err := dialer.Ping(url)
+			if err != nil {
+				// logger.ErrorLog.Println("Нет связи с источником %s", domain)
+				mu.Lock()
+				defer mu.Unlock()
+				delete(providers, key)
+			}
+		}(key, domain)
+	}
+	wg.Wait()
+}
+
+func isTimeToSync(cfg *config.Config, dbh *db.DBHandler, currentTime time.Time) bool {
+	// Пустая строка - синхронизация отключена
+	if len(cfg.Players.SyncInterval) == 0 {
+		return false
+	}
+
+	lastSyncTime, err := dbh.GetLastSyncTime()
+	if err != nil {
+        return true
+	}
+	diff := currentTime.Sub(*lastSyncTime)
+	days := int(diff.Hours() / 24)
+
+	syncIntervalStr := cfg.Players.SyncInterval
+	syncInterval, err := strconv.Atoi(syncIntervalStr[:len(syncIntervalStr)-1])
+
+	return days >= syncInterval
 }

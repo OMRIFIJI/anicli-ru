@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	Netloc     = "aniboom.one"
+	Origin       = common.Aniboom
+	baseUrl      = "https://aniboom.one"
 	headerFields = `--http-header-fields="Referer: https://aniboom.one","Accept-Language: ru-RU"`
 )
 
@@ -32,7 +33,7 @@ func NewAniboom() *Aniboom {
 	)
 	clientDash := httpcommon.NewHttpClient(
 		map[string]string{
-			"Referer":         "https://aniboom.one",
+			"Referer":         baseUrl,
 			"Accept-Language": "ru-RU",
 		},
 	)
@@ -103,7 +104,7 @@ func (a *Aniboom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, erro
 		}
 		links[quality] = common.DecodedEmbed{
 			Video:  video,
-			Origin: Netloc,
+			Origin: Origin,
 		}
 	}
 

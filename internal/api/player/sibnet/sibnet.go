@@ -10,7 +10,10 @@ import (
 	"regexp"
 )
 
-const Netloc = "video.sibnet.ru"
+const (
+	Origin  = common.Sibnet
+	baseUrl = "https://video.sibnet.ru"
+)
 
 type Sibnet struct {
 	client  *httpcommon.HttpClient
@@ -30,7 +33,7 @@ func NewSibnet() *Sibnet {
 	)
 	s := &Sibnet{
 		client:  client,
-		baseUrl: "https://video.sibnet.ru/",
+		baseUrl: baseUrl,
 	}
 	return s
 }
@@ -67,7 +70,7 @@ func (s *Sibnet) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 	}
 	links[480] = common.DecodedEmbed{
 		Video:  video,
-		Origin: Netloc,
+		Origin: Origin,
 	}
 	return links, nil
 }

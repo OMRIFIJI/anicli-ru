@@ -16,6 +16,10 @@ type HttpClient struct {
 	Timeout    time.Duration
 }
 
+type Dialer struct {
+	client *http.Client
+}
+
 func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *HttpClient {
 	hc := &HttpClient{
 		Client:  nil,
@@ -23,7 +27,7 @@ func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *Htt
 	}
 	hc.MaxRetries = 1
 	hc.RetryDelay = 0
-	hc.Timeout = 5 * time.Second
+	hc.Timeout = time.Duration(2) * time.Second
 
 	for _, o := range options {
 		o(hc)
@@ -31,7 +35,7 @@ func NewHttpClient(headers map[string]string, options ...func(*HttpClient)) *Htt
 
 	if hc.Client == nil {
 		tr := &http.Transport{
-			MaxIdleConns:       70,
+			MaxIdleConns:       20,
 			DisableCompression: true,
 		}
 		client := http.Client{
@@ -57,7 +61,7 @@ func WithRetryDelay(delay int) func(*HttpClient) {
 	}
 }
 
-func WithTimeout(timeInSeconds int) func(*HttpClient) {
+func WithTimeout(timeInSeconds uint) func(*HttpClient) {
 	return func(hc *HttpClient) {
 		hc.Timeout = time.Duration(timeInSeconds) * time.Second
 	}
@@ -135,4 +139,26 @@ func (hc *HttpClient) Post(link string, body io.Reader) (*http.Response, error) 
 	}
 
 	return nil, fmt.Errorf("ошибка http после %d попыток. Ссылка: %s. Последняя ошибка: %s", hc.MaxRetries, link, err)
+}
+
+func NewDialer() *Dialer {
+	timeout := time.Duration(2) * time.Second
+	return &Dialer{
+		client: &http.Client{
+			Timeout: timeout,
+		},
+	}
+}
+
+func (d *Dialer) Ping(url string) (int, error) {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	resp.Body.Close()
+	return resp.StatusCode, nil
 }
