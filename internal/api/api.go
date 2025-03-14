@@ -8,9 +8,11 @@ import (
 	"anicliru/internal/api/providers/yummyanime"
 	config "anicliru/internal/app/cfg"
 	"anicliru/internal/db"
+	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -27,6 +29,37 @@ type animeParser interface {
 	SetAllEmbedLinks(*models.Anime) error
 	// Дозаполняет структуру аниме из сохраненных перед вычислением embed'ов
 	PrepareSavedAnime(anime *models.Anime) error
+}
+
+func GetProvidersState(providers map[string]string) string {
+	dialer := httpcommon.NewDialer()
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	var b strings.Builder
+	for key, provider := range providers {
+		key := key
+		providerLink := "http://" + provider
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if _, err := dialer.Ping(providerLink); err != nil {
+				mu.Lock()
+				defer mu.Unlock()
+				fmt.Fprintf(&b, "Источник %s не доступен\n", key)
+			} else {
+				mu.Lock()
+				defer mu.Unlock()
+				fmt.Fprintf(&b, "Источник %s доступен\n", key)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+    return b.String()
 }
 
 func NewAnimeParserByName(name, fullDomain string) (animeParser, error) {

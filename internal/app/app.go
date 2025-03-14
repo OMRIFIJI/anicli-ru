@@ -26,6 +26,7 @@ func RunApp() error {
 	continuePtr := flag.Bool("continue", false, "продолжить просмотр аниме")
 	deletePtr := flag.Bool("delete", false, "удалить запись из базы данных, просматриваемых аниме")
 	deleteAllPtr := flag.Bool("delete-all", false, "удалить все записи из базы данных, просматриваемых аниме")
+	checkProvidersPtr := flag.Bool("check-providers", false, "проверить, какие из источников в конфиге доступны")
 
 	getopt.Aliases(
 		"c", "continue",
@@ -40,30 +41,24 @@ func RunApp() error {
 	}
 
 	if *continuePtr {
-		if err := continuePipe(dbh); err != nil {
-			return err
-		}
-		return nil
+		return continuePipe(dbh)
 	}
 
 	if *deletePtr {
-		if err := deletePipe(dbh); err != nil {
-			return err
-		}
-		return nil
+		return deletePipe(dbh)
 	}
 
 	if *deleteAllPtr {
-		if err := deleteAllPipe(dbh); err != nil {
-			return err
-		}
-		return nil
+		return deleteAllPipe(dbh)
+	}
+
+	if *checkProvidersPtr {
+		return checkProvidersPipe()
 	}
 
 	if flag.Parsed() {
-		if err := defaultPipe(dbh); err != nil {
-			return err
-		}
+		return defaultPipe(dbh)
 	}
+
 	return nil
 }

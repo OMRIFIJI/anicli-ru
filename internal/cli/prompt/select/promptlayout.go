@@ -95,9 +95,7 @@ func (d *drawer) handleKeyInput(keyCodeValue keyCode) error {
 	switch keyCodeValue {
 	case upKeyCode, downKeyCode:
 		d.moveCursor(keyCodeValue)
-		if err := d.drawInterface(keyCodeValue, false); err != nil {
-			return err
-		}
+        return d.drawInterface(keyCodeValue, false)
 	}
 	return nil
 }

@@ -1,11 +1,13 @@
 package app
 
 import (
+	"anicliru/internal/api"
 	config "anicliru/internal/app/cfg"
 	promptselect "anicliru/internal/cli/prompt/select"
 	"anicliru/internal/db"
 	"anicliru/internal/video"
 	"errors"
+	"fmt"
 )
 
 func defaultPipe(dbh *db.DBHandler) error {
@@ -64,11 +66,7 @@ func defaultPipe(dbh *db.DBHandler) error {
 	defer dbh.UpdateAnime(anime)
 
 	animePlayer := video.NewAnimePlayer(anime, api, &cfg.Video)
-	if err := animePlayer.Play(); err != nil {
-		return err
-	}
-
-	return nil
+	return animePlayer.Play()
 }
 
 func continuePipe(dbh *db.DBHandler) error {
@@ -131,11 +129,7 @@ func continuePipe(dbh *db.DBHandler) error {
 	defer dbh.UpdateAnime(anime)
 
 	animePlayer := video.NewAnimePlayer(anime, api, &cfg.Video)
-	if err := animePlayer.Play(); err != nil {
-		return err
-	}
-
-	return nil
+	return animePlayer.Play()
 }
 
 func deletePipe(dbh *db.DBHandler) error {
@@ -185,6 +179,17 @@ func deleteAllPipe(dbh *db.DBHandler) error {
 	if err := dbh.DeleteAllAnime(); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func checkProvidersPipe() error {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(api.GetProvidersState(cfg.Providers))
 
 	return nil
 }
