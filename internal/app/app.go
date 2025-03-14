@@ -26,7 +26,7 @@ func RunApp() error {
 	continuePtr := flag.Bool("continue", false, "продолжить просмотр аниме")
 	deletePtr := flag.Bool("delete", false, "удалить запись из базы данных, просматриваемых аниме")
 	deleteAllPtr := flag.Bool("delete-all", false, "удалить все записи из базы данных, просматриваемых аниме")
-	checkProvidersPtr := flag.Bool("check-providers", false, "проверить, какие из источников в конфиге доступны")
+	checkProvidersPtr := flag.Bool("check-providers", false, "проверить, какие источники из конфига доступны")
 
 	getopt.Aliases(
 		"c", "continue",
