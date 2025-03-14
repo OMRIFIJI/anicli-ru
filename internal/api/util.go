@@ -2,18 +2,26 @@ package api
 
 import (
 	"anicliru/internal/api/models"
+	"anicliru/internal/api/providers/animego"
+	"anicliru/internal/api/providers/yummyanime"
 	config "anicliru/internal/app/cfg"
 	"anicliru/internal/db"
 	httpcommon "anicliru/internal/http"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
+
+func getProviders() []string {
+	return []string{"animego", "yummyanime"}
+}
 
 func tryToAppendTitle(targetAnime models.Anime, uniqueAnimesMap map[string]models.Anime) {
 	targetTitle := strings.ToLower(strings.TrimSpace(targetAnime.Title))
@@ -106,12 +114,25 @@ func newDomainMap(cfg *config.Config) (map[string]string, error) {
 		return nil, err
 	}
 
-	domainMap := make(map[string]string)
+	providersWithParsers := getProviders()
 
+	domainMap := make(map[string]string)
 	for _, providerData := range records {
 		name, domain := providerData[0], providerData[1]
-		domainMap[name] = domain
+		if slices.Contains(providersWithParsers, name) {
+			domainMap[name] = domain
+		}
 	}
 
 	return domainMap, nil
+}
+
+func newAnimeParserByName(name, fullDomain string) (animeParser, error) {
+	switch name {
+	case "animego":
+		return animego.NewAnimeGoClient(fullDomain), nil
+	case "yummyanime":
+		return yummyanime.NewYummyAnimeClient(fullDomain), nil
+	}
+	return nil, fmt.Errorf("парсер %s не существует, проверьте конфиг", name)
 }

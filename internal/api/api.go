@@ -4,8 +4,6 @@ import (
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player"
 	"anicliru/internal/api/player/common"
-	"anicliru/internal/api/providers/animego"
-	"anicliru/internal/api/providers/yummyanime"
 	config "anicliru/internal/app/cfg"
 	"anicliru/internal/db"
 	httpcommon "anicliru/internal/http"
@@ -65,32 +63,22 @@ func GetProvidersState(providers map[string]string) string {
 	return b.String()
 }
 
-func NewAnimeParserByName(name, fullDomain string) (animeParser, error) {
-	switch name {
-	case "animego":
-		return animego.NewAnimeGoClient(fullDomain), nil
-	case "yummyanime":
-		return yummyanime.NewYummyAnimeClient(fullDomain), nil
-	}
-	return nil, fmt.Errorf("парсер %s не существует, проверьте конфиг", name)
-}
-
 func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
 	// Синхронизация источников при необходимости
 	if cfg.Providers.AutoSync {
-        domainMap, err := newDomainMap(cfg)
+		domainMap, err := newDomainMap(cfg)
 		if err != nil {
 			return nil, err
 		}
 
-        cfg.Providers.DomainMap = domainMap
-        cfg.Write()
+		cfg.Providers.DomainMap = domainMap
+		cfg.Write()
 	}
 
 	animeParsers := make(map[string]animeParser)
 
 	for name, fullDomain := range cfg.Providers.DomainMap {
-		animeParser, err := NewAnimeParserByName(name, fullDomain)
+		animeParser, err := newAnimeParserByName(name, fullDomain)
 		if err != nil {
 			return nil, err
 		}
