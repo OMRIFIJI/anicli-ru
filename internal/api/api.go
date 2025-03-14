@@ -39,6 +39,7 @@ func GetProvidersState(providers map[string]string) string {
 	var b strings.Builder
 	for key, provider := range providers {
 		key := key
+        provider := provider
 		providerLink := "http://" + provider
 
 		wg.Add(1)
@@ -48,11 +49,11 @@ func GetProvidersState(providers map[string]string) string {
 			if _, err := dialer.Ping(providerLink); err != nil {
 				mu.Lock()
 				defer mu.Unlock()
-				fmt.Fprintf(&b, "Источник %s не доступен\n", key)
+				fmt.Fprintf(&b, "Источник %s - %s не доступен\n", key, provider)
 			} else {
 				mu.Lock()
 				defer mu.Unlock()
-				fmt.Fprintf(&b, "Источник %s доступен\n", key)
+				fmt.Fprintf(&b, "Источник %s - %s доступен\n", key, provider)
 			}
 		}()
 	}
