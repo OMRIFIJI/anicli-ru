@@ -189,7 +189,7 @@ func checkProvidersPipe() error {
 		return err
 	}
 
-	fmt.Print(api.GetProvidersState(cfg.Providers))
+	fmt.Print(api.GetProvidersState(cfg.Providers.DomainMap))
 
 	return nil
 }

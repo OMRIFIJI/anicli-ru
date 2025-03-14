@@ -23,10 +23,15 @@ type converterCfg struct {
 	Domains      []string `toml:"domains,omitempty"`
 }
 
+type providersCfg struct {
+	AutoSync  bool              `toml:"autoSync"`
+	DomainMap map[string]string `toml:"domainMap,omitempty"`
+}
+
 type Config struct {
 	cfgPath   string `toml:"-"`
 	Video     VideoCfg
-	Providers map[string]string `toml:"Providers,omitempty"`
+	Providers providersCfg
 	Players   converterCfg
 }
 
@@ -65,9 +70,9 @@ func newDefaultConfig(cfgPath string) (*Config, error) {
 
 	cfg := Config{
 		cfgPath: cfgPath,
-		Providers: map[string]string{
-			"animego":    "animego.club",
-			"yummyanime": "yummy-anime.ru",
+		Providers: providersCfg{
+			AutoSync:  true,
+			DomainMap: make(map[string]string),
 		},
 		Players: converterCfg{
 			Domains:      domains,
@@ -83,7 +88,6 @@ func newDefaultConfig(cfgPath string) (*Config, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("не удалось создать директорию для конфига. %s", err)
 	}
-
 	cfgToml, err := prettyMarshal(&cfg)
 	if err != nil {
 		return nil, err
@@ -122,12 +126,12 @@ func LoadConfig() (*Config, error) {
 }
 
 func (cfg *Config) check() error {
-	if len(cfg.Providers) == 0 {
+	if len(cfg.Providers.DomainMap) == 0 && !cfg.Providers.AutoSync {
 		return errors.New("все источники отключены в конфиге")
 	}
 
 	availableProviders := providers.GetProviders()
-	for provider := range cfg.Providers {
+	for provider := range cfg.Providers.DomainMap {
 		if !isInSlice(provider, availableProviders) {
 			return fmt.Errorf("в конфиге указан не существующий источник %s", provider)
 		}

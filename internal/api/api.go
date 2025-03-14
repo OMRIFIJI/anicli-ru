@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+const gistMirrorsUrl = "https://gist.githubusercontent.com/OMRIFIJI/c2661b8c61f892624e27e3f274a34dab/raw/anicli-ru-mirrors.csv"
+
 type AnimeAPI struct {
 	animeParsers map[string]animeParser
 	Converter    *player.PlayerLinkConverter
@@ -39,7 +41,7 @@ func GetProvidersState(providers map[string]string) string {
 	var b strings.Builder
 	for key, provider := range providers {
 		key := key
-        provider := provider
+		provider := provider
 		providerLink := "http://" + provider
 
 		wg.Add(1)
@@ -60,7 +62,7 @@ func GetProvidersState(providers map[string]string) string {
 
 	wg.Wait()
 
-    return b.String()
+	return b.String()
 }
 
 func NewAnimeParserByName(name, fullDomain string) (animeParser, error) {
@@ -74,10 +76,20 @@ func NewAnimeParserByName(name, fullDomain string) (animeParser, error) {
 }
 
 func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
-	providers := cfg.Providers
+	// Синхронизация источников при необходимости
+	if cfg.Providers.AutoSync {
+        domainMap, err := newDomainMap(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+        cfg.Providers.DomainMap = domainMap
+        cfg.Write()
+	}
+
 	animeParsers := make(map[string]animeParser)
 
-	for name, fullDomain := range providers {
+	for name, fullDomain := range cfg.Providers.DomainMap {
 		animeParser, err := NewAnimeParserByName(name, fullDomain)
 		if err != nil {
 			return nil, err

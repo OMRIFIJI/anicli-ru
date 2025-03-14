@@ -5,6 +5,9 @@ import (
 	config "anicliru/internal/app/cfg"
 	"anicliru/internal/db"
 	httpcommon "anicliru/internal/http"
+	"encoding/csv"
+	"errors"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -74,7 +77,7 @@ func isTimeToSync(cfg *config.Config, dbh *db.DBHandler, currentTime time.Time) 
 
 	lastSyncTime, err := dbh.GetLastSyncTime()
 	if err != nil {
-        return true
+		return true
 	}
 	diff := currentTime.Sub(*lastSyncTime)
 	days := int(diff.Hours() / 24)
@@ -83,4 +86,32 @@ func isTimeToSync(cfg *config.Config, dbh *db.DBHandler, currentTime time.Time) 
 	syncInterval, err := strconv.Atoi(syncIntervalStr[:len(syncIntervalStr)-1])
 
 	return days >= syncInterval
+}
+
+func newDomainMap(cfg *config.Config) (map[string]string, error) {
+	res, err := http.Get(gistMirrorsUrl)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, errors.New("не удалось связаться с gist github для синхронизации источников")
+	}
+
+	resBody := res.Body
+	defer resBody.Close()
+
+	reader := csv.NewReader(resBody)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	domainMap := make(map[string]string)
+
+	for _, providerData := range records {
+		name, domain := providerData[0], providerData[1]
+		domainMap[name] = domain
+	}
+
+	return domainMap, nil
 }
