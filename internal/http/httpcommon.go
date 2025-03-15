@@ -159,7 +159,7 @@ func NewDialer() *Dialer {
 	}
 }
 
-func (d *Dialer) Ping(url string) (int, error) {
+func (d *Dialer) Dial(url string) (int, error) {
 	req, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
 		return 0, err

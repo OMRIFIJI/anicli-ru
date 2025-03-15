@@ -63,7 +63,7 @@ func removeUnreachableProviders(providers map[string]string, dialer *httpcommon.
 			defer wg.Done()
 			url := "https://" + domain
 
-			_, err := dialer.Ping(url)
+			_, err := dialer.Dial(url)
 			if err != nil {
 				// logger.ErrorLog.Println("Нет связи с источником %s", domain)
 				mu.Lock()

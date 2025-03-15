@@ -41,7 +41,7 @@ func GetProvidersState(providers map[string]string) string {
 		go func() {
 			defer wg.Done()
 
-			if _, err := dialer.Ping(providerLink); err != nil {
+			if _, err := dialer.Dial(providerLink); err != nil {
 				mu.Lock()
 				defer mu.Unlock()
 				fmt.Fprintf(&b, "Источник %s - %s не доступен\n", key, provider)

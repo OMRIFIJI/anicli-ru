@@ -71,7 +71,7 @@ func SyncedDomains() []string {
 			defer wg.Done()
 
 			url := "https://" + domain
-			if _, err := dialer.Ping(url); err != nil {
+			if _, err := dialer.Dial(url); err != nil {
 				return
 			}
 
