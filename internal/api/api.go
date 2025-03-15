@@ -3,8 +3,6 @@ package api
 import (
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/player"
-	"anicliru/internal/api/player/common"
-	config "anicliru/internal/app/cfg"
 	"anicliru/internal/db"
 	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
@@ -12,10 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 )
-
-const gistMirrorsUrl = "https://gist.githubusercontent.com/OMRIFIJI/c2661b8c61f892624e27e3f274a34dab/raw/anicli-ru-mirrors.csv"
 
 type AnimeAPI struct {
 	animeParsers map[string]animeParser
@@ -63,21 +58,10 @@ func GetProvidersState(providers map[string]string) string {
 	return b.String()
 }
 
-func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
-	// Синхронизация источников при необходимости
-	if cfg.Providers.AutoSync {
-		domainMap, err := newDomainMap(cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.Providers.DomainMap = domainMap
-		cfg.Write()
-	}
-
+func NewAnimeAPI(providerDomainMap map[string]string, playerDomains []string, dbh *db.DBHandler) (*AnimeAPI, error) {
 	animeParsers := make(map[string]animeParser)
 
-	for name, fullDomain := range cfg.Providers.DomainMap {
+	for name, fullDomain := range providerDomainMap {
 		animeParser, err := newAnimeParserByName(name, fullDomain)
 		if err != nil {
 			return nil, err
@@ -91,28 +75,9 @@ func NewAnimeAPI(cfg *config.Config, dbh *db.DBHandler) (*AnimeAPI, error) {
 
 	var converter *player.PlayerLinkConverter
 	var err error
-	currentTime := time.Now().UTC()
-
-	if isTimeToSync(cfg, dbh, currentTime) {
-		converter, err = player.NewPlayerLinkConverter(player.WithSync(dbh))
-		if err != nil {
-			return nil, err
-		}
-
-		domainMap := common.NewPlayerDomainMap()
-		var newDomains []string
-		for origin := range converter.Handlers {
-			newDomains = append(newDomains, domainMap[origin])
-		}
-
-		cfg.Players.Domains = newDomains
-		cfg.Write()
-		dbh.UpdateLastSyncTime(currentTime)
-	} else {
-		converter, err = player.NewPlayerLinkConverter(player.FromConfig(cfg))
-		if err != nil {
-			return nil, err
-		}
+	converter, err = player.NewPlayerLinkConverter(playerDomains)
+	if err != nil {
+		return nil, err
 	}
 
 	a := AnimeAPI{

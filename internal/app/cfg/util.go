@@ -22,7 +22,7 @@ func isDayInterval(syncInterval string) bool {
 	if err != nil {
 		return false
 	}
-	if daysCount <= 0 {
+	if daysCount < 0 {
 		return false
 	}
 	return true

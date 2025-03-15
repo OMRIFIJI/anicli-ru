@@ -13,7 +13,7 @@ import (
 )
 
 func initApi(dbh *db.DBHandler, cfg *config.Config) (*api.AnimeAPI, error) {
-	api, err := api.NewAnimeAPI(cfg, dbh)
+	api, err := api.NewAnimeAPI(cfg.Providers.DomainMap, cfg.Players.Domains, dbh)
 	if err != nil {
 		return nil, err
 	}

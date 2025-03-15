@@ -10,8 +10,6 @@ import (
 	"anicliru/internal/api/player/sibnet"
 	"anicliru/internal/api/player/sovrom"
 	"anicliru/internal/api/player/vk"
-	config "anicliru/internal/app/cfg"
-	"anicliru/internal/db"
 	httpcommon "anicliru/internal/http"
 	"anicliru/internal/logger"
 	"errors"
@@ -28,7 +26,7 @@ type PlayerLinkConverter struct {
 	playerOriginMap map[string]common.PlayerOrigin
 }
 
-func NewPlayerLinkConverter(opts ...func(*PlayerLinkConverter, map[string]func() embedHandler)) (*PlayerLinkConverter, error) {
+func NewPlayerLinkConverter(playerDomains []string) (*PlayerLinkConverter, error) {
 	playerOriginMap := common.NewPlayerOriginMap()
 	priorityMap := getPriorityMap()
 
@@ -47,69 +45,44 @@ func NewPlayerLinkConverter(opts ...func(*PlayerLinkConverter, map[string]func()
 		common.SovromDomain:  func() embedHandler { return sovrom.NewSovrom() },
 	}
 
-	for _, o := range opts {
-		o(&plc, newHandlerMap)
+	handlers := make(map[common.PlayerOrigin]embedHandler)
+
+	for _, domain := range playerDomains {
+		origin := plc.playerOriginMap[domain]
+		handlers[origin] = newHandlerMap[domain]()
 	}
+
+	plc.Handlers = handlers
 
 	return &plc, nil
 }
 
-func FromConfig(cfg *config.Config) func(*PlayerLinkConverter, map[string]func() embedHandler) {
-	return func(plc *PlayerLinkConverter, newHandlerMap map[string]func() embedHandler) {
-		handlers := make(map[common.PlayerOrigin]embedHandler)
+func SyncedDomains() []string {
+	dialer := httpcommon.NewDialer()
+	playerOriginMap := common.NewPlayerOriginMap()
 
-		for _, domain := range cfg.Players.Domains {
-			origin := plc.playerOriginMap[domain]
-			handlers[origin] = newHandlerMap[domain]()
-		}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
-		plc.Handlers = handlers
-	}
-}
-
-func WithSync(db *db.DBHandler) func(*PlayerLinkConverter, map[string]func() embedHandler) {
-	return func(plc *PlayerLinkConverter, newHandlerMap map[string]func() embedHandler) {
-		handlers := make(map[common.PlayerOrigin]embedHandler)
-
-		dialer := httpcommon.NewDialer()
-		var wg sync.WaitGroup
-
-		domainChan := make(chan string)
-
-		// Добавляет handler плеера, если сервер плеера отвечает
-		addHandler := func(domain string) {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-
-				url := "https://" + domain
-				if _, err := dialer.Ping(url); err != nil {
-					return
-				}
-
-				domainChan <- domain
-			}()
-		}
-
-		for key, _ := range plc.playerOriginMap {
-			addHandler(key)
-		}
-
+	var reachableDomains []string
+	for domain := range playerOriginMap {
+		wg.Add(1)
 		go func() {
-			wg.Wait()
-			close(domainChan)
-		}()
+			defer wg.Done()
 
-		var reachableDomains []string
-		for domain := range domainChan {
+			url := "https://" + domain
+			if _, err := dialer.Ping(url); err != nil {
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
 			reachableDomains = append(reachableDomains, domain)
-
-			origin := plc.playerOriginMap[domain]
-			handlers[origin] = newHandlerMap[domain]()
-		}
-
-		plc.Handlers = handlers
+		}()
 	}
+
+	wg.Wait()
+	return reachableDomains
 }
 
 // Задаёт приоритет плееров.

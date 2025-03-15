@@ -11,7 +11,7 @@ import (
 )
 
 func defaultPipe(dbh *db.DBHandler) error {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(config.WithSync(dbh))
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func defaultPipe(dbh *db.DBHandler) error {
 }
 
 func continuePipe(dbh *db.DBHandler) error {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(config.WithSync(dbh))
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func continuePipe(dbh *db.DBHandler) error {
 }
 
 func deletePipe(dbh *db.DBHandler) error {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(config.WithSync(dbh))
 	if err != nil {
 		return err
 	}

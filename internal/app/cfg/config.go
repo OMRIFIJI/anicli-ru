@@ -1,13 +1,18 @@
 package config
 
 import (
+	"anicliru/internal/api"
+	"anicliru/internal/api/player"
 	"anicliru/internal/api/player/common"
 	"anicliru/internal/api/providers"
+	"anicliru/internal/db"
 	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -61,18 +66,21 @@ func getConfigPath() (string, error) {
 
 func newDefaultConfig(cfgPath string) (*Config, error) {
 	defaultSyncInterval := "3d"
-	playerOriginMap := common.NewPlayerOriginMap()
-	var domains []string
 
-	for key := range playerOriginMap {
-		domains = append(domains, key)
+	// Достаёт domainMap из моего gist
+	domainMap, err := api.SyncedDomainMap()
+	if err != nil {
+		return nil, err
 	}
+
+	// Оставляет только доступные плееры
+	domains := player.SyncedDomains()
 
 	cfg := Config{
 		cfgPath: cfgPath,
 		Providers: providersCfg{
 			AutoSync:  true,
-			DomainMap: make(map[string]string),
+			DomainMap: domainMap,
 		},
 		Players: converterCfg{
 			Domains:      domains,
@@ -102,7 +110,7 @@ func newDefaultConfig(cfgPath string) (*Config, error) {
 }
 
 // Загружает конфиг. Если конфига не существует, то создаст стандартный и вернёт его.
-func LoadConfig() (*Config, error) {
+func LoadConfig(opts ...func(*Config) error) (*Config, error) {
 	cfgPath, err := getConfigPath()
 	if err != nil {
 		return nil, err
@@ -122,7 +130,41 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	for _, o := range opts {
+		if err := o(&cfg); err != nil {
+			return nil, err
+		}
+	}
+
 	return &cfg, nil
+}
+
+func WithSync(dbh *db.DBHandler) func(*Config) error {
+	return func(cfg *Config) error {
+		if cfg.Providers.AutoSync {
+			domainMap, err := api.SyncedDomainMap()
+			if err != nil {
+				return err
+			}
+
+			cfg.Providers.DomainMap = domainMap
+			cfg.Write()
+		}
+
+		// Синхронизация плееров
+		if cfg.Players.SyncInterval != "" {
+			currentTime := time.Now().UTC()
+
+			if isTimeToSync(cfg, dbh, currentTime) {
+				cfg.Players.Domains = player.SyncedDomains()
+				cfg.Write()
+				dbh.UpdateLastSyncTime(currentTime)
+			}
+		}
+
+		return nil
+	}
+
 }
 
 func (cfg *Config) check() error {
@@ -169,4 +211,23 @@ func prettyMarshal(cfg *Config) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func isTimeToSync(cfg *Config, dbh *db.DBHandler, currentTime time.Time) bool {
+	// Пустая строка - синхронизация отключена
+	if len(cfg.Players.SyncInterval) == 0 {
+		return false
+	}
+
+	lastSyncTime, err := dbh.GetLastSyncTime()
+	if err != nil {
+		return true
+	}
+	diff := currentTime.Sub(*lastSyncTime)
+	days := int(diff.Hours() / 24)
+
+	syncIntervalStr := cfg.Players.SyncInterval
+	syncInterval, err := strconv.Atoi(syncIntervalStr[:len(syncIntervalStr)-1])
+
+	return days >= syncInterval
 }

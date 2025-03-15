@@ -4,8 +4,6 @@ import (
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/providers/animego"
 	"anicliru/internal/api/providers/yummyanime"
-	config "anicliru/internal/app/cfg"
-	"anicliru/internal/db"
 	httpcommon "anicliru/internal/http"
 	"encoding/csv"
 	"errors"
@@ -13,11 +11,11 @@ import (
 	"net/http"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
+
+const gistMirrorsUrl = "https://gist.githubusercontent.com/OMRIFIJI/c2661b8c61f892624e27e3f274a34dab/raw/anicli-ru-mirrors.csv"
 
 func getProviders() []string {
 	return []string{"animego", "yummyanime"}
@@ -77,26 +75,7 @@ func removeUnreachableProviders(providers map[string]string, dialer *httpcommon.
 	wg.Wait()
 }
 
-func isTimeToSync(cfg *config.Config, dbh *db.DBHandler, currentTime time.Time) bool {
-	// Пустая строка - синхронизация отключена
-	if len(cfg.Players.SyncInterval) == 0 {
-		return false
-	}
-
-	lastSyncTime, err := dbh.GetLastSyncTime()
-	if err != nil {
-		return true
-	}
-	diff := currentTime.Sub(*lastSyncTime)
-	days := int(diff.Hours() / 24)
-
-	syncIntervalStr := cfg.Players.SyncInterval
-	syncInterval, err := strconv.Atoi(syncIntervalStr[:len(syncIntervalStr)-1])
-
-	return days >= syncInterval
-}
-
-func newDomainMap(cfg *config.Config) (map[string]string, error) {
+func SyncedDomainMap() (map[string]string, error) {
 	res, err := http.Get(gistMirrorsUrl)
 	if err != nil {
 		return nil, err
