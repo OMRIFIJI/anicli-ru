@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	animeBucket  = "anime"
-	playerBucket = "player"
+	animeBucket        = "anime"
+	lastSyncTimeBucket = "lastSyncTime"
 )
 
 type DBHandler struct {
@@ -70,7 +70,7 @@ func openDB(dbPath string) (*bolt.DB, error) {
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte(playerBucket))
+		_, err = tx.CreateBucketIfNotExists([]byte(lastSyncTimeBucket))
 		if err != nil {
 			return err
 		}
@@ -220,15 +220,16 @@ func (dbh *DBHandler) DeleteAllAnime() error {
 	return nil
 }
 
-func (dbh *DBHandler) GetLastSyncTime() (*time.Time, error) {
+// key - ключ бд, принимает значения "providers" или "players".
+func (dbh *DBHandler) GetLastSyncTime(key string) (*time.Time, error) {
 	var t time.Time
 
 	if err := dbh.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(playerBucket))
+		b := tx.Bucket([]byte(lastSyncTimeBucket))
 
-		timeBytes := b.Get([]byte("lastSyncTime"))
+		timeBytes := b.Get([]byte(key))
 		if timeBytes == nil {
-			return errors.New("последнее время обновления не задано")
+			return fmt.Errorf("последнее время обновления %s не задано", key)
 		}
 
 		if err := t.UnmarshalBinary(timeBytes); err != nil {
@@ -243,12 +244,13 @@ func (dbh *DBHandler) GetLastSyncTime() (*time.Time, error) {
 	return &t, nil
 }
 
-func (dbh *DBHandler) UpdateLastSyncTime(t time.Time) error {
+// key - ключ бд, принимает значения "providers" или "players".
+func (dbh *DBHandler) UpdateLastSyncTime(key string, t time.Time) error {
 	if err := dbh.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(playerBucket))
+		b := tx.Bucket([]byte(lastSyncTimeBucket))
 
 		// Ничего не делает, если удалять нечего
-		if err := b.Delete([]byte("lastSyncTime")); err != nil {
+		if err := b.Delete([]byte(key)); err != nil {
 			return err
 		}
 
@@ -257,7 +259,7 @@ func (dbh *DBHandler) UpdateLastSyncTime(t time.Time) error {
 			return err
 		}
 
-		if err := b.Put([]byte("lastSyncTime"), timeBytes); err != nil {
+		if err := b.Put([]byte(key), timeBytes); err != nil {
 			return err
 		}
 

@@ -6,12 +6,10 @@ import (
 	"anicliru/internal/api/player/common"
 	"anicliru/internal/api/providers"
 	"anicliru/internal/db"
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/adrg/xdg"
@@ -64,17 +62,21 @@ func getConfigPath() (string, error) {
 	return configPath, nil
 }
 
-func newDefaultConfig(cfgPath string) (*Config, error) {
+func newDefaultConfig(cfgPath string, dbh *db.DBHandler) (*Config, error) {
 	defaultSyncInterval := "3d"
+
+	currentTime := time.Now().UTC()
 
 	// Достаёт domainMap из моего gist
 	domainMap, err := api.SyncedDomainMap()
 	if err != nil {
 		return nil, err
 	}
+	dbh.UpdateLastSyncTime("providers", currentTime)
 
 	// Оставляет только доступные плееры
 	domains := player.SyncedDomains()
+	dbh.UpdateLastSyncTime("players", currentTime)
 
 	cfg := Config{
 		cfgPath: cfgPath,
@@ -109,8 +111,9 @@ func newDefaultConfig(cfgPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// Загружает конфиг. Если конфига не существует, то создаст стандартный и вернёт его.
-func LoadConfig(opts ...func(*Config) error) (*Config, error) {
+// Загружает конфиг. Если конфиг не существует, то в случае withSync создаст стандартный и вернёт его.
+// Если конфиг не существует, и withSync=false, то вернёт ошибку.
+func LoadConfig(dbh *db.DBHandler, withSync bool) (*Config, error) {
 	cfgPath, err := getConfigPath()
 	if err != nil {
 		return nil, err
@@ -118,7 +121,11 @@ func LoadConfig(opts ...func(*Config) error) (*Config, error) {
 
 	cfgToml, err := os.ReadFile(cfgPath)
 	if err != nil {
-		return newDefaultConfig(cfgPath)
+		if withSync {
+			return newDefaultConfig(cfgPath, dbh)
+		} else {
+			return nil, errors.New("конфиг не существует")
+		}
 	}
 
 	cfg := Config{cfgPath: cfgPath}
@@ -130,8 +137,8 @@ func LoadConfig(opts ...func(*Config) error) (*Config, error) {
 		return nil, err
 	}
 
-	for _, o := range opts {
-		if err := o(&cfg); err != nil {
+	if withSync {
+		if err := cfg.sync(dbh); err != nil {
 			return nil, err
 		}
 	}
@@ -139,32 +146,29 @@ func LoadConfig(opts ...func(*Config) error) (*Config, error) {
 	return &cfg, nil
 }
 
-func WithSync(dbh *db.DBHandler) func(*Config) error {
-	return func(cfg *Config) error {
-		if cfg.Providers.AutoSync {
-			domainMap, err := api.SyncedDomainMap()
-			if err != nil {
-				return err
-			}
+func (cfg *Config) sync(dbh *db.DBHandler) error {
+	currentTime := time.Now().UTC()
 
-			cfg.Providers.DomainMap = domainMap
-			cfg.Write()
+	// Синхронизация источников
+	if cfg.Providers.AutoSync && isTimeToSyncProviders(dbh, currentTime) {
+		domainMap, err := api.SyncedDomainMap()
+		if err != nil {
+			return err
 		}
 
-		// Синхронизация плееров
-		if cfg.Players.SyncInterval != "" {
-			currentTime := time.Now().UTC()
-
-			if isTimeToSync(cfg, dbh, currentTime) {
-				cfg.Players.Domains = player.SyncedDomains()
-				cfg.Write()
-				dbh.UpdateLastSyncTime(currentTime)
-			}
-		}
-
-		return nil
+		cfg.Providers.DomainMap = domainMap
+		cfg.Write()
+		dbh.UpdateLastSyncTime("providers", currentTime)
 	}
 
+	// Синхронизация плееров
+	if cfg.Players.SyncInterval != "" && isTimeToSyncPlayers(cfg.Players.SyncInterval, dbh, currentTime) {
+		cfg.Players.Domains = player.SyncedDomains()
+		cfg.Write()
+		dbh.UpdateLastSyncTime("players", currentTime)
+	}
+
+	return nil
 }
 
 func (cfg *Config) check() error {
@@ -199,35 +203,4 @@ func (cfg *Config) check() error {
 	}
 
 	return nil
-}
-
-func prettyMarshal(cfg *Config) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	encoder := toml.NewEncoder(buf)
-	encoder.SetArraysMultiline(true)
-
-	err := encoder.Encode(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-func isTimeToSync(cfg *Config, dbh *db.DBHandler, currentTime time.Time) bool {
-	// Пустая строка - синхронизация отключена
-	if len(cfg.Players.SyncInterval) == 0 {
-		return false
-	}
-
-	lastSyncTime, err := dbh.GetLastSyncTime()
-	if err != nil {
-		return true
-	}
-	diff := currentTime.Sub(*lastSyncTime)
-	days := int(diff.Hours() / 24)
-
-	syncIntervalStr := cfg.Players.SyncInterval
-	syncInterval, err := strconv.Atoi(syncIntervalStr[:len(syncIntervalStr)-1])
-
-	return days >= syncInterval
 }

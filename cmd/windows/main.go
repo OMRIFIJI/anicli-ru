@@ -30,6 +30,6 @@ func main() {
 	defer restoreTerminal(originalMode)
 
 	if err := app.RunApp(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 }

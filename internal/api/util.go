@@ -4,7 +4,6 @@ import (
 	"anicliru/internal/api/models"
 	"anicliru/internal/api/providers/animego"
 	"anicliru/internal/api/providers/yummyanime"
-	httpcommon "anicliru/internal/http"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -12,10 +11,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 )
 
-const gistMirrorsUrl = "https://gist.githubusercontent.com/OMRIFIJI/c2661b8c61f892624e27e3f274a34dab/raw/anicli-ru-mirrors.csv"
+const gistMirrorsUrl = "https://gist.githubusercontent.com/OMRIFIJI/aacb12102b3aff21c37d5273f2b76fa0/raw/anicli-ru-mirrors.csv"
 
 func getProviders() []string {
 	return []string{"animego", "yummyanime"}
@@ -51,28 +49,6 @@ func sortBySearchPos(animes []models.Anime) {
 	sort.Slice(animes, func(i, j int) bool {
 		return animes[i].SearchPos <= animes[j].SearchPos
 	})
-}
-
-func removeUnreachableProviders(providers map[string]string, dialer *httpcommon.Dialer) {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-
-	for key, domain := range providers {
-		wg.Add(1)
-		go func(string, string) {
-			defer wg.Done()
-			url := "https://" + domain
-
-			_, err := dialer.Dial(url)
-			if err != nil {
-				// logger.ErrorLog.Println("Нет связи с источником %s", domain)
-				mu.Lock()
-				defer mu.Unlock()
-				delete(providers, key)
-			}
-		}(key, domain)
-	}
-	wg.Wait()
 }
 
 func SyncedDomainMap() (map[string]string, error) {
