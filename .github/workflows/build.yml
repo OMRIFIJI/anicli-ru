@@ -38,6 +38,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: anicli-ru-release-attachments
-        path: anicli-ru
+        path: | 
+              anicli-ru
               anicli-ru.exe
               anicli-ru-deps.tar.xz
