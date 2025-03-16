@@ -1,0 +1,53 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Build app
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23.2'
+  
+    - name: Download Go modules
+      run: GOMODCACHE="${PWD}"/go-mod go mod download -modcacherw
+
+    - name: Create .tar.xz archive of dependencies
+      run: XZ_OPT='-T0 -9' tar -acf anicli-ru-deps.tar.xz go-mod
+
+    - name: Build for Linux
+      run: go build -o anicli-ru ./cmd/unix/main.go
+
+    - name: Build for Windows
+      run: GOOS=windows GOARCH=amd64 go build -o anicli-ru.exe ./cmd/windows/main.go
+
+    - name: Upload Linux binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: anicli-ru
+        path: anicli-ru
+
+    - name: Upload Windows binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: anicli-ru.exe
+        path: anicli-ru.exe
+
+    - name: Upload Dependencies Archive
+      uses: actions/upload-artifact@v3
+      with:
+        name: anicli-ru-deps.tar.xz
+        path: anicli-ru-deps.tar.xz
