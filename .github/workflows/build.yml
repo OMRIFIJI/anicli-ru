@@ -28,10 +28,10 @@ jobs:
       run: XZ_OPT='-T0 -9' tar -acf anicli-ru-deps.tar.xz go-mod
 
     - name: Build for Linux
-      run: go build -o anicli-ru ./cmd/unix/main.go
+      run: go build -o anicli-ru ./cmd/main_unix.go
 
     - name: Build for Windows
-      run: GOOS=windows GOARCH=amd64 go build -o anicli-ru.exe ./cmd/windows/main.go
+      run: GOOS=windows GOARCH=amd64 go build -o anicli-ru.exe ./cmd/main_windows.go
 
     - name: Upload binaries and dependencies
       uses: actions/upload-artifact@v4
