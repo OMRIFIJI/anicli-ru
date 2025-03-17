@@ -30,7 +30,12 @@ https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 ```
 
 ## Установка
-Просто скачайте готовый бинарник из последнего [релиза](https://github.com/OMRIFIJI/anicli-ru/releases). Для воспроизведения видео используется плеер `mpv` и `ffmpeg`.
+Скачайте готовый бинарник из последнего [релиза](https://github.com/OMRIFIJI/anicli-ru/releases) или установите с помощью go.
+```
+go install github.com/OMRIFIJI/anicli-ru/cmd/anicli-ru@latest
+```
+
+Для воспроизведения видео используется плеер `mpv` и `ffmpeg`.
 
 ## Конфиг
 Программа создаст стандартный конфиг по одному из следующих путей:
