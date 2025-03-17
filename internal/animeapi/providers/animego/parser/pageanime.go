@@ -9,22 +9,22 @@ import (
 	"strings"
 )
 
-func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
+func ParseEpIds(r io.Reader) (epIdMap map[int]int, err error) {
 	epIdMap = make(map[int]int)
 	in, err := io.ReadAll(r)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	var result animeGoJson
 	if err := json.Unmarshal(in, &result); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	re := regexp.MustCompile("Видео недоступно на территории")
 	match := re.FindString(result.Content)
 	if len(match) != 0 {
-		return nil, 0, errors.New("не доступно на территории РФ")
+		return nil, errors.New("не доступно на территории РФ")
 	}
 
 	re = regexp.MustCompile(`data-episode="(\d+)"\s*\n*\s*data-id="(\d+)"`)
@@ -39,15 +39,14 @@ func ParseEpIds(r io.Reader) (epIdMap map[int]int, lastEpNum int, err error) {
 		}
 
 		epIdMap[epNum] = epId
-		lastEpNum = epNum
 	}
 
 	if len(epIdMap) == 0 {
-		return nil, 0, errors.New("Нет информации ни об одной серии.")
+		return nil, errors.New("нет информации ни об одной серии")
 
 	}
 
-	return epIdMap, lastEpNum, nil
+	return epIdMap, nil
 }
 
 func ParseFilmRegionBlock(r io.Reader) (isRegionBlocked bool, err error) {

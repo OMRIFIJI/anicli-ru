@@ -118,7 +118,7 @@ func (ap *AnimePlayer) showMpvAndMenu(ctx context.Context, cancel context.Cancel
 			}
 		}
 	}()
-	promptMessage := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.Cur, ap.anime.Title)
+	promptMessage := fmt.Sprintf("Серия %d из %d. %s.", ap.anime.EpCtx.Cur, ap.anime.EpCtx.AiredEpCount, ap.anime.Title)
 	menuOption, isExitOnQuit, err := ap.selector.selectMenuOption(promptMessage)
 	if err != nil {
 		cancel(err)

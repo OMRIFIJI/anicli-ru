@@ -158,15 +158,9 @@ func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 	}
 	defer res.Body.Close()
 
-	epIdMap, lastEpNum, err := parser.ParseEpIds(res.Body)
+	epIdMap, err := parser.ParseEpIds(res.Body)
 	if err != nil {
 		return err
-	}
-
-	// В онгоингах часто сайт может говорить, что доступно на 1 эпизод больше, чем есть
-	isLastEpValid := true
-	if !a.isValidEpId(epIdMap[lastEpNum]) {
-		delete(epIdMap, lastEpNum)
 	}
 
 	anime.EpCtx.Eps = make(map[int]*models.Episode, len(epIdMap))
@@ -176,25 +170,7 @@ func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 		}
 	}
 
-	if !isLastEpValid {
-		delete(anime.EpCtx.Eps, lastEpNum)
-	}
-
 	return nil
-}
-
-func (a *AnimeGoClient) isValidEpId(epId int) bool {
-	epIdStr := strconv.Itoa(epId)
-	url := a.urlBuild.epById(epIdStr)
-
-	res, err := a.http.Get(url)
-	if err != nil {
-		return false
-	}
-	defer res.Body.Close()
-
-	isValid := parser.IsValidEp(res.Body)
-	return isValid
 }
 
 func (a *AnimeGoClient) SetAllEmbedLinks(anime *models.Anime) error {

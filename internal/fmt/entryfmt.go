@@ -22,7 +22,6 @@ func wrapSeries(title string, available, total int) string {
 	}
 
 	return fmt.Sprintf("%s (%d из %d серий)", title, available, total)
-
 }
 
 func wrapAnimeTitleAired(anime models.Anime) string {
