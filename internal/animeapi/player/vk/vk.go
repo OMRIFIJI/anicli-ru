@@ -1,8 +1,8 @@
 package vk
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"errors"
 	"io"

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
 	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
 	promptselect "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/select"
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
@@ -189,7 +189,7 @@ func checkProvidersPipe() error {
 		return err
 	}
 
-	fmt.Print(api.GetProvidersState(cfg.Providers.DomainMap))
+	fmt.Print(animeapi.GetProvidersState(cfg.Providers.DomainMap))
 
 	return nil
 }

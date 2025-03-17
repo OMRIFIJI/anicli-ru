@@ -1,16 +1,17 @@
 package config
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/providers"
-	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -68,7 +69,7 @@ func newDefaultConfig(cfgPath string, dbh *db.DBHandler) (*Config, error) {
 	currentTime := time.Now().UTC()
 
 	// Достаёт domainMap из моего gist
-	domainMap, err := api.SyncedDomainMap()
+	domainMap, err := animeapi.SyncedDomainMap()
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +152,7 @@ func (cfg *Config) sync(dbh *db.DBHandler) error {
 
 	// Синхронизация источников
 	if cfg.Providers.AutoSync && isTimeToSyncProviders(dbh, currentTime) {
-		domainMap, err := api.SyncedDomainMap()
+		domainMap, err := animeapi.SyncedDomainMap()
 		if err != nil {
 			return err
 		}
@@ -162,10 +163,17 @@ func (cfg *Config) sync(dbh *db.DBHandler) error {
 	}
 
 	// Синхронизация плееров
-	if cfg.Players.SyncInterval != "" && isTimeToSyncPlayers(cfg.Players.SyncInterval, dbh, currentTime) {
-		cfg.Players.Domains = player.SyncedDomains()
-		cfg.Write()
-		dbh.UpdateLastSyncTime("players", currentTime)
+	if cfg.Players.SyncInterval != "" {
+		isTime, err := isTimeToSyncPlayers(cfg.Players.SyncInterval, dbh, currentTime)
+		if err != nil {
+			return err
+		}
+
+		if isTime {
+			cfg.Players.Domains = player.SyncedDomains()
+			cfg.Write()
+			dbh.UpdateLastSyncTime("players", currentTime)
+		}
 	}
 
 	return nil

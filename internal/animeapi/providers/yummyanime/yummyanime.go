@@ -1,8 +1,8 @@
 package yummyanime
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/providers/yummyanime/parser"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/yummyanime/parser"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"errors"

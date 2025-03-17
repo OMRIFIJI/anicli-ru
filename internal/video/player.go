@@ -1,7 +1,7 @@
 package video
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"context"

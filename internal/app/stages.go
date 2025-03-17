@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
 	"github.com/OMRIFIJI/anicli-ru/internal/cli/loading"
 	promptsearch "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/search"
@@ -12,8 +12,8 @@ import (
 	"sync"
 )
 
-func initApi(dbh *db.DBHandler, cfg *config.Config) (*api.AnimeAPI, error) {
-	api, err := api.NewAnimeAPI(cfg.Providers.DomainMap, cfg.Players.Domains, dbh)
+func initApi(dbh *db.DBHandler, cfg *config.Config) (*animeapi.AnimeAPI, error) {
+	api, err := animeapi.NewAnimeAPI(cfg.Providers.DomainMap, cfg.Players.Domains, dbh)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func getTitleFromUser() (string, error) {
 	return searchInput, nil
 }
 
-func findAnimes(searchInput string, api *api.AnimeAPI) ([]models.Anime, error) {
+func findAnimes(searchInput string, api *animeapi.AnimeAPI) ([]models.Anime, error) {
 	var wg sync.WaitGroup
 	quitChan := make(chan struct{})
 
@@ -49,9 +49,9 @@ func findAnimes(searchInput string, api *api.AnimeAPI) ([]models.Anime, error) {
 	return animes, err
 }
 
-func selectAnime(animes []models.Anime, api *api.AnimeAPI) (*models.Anime, bool, error) {
+func selectAnime(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, bool, error) {
 	animeEntries := entryfmt.WrapAnimeTitlesAired(animes)
-	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
+	cur, isExitOnQuit, err := promptAnime(animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
@@ -60,9 +60,9 @@ func selectAnime(animes []models.Anime, api *api.AnimeAPI) (*models.Anime, bool,
 	return &animes[cur], isExitOnQuit, err
 }
 
-func selectAnimeWithState(animes []models.Anime, api *api.AnimeAPI) (*models.Anime, bool, error) {
+func selectAnimeWithState(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, bool, error) {
 	animeEntries := entryfmt.WrapAnimeTitlesWatched(animes)
-	cur, isExitOnQuit, err := promptAnime(animes, animeEntries)
+	cur, isExitOnQuit, err := promptAnime(animeEntries)
 	if err != nil {
 		return nil, false, err
 	}
@@ -95,7 +95,7 @@ func selectEpisode(anime *models.Anime) (bool, error) {
 	return isExitOnQuit, nil
 }
 
-func prepareSavedAnime(animes []models.Anime, api *api.AnimeAPI) ([]models.Anime, error) {
+func prepareSavedAnime(animes []models.Anime, api *animeapi.AnimeAPI) ([]models.Anime, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 

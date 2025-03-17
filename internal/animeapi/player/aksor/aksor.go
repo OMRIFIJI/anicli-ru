@@ -1,22 +1,23 @@
-// Было бы неплохо вытягивать не только 1080
-package sovrom
+package aksor
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"errors"
 	"io"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
-const Origin = common.Sovrom
+const Origin = common.Aksor
 
-type Sovrom struct {
+type Aksor struct {
 	client *httpkit.HttpClient
 }
 
-func NewSovrom() *Sovrom {
+func NewAksor() *Aksor {
 	client := httpkit.NewHttpClient(
 		map[string]string{
 			"Referer":         common.DefaultReferer,
@@ -25,15 +26,14 @@ func NewSovrom() *Sovrom {
 		httpkit.WithRetries(2),
 	)
 
-	a := Sovrom{
+	a := Aksor{
 		client: client,
 	}
 	return &a
 }
 
-func (a *Sovrom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
+func (a *Aksor) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error) {
 	embedLink = common.AppendHttp(embedLink)
-
 	res, err := a.client.Get(embedLink)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (a *Sovrom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 	if err != nil {
 		return nil, err
 	}
-	re := regexp.MustCompile(`var\s+config\s*=\s*{\s*\n*\s*"id"\s*:\s*"sovetromantica_player",\s*\n*\s*"file":\s*"(.+?)"`)
+	re := regexp.MustCompile(`var\s+videoUrl\s*=\s*"(.+?)"`)
 	match := re.FindStringSubmatch(string(resBody))
 
 	if match == nil {
@@ -53,8 +53,16 @@ func (a *Sovrom) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 
 	link := match[1]
 
-	// Получаю только 1080
-	quality := 1080
+	// Вытягиваю качество видео из ссылки
+	qualityStart := strings.LastIndex(link, "/")
+	if qualityStart == -1 {
+		return nil, errors.New("не удалось обработать ссылку на видео")
+	}
+	qualityStr := link[qualityStart+1 : len(link)-4]
+	quality, err := strconv.Atoi(qualityStr)
+	if err != nil {
+		return nil, errors.New("не удалось обработать качество видео")
+	}
 
 	links := make(map[int]common.DecodedEmbed)
 

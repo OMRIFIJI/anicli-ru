@@ -1,11 +1,13 @@
 package config
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -45,17 +47,20 @@ func isInSlice(el string, s []string) bool {
 	return false
 }
 
-func isTimeToSyncPlayers(syncInterval string, dbh *db.DBHandler, currentTime time.Time) bool {
+func isTimeToSyncPlayers(syncInterval string, dbh *db.DBHandler, currentTime time.Time) (bool, error) {
     lastSyncTime, err := dbh.GetLastSyncTime("players")
 	if err != nil {
-		return true
+		return true, nil
 	}
 	diff := currentTime.Sub(*lastSyncTime)
 	days := int(diff.Hours() / 24)
 
 	syncIntervalInt, err := strconv.Atoi(syncInterval[:len(syncInterval)-1])
+    if err != nil {
+        return true, fmt.Errorf("Не удалось преобразовать временной интервал из бд к числу %s", err)
+    }
 
-	return days >= syncIntervalInt
+	return days >= syncIntervalInt, nil
 }
 
 func isTimeToSyncProviders(dbh *db.DBHandler, currentTime time.Time) bool {

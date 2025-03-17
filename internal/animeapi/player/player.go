@@ -1,19 +1,20 @@
 package player
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/aksor"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/alloha"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/aniboom"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/kodik"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/sibnet"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/sovrom"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player/vk"
-	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
-	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"errors"
 	"sync"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/aksor"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/alloha"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/aniboom"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/kodik"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/sibnet"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/sovrom"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/vk"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 )
 
 type embedHandler interface {
@@ -99,12 +100,12 @@ func getPriorityMap() map[common.PlayerOrigin]int {
 	}
 }
 
-type workerDecodeRes struct {
-	dubName  string
-	dubLinks map[int][]common.DecodedEmbed
+type decodedDub struct {
+	dubName string
+	links   map[int][]common.DecodedEmbed
 }
 
-func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.VideoLinks, error) {
+func (plc *PlayerLinkConverter) Convert(embedLinks models.EmbedLinks) (models.VideoLinks, error) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
@@ -113,7 +114,18 @@ func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			plc.decodeDub(dubName, playerLinks, videoLinks, &mu)
+
+			decDub := plc.convertDub(dubName, playerLinks)
+			if decDub == nil {
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			videoLinks[decDub.dubName] = make(map[int]models.Video)
+			for quality, decodedEmbed := range decDub.links {
+				videoLinks[decDub.dubName][quality] = plc.bestVideo(decodedEmbed)
+			}
 		}()
 	}
 	wg.Wait()
@@ -125,17 +137,17 @@ func (plc *PlayerLinkConverter) GetVideos(embedLinks models.EmbedLinks) (models.
 	return videoLinks, nil
 }
 
-func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string]string, videoLinks models.VideoLinks, mu *sync.Mutex) {
-	dubLinks := make(map[int][]common.DecodedEmbed)
+func (plc *PlayerLinkConverter) convertDub(dubName string, playerLinks map[string]string) *decodedDub {
+	links := make(map[int][]common.DecodedEmbed)
 	for playerName, link := range playerLinks {
 		playerOrigin, ok := plc.playerOriginMap[playerName]
 		if !ok {
 			logger.WarnLog.Printf("Нет реализации обработки плеера %s %s\n", playerName, link)
-			return
+			return nil
 		}
 		handler, ok := plc.Handlers[playerOrigin]
 		if !ok {
-			return
+			return nil
 		}
 
 		qualityToVideo, err := handler.GetVideos(link)
@@ -145,24 +157,17 @@ func (plc *PlayerLinkConverter) decodeDub(dubName string, playerLinks map[string
 		}
 
 		for quality := range qualityToVideo {
-			dubLinks[quality] = append(dubLinks[quality], qualityToVideo[quality])
+			links[quality] = append(links[quality], qualityToVideo[quality])
 		}
 	}
 
-	if len(dubLinks) == 0 {
-		return
+	if len(links) == 0 {
+		return nil
 	}
 
-	dubRes := workerDecodeRes{
-		dubName:  dubName,
-		dubLinks: dubLinks,
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-	videoLinks[dubRes.dubName] = make(map[int]models.Video)
-	for quality, decodedEmbed := range dubRes.dubLinks {
-		videoLinks[dubRes.dubName][quality] = plc.bestVideo(decodedEmbed)
+	return &decodedDub{
+		dubName: dubName,
+		links:   links,
 	}
 }
 

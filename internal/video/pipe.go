@@ -1,8 +1,8 @@
 package video
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
 	"context"
 	"errors"
@@ -10,7 +10,7 @@ import (
 )
 
 type AnimePlayer struct {
-	api         *api.AnimeAPI
+	api         *animeapi.AnimeAPI
 	anime       *models.Anime
 	selector    *videoSelector
 	player      *videoPlayer
@@ -18,7 +18,7 @@ type AnimePlayer struct {
 	replayVideo bool
 }
 
-func NewAnimePlayer(anime *models.Anime, api *api.AnimeAPI, cfg *config.VideoCfg) *AnimePlayer {
+func NewAnimePlayer(anime *models.Anime, api *animeapi.AnimeAPI, cfg *config.VideoCfg) *AnimePlayer {
 	ap := &AnimePlayer{
 		anime:    anime,
 		api:      api,
@@ -67,7 +67,7 @@ func (ap *AnimePlayer) updateLink() error {
 		return err
 	}
 
-	videos, err := ap.api.Converter.GetVideos(ep.EmbedLinks)
+	videos, err := ap.api.Converter.Convert(ep.EmbedLinks)
 	if err != nil {
 		return err
 	}

@@ -1,8 +1,8 @@
-package api
+package animeapi
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/api/player"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player"
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
