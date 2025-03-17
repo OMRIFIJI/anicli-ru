@@ -197,7 +197,20 @@ func (a *AnimeGoClient) isValidEpId(epId int) bool {
 	return isValid
 }
 
-func (a *AnimeGoClient) SetAllEmbedLinks(*models.Anime) error {
+func (a *AnimeGoClient) SetAllEmbedLinks(anime *models.Anime) error {
+    var wg sync.WaitGroup
+
+    for _, ep := range anime.EpCtx.Eps {
+        wg.Add(1)
+        go func(){
+            defer wg.Done()
+            if err := a.SetEmbedLinks(anime, ep); err != nil {
+                logger.WarnLog.Printf("Ошибка эпизода %s", err)
+            }
+        }()
+    }
+    wg.Wait()
+
 	return nil
 }
 

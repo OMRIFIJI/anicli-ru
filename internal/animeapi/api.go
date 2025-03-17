@@ -35,7 +35,7 @@ func GetProvidersState(providers map[string]string) string {
 	for key, provider := range providers {
 		key := key
 		provider := provider
-		providerLink := "http://" + provider
+		providerLink := "https://" + provider
 
 		wg.Add(1)
 		go func() {
