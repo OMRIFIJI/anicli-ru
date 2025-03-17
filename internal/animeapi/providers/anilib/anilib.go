@@ -44,7 +44,8 @@ func (a *AniLibClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 		foundAnime = foundAnime[:animesMaxLen]
 	}
 
-	animes := make([]models.Anime, len(foundAnime))
+    var mu sync.Mutex
+	var animes []models.Anime
 
 	for i, data := range foundAnime {
 		wg.Add(1)
@@ -87,12 +88,13 @@ func (a *AniLibClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 			// Получаем id эпизодов
 			eps, err := a.getEpsWithId(slugUrl)
 			if err != nil {
-				logger.WarnLog.Println(err)
 				return
 			}
 			anime.EpCtx.Eps = eps
 
-			animes[i] = anime
+            mu.Lock()
+            defer mu.Unlock()
+			animes = append(animes, anime)
 		}(i, data)
 	}
 	wg.Wait()

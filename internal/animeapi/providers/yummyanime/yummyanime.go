@@ -35,7 +35,9 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 	}
 
 	var wg sync.WaitGroup
-	animes := make([]models.Anime, len(foundAnime))
+    var mu sync.Mutex
+
+	var animes []models.Anime
 
 	for i, res := range foundAnime {
 		wg.Add(1)
@@ -72,8 +74,10 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 					AiredEpCount: airedEpCount,
 				}
 			}
-
-			animes[i] = anime
+            
+            mu.Lock()
+            defer mu.Unlock()
+			animes = append(animes, anime)
 		}(i, res)
 	}
 	wg.Wait()
