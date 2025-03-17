@@ -1,9 +1,9 @@
 package api
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/providers/animego"
-	"anicliru/internal/api/providers/yummyanime"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/providers/animego"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/providers/yummyanime"
 	"encoding/csv"
 	"errors"
 	"fmt"

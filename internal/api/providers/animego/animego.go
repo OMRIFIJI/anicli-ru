@@ -1,10 +1,10 @@
 package animego
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/providers/animego/parser"
-	httpcommon "anicliru/internal/http"
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/providers/animego/parser"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"errors"
 	"fmt"
 	"strconv"
@@ -13,21 +13,21 @@ import (
 )
 
 type AnimeGoClient struct {
-	http     *httpcommon.HttpClient
+	http     *httpkit.HttpClient
 	urlBuild urlBuilder
 }
 
 func NewAnimeGoClient(fullDomain string) *AnimeGoClient {
 	a := &AnimeGoClient{}
-	a.http = httpcommon.NewHttpClient(
+	a.http = httpkit.NewHttpClient(
 		map[string]string{
 			"User-Agent":       "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
 			"Referer":          fmt.Sprintf("https://%s", fullDomain),
 			"X-Requested-With": "XMLHttpRequest",
 			"Accept-Language":  "en-US,en;q=0.5",
 		},
-		httpcommon.WithRetries(2),
-		httpcommon.WithRetryDelay(3),
+		httpkit.WithRetries(2),
+		httpkit.WithRetryDelay(3),
 	)
 	a.urlBuild = newUrlBuilder(fullDomain)
 	return a

@@ -1,7 +1,7 @@
 package db
 
 import (
-	"anicliru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
 	"encoding/json"
 	"errors"
 	"fmt"

@@ -1,11 +1,11 @@
 package config
 
 import (
-	"anicliru/internal/api"
-	"anicliru/internal/api/player"
-	"anicliru/internal/api/player/common"
-	"anicliru/internal/api/providers"
-	"anicliru/internal/db"
+	"github.com/OMRIFIJI/anicli-ru/internal/api"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/providers"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	"errors"
 	"fmt"
 	"os"

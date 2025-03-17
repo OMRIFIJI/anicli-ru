@@ -1,9 +1,9 @@
 package aniboom
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player/common"
-	httpcommon "anicliru/internal/http"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"errors"
 	"fmt"
 	"io"
@@ -19,19 +19,19 @@ const (
 )
 
 type Aniboom struct {
-	client     *httpcommon.HttpClient
-	clientDash *httpcommon.HttpClient
+	client     *httpkit.HttpClient
+	clientDash *httpkit.HttpClient
 }
 
 func NewAniboom() *Aniboom {
-	client := httpcommon.NewHttpClient(
+	client := httpkit.NewHttpClient(
 		map[string]string{
 			"Referer":         common.DefaultReferer,
 			"Accept-Language": "ru-RU",
 		},
-		httpcommon.WithRetries(2),
+		httpkit.WithRetries(2),
 	)
-	clientDash := httpcommon.NewHttpClient(
+	clientDash := httpkit.NewHttpClient(
 		map[string]string{
 			"Referer":         baseUrl,
 			"Accept-Language": "ru-RU",

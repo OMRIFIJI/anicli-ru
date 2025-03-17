@@ -1,7 +1,7 @@
 package config
 
 import (
-	"anicliru/internal/db"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	"bytes"
 	"strconv"
 	"strings"

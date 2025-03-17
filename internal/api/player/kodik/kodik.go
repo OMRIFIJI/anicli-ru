@@ -1,10 +1,10 @@
 package kodik
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player/common"
-	httpcommon "anicliru/internal/http"
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -25,19 +25,19 @@ const (
 )
 
 type Kodik struct {
-	client     *httpcommon.HttpClient
+	client     *httpkit.HttpClient
 	postClient http.Client
 	baseUrl    string
 	apiPath    string
 }
 
 func NewKodik() *Kodik {
-	client := httpcommon.NewHttpClient(
+	client := httpkit.NewHttpClient(
 		map[string]string{
 			"Referer":         common.DefaultReferer,
 			"Accept-Language": "ru-RU",
 		},
-		httpcommon.WithRetries(2),
+		httpkit.WithRetries(2),
 	)
 
 	tr := &http.Transport{
@@ -77,13 +77,13 @@ func (k *Kodik) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error)
 		return nil, err
 	}
 
-	clientApi := httpcommon.NewHttpClient(
+	clientApi := httpkit.NewHttpClient(
 		map[string]string{
 			"Origin":  k.baseUrl,
 			"Referer": embedLink,
 			"Accept":  "application/json, text/javascript, */*; q=0.01",
 		},
-		httpcommon.FromClient(&k.postClient),
+		httpkit.FromClient(&k.postClient),
 	)
 
 	resApi, err := clientApi.Post(k.apiPath, bytes.NewBuffer(payload))

@@ -1,7 +1,7 @@
 package loading
 
 import (
-	"anicliru/internal/cli/ansi"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"fmt"
 	"time"
 )

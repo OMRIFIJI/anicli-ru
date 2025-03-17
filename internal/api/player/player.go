@@ -1,17 +1,17 @@
 package player
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player/aksor"
-	"anicliru/internal/api/player/alloha"
-	"anicliru/internal/api/player/aniboom"
-	"anicliru/internal/api/player/common"
-	"anicliru/internal/api/player/kodik"
-	"anicliru/internal/api/player/sibnet"
-	"anicliru/internal/api/player/sovrom"
-	"anicliru/internal/api/player/vk"
-	httpcommon "anicliru/internal/http"
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/aksor"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/alloha"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/aniboom"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/kodik"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/sibnet"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/sovrom"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/vk"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"errors"
 	"sync"
 )
@@ -58,7 +58,7 @@ func NewPlayerLinkConverter(playerDomains []string) (*PlayerLinkConverter, error
 }
 
 func SyncedDomains() []string {
-	dialer := httpcommon.NewDialer()
+	dialer := httpkit.NewDialer()
 	playerOriginMap := common.NewPlayerOriginMap()
 
 	var wg sync.WaitGroup

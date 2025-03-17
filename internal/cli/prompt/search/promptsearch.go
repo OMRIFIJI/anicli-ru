@@ -1,7 +1,7 @@
 package promptsearch
 
 import (
-	"anicliru/internal/cli/ansi"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"bufio"
 	"fmt"
 	"os"

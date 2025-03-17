@@ -1,28 +1,28 @@
 package yummyanime
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/providers/yummyanime/parser"
-	httpcommon "anicliru/internal/http"
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/providers/yummyanime/parser"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"errors"
 	"strings"
 	"sync"
 )
 
 type YummyAnimeClient struct {
-	http     *httpcommon.HttpClient
+	http     *httpkit.HttpClient
 	urlBuild urlBuilder
 }
 
 func NewYummyAnimeClient(fullDomain string) *YummyAnimeClient {
 	y := &YummyAnimeClient{}
-	y.http = httpcommon.NewHttpClient(
+	y.http = httpkit.NewHttpClient(
 		map[string]string{
 			"Accept-Language": "ru-RU,ru;q=0.8",
 		},
-		httpcommon.WithRetries(2),
-		httpcommon.WithRetryDelay(3),
+		httpkit.WithRetries(2),
+		httpkit.WithRetryDelay(3),
 	)
 	y.urlBuild = newUrlBuilder(fullDomain)
 	return y

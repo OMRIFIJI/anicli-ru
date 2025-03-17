@@ -2,7 +2,7 @@
 
 package promptselect
 
-import "anicliru/internal/cli/ansi"
+import "github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 
 func enterAltScreenBuf() {
 	ansi.EnterAltScreenBuf()

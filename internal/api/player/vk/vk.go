@@ -1,9 +1,9 @@
 package vk
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player/common"
-	httpcommon "anicliru/internal/http"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"errors"
 	"io"
 	"regexp"
@@ -14,15 +14,15 @@ import (
 const Origin = common.VK
 
 type VK struct {
-	client *httpcommon.HttpClient
+	client *httpkit.HttpClient
 }
 
 func NewVK() *VK {
-	client := httpcommon.NewHttpClient(
+	client := httpkit.NewHttpClient(
 		map[string]string{
 			"Accept-Language": "ru-RU",
 		},
-		httpcommon.WithRetries(2),
+		httpkit.WithRetries(2),
 	)
 	vk := &VK{
 		client: client,

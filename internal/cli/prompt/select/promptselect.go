@@ -1,7 +1,7 @@
 package promptselect
 
 import (
-	"anicliru/internal/cli/ansi"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"context"
 	"errors"
 	"os"

@@ -1,7 +1,7 @@
-package httpcommon
+package httpkit
 
 import (
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"fmt"
 	"io"
 	"net/http"

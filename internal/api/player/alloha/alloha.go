@@ -1,9 +1,9 @@
 package alloha
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player/common"
-	httpcommon "anicliru/internal/http"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -23,18 +23,18 @@ const (
 )
 
 type Alloha struct {
-	client     *httpcommon.HttpClient
+	client     *httpkit.HttpClient
 	postClient http.Client
 }
 
 func NewAlloha() *Alloha {
-	client := httpcommon.NewHttpClient(
+	client := httpkit.NewHttpClient(
 		map[string]string{
 			"Referer":         common.DefaultReferer,
 			"Origin":          baseUrl,
 			"Accept-Language": "ru-RU",
 		},
-		httpcommon.WithRetries(2),
+		httpkit.WithRetries(2),
 	)
 
 	tr := &http.Transport{
@@ -60,7 +60,7 @@ func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 		return nil, err
 	}
 
-	clientApi := httpcommon.NewHttpClient(
+	clientApi := httpkit.NewHttpClient(
 		map[string]string{
 			"Origin":           a.client.Headers["Origin"],
 			"Referer":          embedLink,
@@ -68,7 +68,7 @@ func (a *Alloha) GetVideos(embedLink string) (map[int]common.DecodedEmbed, error
 			"Content-Type":     "application/x-www-form-urlencoded; charset=UTF-8",
 			"Content-Length":   strconv.Itoa(len(payload)),
 		},
-		httpcommon.FromClient(&a.postClient),
+		httpkit.FromClient(&a.postClient),
 	)
 
 	dest := fmt.Sprintf("%s/movie/%d", baseUrl, animeId)

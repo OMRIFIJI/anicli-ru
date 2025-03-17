@@ -1,4 +1,4 @@
-module anicliru
+module github.com/OMRIFIJI/anicli-ru
 
 go 1.23.2
 

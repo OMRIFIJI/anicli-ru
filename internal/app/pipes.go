@@ -1,11 +1,11 @@
 package app
 
 import (
-	"anicliru/internal/api"
-	config "anicliru/internal/app/cfg"
-	promptselect "anicliru/internal/cli/prompt/select"
-	"anicliru/internal/db"
-	"anicliru/internal/video"
+	"github.com/OMRIFIJI/anicli-ru/internal/api"
+	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
+	promptselect "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/select"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
+	"github.com/OMRIFIJI/anicli-ru/internal/video"
 	"errors"
 	"fmt"
 )

@@ -3,7 +3,7 @@
 package main
 
 import (
-	"anicliru/internal/app"
+	"github.com/OMRIFIJI/anicli-ru/internal/app"
 	"fmt"
 	"os"
 

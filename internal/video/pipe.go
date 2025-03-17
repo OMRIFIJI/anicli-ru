@@ -1,9 +1,9 @@
 package video
 
 import (
-	"anicliru/internal/api"
-	"anicliru/internal/api/models"
-	config "anicliru/internal/app/cfg"
+	"github.com/OMRIFIJI/anicli-ru/internal/api"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
 	"context"
 	"errors"
 	"fmt"

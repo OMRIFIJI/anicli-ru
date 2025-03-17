@@ -1,7 +1,7 @@
 package entryfmt
 
 import (
-	"anicliru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
 	"fmt"
 	"strconv"
 )

@@ -1,9 +1,9 @@
 package sibnet
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player/common"
-	httpcommon "anicliru/internal/http"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"errors"
 	"fmt"
 	"io"
@@ -16,20 +16,20 @@ const (
 )
 
 type Sibnet struct {
-	client  *httpcommon.HttpClient
+	client  *httpkit.HttpClient
 	baseUrl string
 }
 
 func NewSibnet() *Sibnet {
-	client := httpcommon.NewHttpClient(
+	client := httpkit.NewHttpClient(
 		map[string]string{
 			"Referer":                   common.DefaultReferer,
 			"User-Agent":                "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
 			"Upgrade-Insecure-Requests": "1",
 			"Accept-Language":           "ru-RU",
 		},
-		httpcommon.WithRetries(5), // Sibnet - любитель помолчать
-		httpcommon.WithTimeout(2), // Очень редко может не отвечать больше 3 раз, но ждать его не очень хочется...
+		httpkit.WithRetries(5), // Sibnet - любитель помолчать
+		httpkit.WithTimeout(2), // Очень редко может не отвечать больше 3 раз, но ждать его не очень хочется...
 	)
 	s := &Sibnet{
 		client:  client,

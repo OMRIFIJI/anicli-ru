@@ -3,7 +3,7 @@
 package promptselect
 
 import (
-	"anicliru/internal/cli/ansi"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"os"
 
 	"github.com/shirou/gopsutil/v3/process"

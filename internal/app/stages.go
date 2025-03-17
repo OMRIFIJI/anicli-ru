@@ -1,14 +1,14 @@
 package app
 
 import (
-	"anicliru/internal/api"
-	"anicliru/internal/api/models"
-	config "anicliru/internal/app/cfg"
-	"anicliru/internal/cli/loading"
-	promptsearch "anicliru/internal/cli/prompt/search"
-	promptselect "anicliru/internal/cli/prompt/select"
-	"anicliru/internal/db"
-	entryfmt "anicliru/internal/fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/api"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/loading"
+	promptsearch "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/search"
+	promptselect "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/select"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
+	entryfmt "github.com/OMRIFIJI/anicli-ru/internal/fmt"
 	"sync"
 )
 

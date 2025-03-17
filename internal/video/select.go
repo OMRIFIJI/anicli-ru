@@ -1,7 +1,7 @@
 package video
 
 import (
-	promptselect "anicliru/internal/cli/prompt/select"
+	promptselect "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/select"
 	"strconv"
 )
 

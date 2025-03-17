@@ -1,8 +1,8 @@
 package app
 
 import (
-	"anicliru/internal/db"
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"flag"
 	"fmt"
 

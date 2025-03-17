@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"anicliru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
 	"encoding/json"
 	"io"
 	"net/url"

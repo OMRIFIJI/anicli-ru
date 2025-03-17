@@ -1,11 +1,11 @@
 package api
 
 import (
-	"anicliru/internal/api/models"
-	"anicliru/internal/api/player"
-	"anicliru/internal/db"
-	httpcommon "anicliru/internal/http"
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/api/player"
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,7 +27,7 @@ type animeParser interface {
 }
 
 func GetProvidersState(providers map[string]string) string {
-	dialer := httpcommon.NewDialer()
+	dialer := httpkit.NewDialer()
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 

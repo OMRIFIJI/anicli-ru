@@ -3,7 +3,7 @@
 package promptselect
 
 import (
-	"anicliru/internal/logger"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"context"
 	"os"
 	"time"
