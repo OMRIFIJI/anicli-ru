@@ -113,7 +113,9 @@ func (a *API) GetAnimesByTitle(title string) ([]models.Anime, error) {
 		return nil, errors.New("по вашему запросу ничего не найдено")
 	}
 
-	animes, err := dropAnimeDuplicates(animes)
+    // Отбрасывание дубликатов
+    dupRem := newDuplicateRemover()
+	animes, err := dupRem.Remove(animes)
 	if err != nil {
 		return nil, err
 	}
