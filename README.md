@@ -49,6 +49,7 @@ autoSync = true
 [Providers.domainMap]
 animego = 'animego.one'
 yummyanime = 'yummy-anime.ru'
+anilib = 'api2.mangalib.me'
 
 [Players]
 syncInterval = '3d'
@@ -59,7 +60,8 @@ domains = [
   'aniboom.one',
   'alloha.yani.tv',
   'aksor.yani.tv',
-  'video.sibnet.ru'
+  'video.sibnet.ru',
+  'video1.anilib.me'
 ]
 ```
 
