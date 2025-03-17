@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-type AnimeAPI struct {
+type API struct {
 	animeParsers map[string]animeParser
 	Converter    *player.PlayerLinkConverter
 }
@@ -58,7 +58,7 @@ func GetProvidersState(providers map[string]string) string {
 	return b.String()
 }
 
-func NewAnimeAPI(providerDomainMap map[string]string, playerDomains []string, dbh *db.DBHandler) (*AnimeAPI, error) {
+func NewAPI(providerDomainMap map[string]string, playerDomains []string, dbh *db.DBHandler) (*API, error) {
 	animeParsers := make(map[string]animeParser)
 
 	for name, fullDomain := range providerDomainMap {
@@ -80,14 +80,14 @@ func NewAnimeAPI(providerDomainMap map[string]string, playerDomains []string, db
 		return nil, err
 	}
 
-	a := AnimeAPI{
+	a := API{
 		animeParsers: animeParsers,
 		Converter:    converter,
 	}
 	return &a, nil
 }
 
-func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
+func (a *API) GetAnimesByTitle(title string) ([]models.Anime, error) {
 	var animes []models.Anime
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -123,7 +123,7 @@ func (a *AnimeAPI) GetAnimesByTitle(title string) ([]models.Anime, error) {
 }
 
 // Пытается установить все embed если это возможно.
-func (a *AnimeAPI) SetAllEmbedLinks(anime *models.Anime) error {
+func (a *API) SetAllEmbedLinks(anime *models.Anime) error {
 	client := a.animeParsers[anime.Provider]
 	err := client.SetAllEmbedLinks(anime)
 	if err != nil {
@@ -133,7 +133,7 @@ func (a *AnimeAPI) SetAllEmbedLinks(anime *models.Anime) error {
 	return nil
 }
 
-func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
+func (a *API) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {
 	client := a.animeParsers[anime.Provider]
 
 	err := client.SetEmbedLinks(anime, ep)
@@ -144,7 +144,7 @@ func (a *AnimeAPI) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error 
 	return nil
 }
 
-func (a *AnimeAPI) PrepareSavedAnime(anime *models.Anime) error {
+func (a *API) PrepareSavedAnime(anime *models.Anime) error {
 	client, ok := a.animeParsers[anime.Provider]
 	if !ok {
 		// Зануляем источник, если его больше нет в конфиге

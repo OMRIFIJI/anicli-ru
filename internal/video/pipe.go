@@ -12,7 +12,7 @@ import (
 )
 
 type AnimePlayer struct {
-	api         *animeapi.AnimeAPI
+	api         *animeapi.API
 	anime       *models.Anime
 	selector    *videoSelector
 	player      *videoPlayer
@@ -20,7 +20,7 @@ type AnimePlayer struct {
 	replayVideo bool
 }
 
-func NewAnimePlayer(anime *models.Anime, api *animeapi.AnimeAPI, cfg *config.VideoCfg) *AnimePlayer {
+func NewAnimePlayer(anime *models.Anime, api *animeapi.API, cfg *config.VideoCfg) *AnimePlayer {
 	ap := &AnimePlayer{
 		anime:    anime,
 		api:      api,

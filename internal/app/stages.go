@@ -13,8 +13,8 @@ import (
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
 )
 
-func initApi(dbh *db.DBHandler, cfg *config.Config) (*animeapi.AnimeAPI, error) {
-	api, err := animeapi.NewAnimeAPI(cfg.Providers.DomainMap, cfg.Players.Domains, dbh)
+func initApi(dbh *db.DBHandler, cfg *config.Config) (*animeapi.API, error) {
+	api, err := animeapi.NewAPI(cfg.Providers.DomainMap, cfg.Players.Domains, dbh)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func getTitleFromUser() (string, error) {
 	return searchInput, nil
 }
 
-func findAnimes(searchInput string, api *animeapi.AnimeAPI) ([]models.Anime, error) {
+func findAnimes(searchInput string, api *animeapi.API) ([]models.Anime, error) {
 	var wg sync.WaitGroup
 	quitChan := make(chan struct{})
 
@@ -50,7 +50,7 @@ func findAnimes(searchInput string, api *animeapi.AnimeAPI) ([]models.Anime, err
 	return animes, err
 }
 
-func selectAnime(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, bool, error) {
+func selectAnime(animes []models.Anime, api *animeapi.API) (*models.Anime, bool, error) {
 	animeEntries := animefmt.WrapAnimeTitlesAired(animes)
 	cur, isExitOnQuit, err := promptAnime(animeEntries)
 	if err != nil {
@@ -61,7 +61,7 @@ func selectAnime(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, 
 	return &animes[cur], isExitOnQuit, err
 }
 
-func selectAnimeWithState(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, bool, error) {
+func selectAnimeWithState(animes []models.Anime, api *animeapi.API) (*models.Anime, bool, error) {
 	animeEntries := animefmt.WrapAnimeTitlesWatched(animes)
 	cur, isExitOnQuit, err := promptAnime(animeEntries)
 	if err != nil {
@@ -96,7 +96,7 @@ func selectEpisode(anime *models.Anime) (bool, error) {
 	return isExitOnQuit, nil
 }
 
-func prepareSavedAnime(animes []models.Anime, api *animeapi.AnimeAPI) ([]models.Anime, error) {
+func prepareSavedAnime(animes []models.Anime, api *animeapi.API) ([]models.Anime, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
