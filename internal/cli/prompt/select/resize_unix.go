@@ -9,7 +9,8 @@ import (
 	"syscall"
 )
 
-// Контекст остался из-за перегрузки для платформ
+// Контекст остался из-за перегрузки для платформ.
+// Надо бы разделить.
 func newResizeChan(ctx context.Context) chan os.Signal {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGWINCH)

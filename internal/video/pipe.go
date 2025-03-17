@@ -101,14 +101,12 @@ func (ap *AnimePlayer) spin() error {
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		err := context.Cause(ctx)
-		if err == context.Canceled {
-			return nil
-		}
-		return err
+	<-ctx.Done()
+	err := context.Cause(ctx)
+	if err == context.Canceled {
+		return nil
 	}
+	return err
 }
 
 func (ap *AnimePlayer) showMpvAndMenu(ctx context.Context, cancel context.CancelCauseFunc) {

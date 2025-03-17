@@ -3,10 +3,11 @@ package promptselect
 import (
 	"context"
 	"errors"
-	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"os"
 	"sync"
 	"unicode/utf8"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 
 	"golang.org/x/term"
 )
@@ -143,28 +144,30 @@ func (p *PromptSelect) readKey() (keyCode, error) {
 	}
 
 	if n == 1 {
-		if buf[0] == '\n' || buf[0] == '\r' {
+		switch buf[0] {
+		case '\n', '\r':
 			return enterKeyCode, nil
-		} else if buf[0] == 'q' || buf[0] == 3 || buf[0] == 4 {
+		case 'q', 3, 4:
 			return quitKeyCode, nil
-		} else if buf[0] == 'k' {
+		case 'k':
 			return upKeyCode, nil
-		} else if buf[0] == 'j' {
+		case 'j':
 			return downKeyCode, nil
-		} else if buf[0] == 'l' {
+		case 'l':
 			return enterKeyCode, nil
 		}
 	}
 	// Обрабатывает 'й' как 'q'
 	if n == 2 {
 		r, _ := utf8.DecodeRune(buf[:])
-		if r == 'й' {
+		switch r {
+		case 'й':
 			return quitKeyCode, nil
-		} else if r == 'л' {
+		case 'л':
 			return upKeyCode, nil
-		} else if r == 'о' {
+		case 'о':
 			return downKeyCode, nil
-		} else if r == 'д' {
+		case 'д':
 			return enterKeyCode, nil
 		}
 	}
