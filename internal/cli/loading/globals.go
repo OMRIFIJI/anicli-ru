@@ -1,5 +1,5 @@
 package loading
 
 const (
-    bloomPhaseSleep = 800
+	bloomPhaseSleep = 800
 )

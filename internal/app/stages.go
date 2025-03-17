@@ -1,15 +1,16 @@
 package app
 
 import (
+	"sync"
+
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
+	"github.com/OMRIFIJI/anicli-ru/internal/animefmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/app/config"
 	"github.com/OMRIFIJI/anicli-ru/internal/cli/loading"
 	promptsearch "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/search"
 	promptselect "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/select"
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
-	entryfmt "github.com/OMRIFIJI/anicli-ru/internal/fmt"
-	"sync"
 )
 
 func initApi(dbh *db.DBHandler, cfg *config.Config) (*animeapi.AnimeAPI, error) {
@@ -50,7 +51,7 @@ func findAnimes(searchInput string, api *animeapi.AnimeAPI) ([]models.Anime, err
 }
 
 func selectAnime(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, bool, error) {
-	animeEntries := entryfmt.WrapAnimeTitlesAired(animes)
+	animeEntries := animefmt.WrapAnimeTitlesAired(animes)
 	cur, isExitOnQuit, err := promptAnime(animeEntries)
 	if err != nil {
 		return nil, false, err
@@ -61,7 +62,7 @@ func selectAnime(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, 
 }
 
 func selectAnimeWithState(animes []models.Anime, api *animeapi.AnimeAPI) (*models.Anime, bool, error) {
-	animeEntries := entryfmt.WrapAnimeTitlesWatched(animes)
+	animeEntries := animefmt.WrapAnimeTitlesWatched(animes)
 	cur, isExitOnQuit, err := promptAnime(animeEntries)
 	if err != nil {
 		return nil, false, err
@@ -75,7 +76,7 @@ func selectAnimeWithState(animes []models.Anime, api *animeapi.AnimeAPI) (*model
 }
 
 func selectEpisode(anime *models.Anime) (bool, error) {
-	episodeEntries := entryfmt.EpisodeEntries(anime.EpCtx)
+	episodeEntries := animefmt.EpisodeEntries(anime.EpCtx)
 	promptMessage := "Выберите серию. " + anime.Title
 
 	prompt, err := promptselect.NewPrompt(episodeEntries, promptMessage, false)

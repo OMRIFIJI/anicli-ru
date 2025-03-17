@@ -1,15 +1,15 @@
 package kodik
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
-	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
-	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"io"
 	"net/http"
 	"regexp"

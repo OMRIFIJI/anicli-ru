@@ -1,10 +1,10 @@
 package promptselect
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"os"
 	"strings"
 	"sync"
@@ -95,7 +95,7 @@ func (d *drawer) handleKeyInput(keyCodeValue keyCode) error {
 	switch keyCodeValue {
 	case upKeyCode, downKeyCode:
 		d.moveCursor(keyCodeValue)
-        return d.drawInterface(keyCodeValue, false)
+		return d.drawInterface(keyCodeValue, false)
 	}
 	return nil
 }

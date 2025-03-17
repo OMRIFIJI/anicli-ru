@@ -1,10 +1,11 @@
 package app
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/db"
-	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"flag"
 	"fmt"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/db"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 
 	"rsc.io/getopt"
 )

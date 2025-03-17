@@ -1,9 +1,9 @@
 package promptselect
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"context"
 	"errors"
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"os"
 	"sync"
 	"unicode/utf8"

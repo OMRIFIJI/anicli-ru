@@ -1,13 +1,13 @@
 package alloha
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
-	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"io"
 	"net/http"
 	"regexp"
@@ -19,7 +19,7 @@ import (
 const (
 	Origin       = common.Alloha
 	headerFields = `--http-header-fields="Origin: https://alloha.yani.tv/","Referer: https://animego.org/"`
-    baseUrl = "https://alloha.yani.tv"
+	baseUrl      = "https://alloha.yani.tv"
 )
 
 type Alloha struct {

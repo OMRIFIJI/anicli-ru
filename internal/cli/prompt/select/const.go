@@ -9,16 +9,16 @@ const (
 )
 
 const (
-    onQuitExitCode exitPromptCode = iota
-    onEnterExitCode
-    onErrorExitCode
+	onQuitExitCode exitPromptCode = iota
+	onEnterExitCode
+	onErrorExitCode
 )
 
 const (
 	cursorScrollOffset = 2
-	cursorStateHigh   = 1
-	cursorStateNormal = 0
-	cursorStateLow    = -1
+	cursorStateHigh    = 1
+	cursorStateNormal  = 0
+	cursorStateLow     = -1
 )
 
 const (
@@ -29,11 +29,11 @@ const (
 )
 
 const (
-    resizeDebounceMs = 30
+	resizeDebounceMs = 30
 )
 
 const (
-    minimalTermHeight = 4
-    decorateTextWidth = 16
-    borderSize = 1
+	minimalTermHeight = 4
+	decorateTextWidth = 16
+	borderSize        = 1
 )

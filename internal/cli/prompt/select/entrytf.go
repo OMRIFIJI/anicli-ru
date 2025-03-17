@@ -16,13 +16,13 @@ func fitEntryLines(entry string, termWidth int, indOpt indexOptions) fittedEntry
 	entryRune := []rune(entry)
 	entryRuneLen := len(entryRune)
 
-    var indexPadding int
+	var indexPadding int
 	if indOpt.showIndex {
-        indexCharSize := charLenOfInt(indOpt.index + 1)
-        indexPadding = indexCharSize + 1
+		indexCharSize := charLenOfInt(indOpt.index + 1)
+		indexPadding = indexCharSize + 1
 	} else {
-        indexPadding = 0
-    }
+		indexPadding = 0
+	}
 
 	var entryStrings []string
 

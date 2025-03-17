@@ -1,12 +1,12 @@
 package animeapi
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/animego"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/yummyanime"
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/animego"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/yummyanime"
 	"net/http"
 	"slices"
 	"sort"

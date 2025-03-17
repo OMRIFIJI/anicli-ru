@@ -23,7 +23,7 @@ func newSelector() *videoSelector {
 		menuOptions: []string{
 			nextEpisode,
 			previousEpisode,
-            replay,
+			replay,
 			changeDub,
 			changeQuality,
 			exitPlayer,
@@ -54,14 +54,14 @@ func (vs *videoSelector) selectDub(promptMessage string, player *videoPlayer) (b
 
 func (vs *videoSelector) selectQuality(promptMessage string, player *videoPlayer) (bool, error) {
 	qualities, err := player.GetQualities(player.cfg.Dub)
-    if err != nil {
-        return false, err
-    }
+	if err != nil {
+		return false, err
+	}
 
-    var qualityEntries []string 
-    for _, quality := range qualities {
-        qualityEntries = append(qualityEntries, strconv.Itoa(quality))
-    }
+	var qualityEntries []string
+	for _, quality := range qualities {
+		qualityEntries = append(qualityEntries, strconv.Itoa(quality))
+	}
 
 	prompt, err := promptselect.NewPrompt(qualityEntries, promptMessage, false)
 	if err != nil {

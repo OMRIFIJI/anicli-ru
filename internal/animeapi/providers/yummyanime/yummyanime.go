@@ -1,11 +1,11 @@
 package yummyanime
 
 import (
+	"errors"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/yummyanime/parser"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
-	"errors"
 	"strings"
 	"sync"
 )
@@ -43,11 +43,11 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 			defer wg.Done()
 
 			anime := models.Anime{
-				Provider: "yummyanime",
-				Id:       res.Id,
-				Uname:    res.AnimeUrl,
-				Title:    res.Title,
-                SearchPos: i,
+				Provider:  "yummyanime",
+				Id:        res.Id,
+				Uname:     res.AnimeUrl,
+				Title:     res.Title,
+				SearchPos: i,
 			}
 
 			typeName := strings.ToLower(res.Type.Name)
@@ -148,12 +148,12 @@ func (y *YummyAnimeClient) PrepareSavedAnime(anime *models.Anime) error {
 	}
 	defer res.Body.Close()
 
-    airedEpCount, totalEpCount, err := parser.ParseEpCount(res.Body)
-    if err != nil {
-        return err
-    }
-    anime.EpCtx.AiredEpCount = airedEpCount
-    anime.EpCtx.TotalEpCount = totalEpCount
+	airedEpCount, totalEpCount, err := parser.ParseEpCount(res.Body)
+	if err != nil {
+		return err
+	}
+	anime.EpCtx.AiredEpCount = airedEpCount
+	anime.EpCtx.TotalEpCount = totalEpCount
 
-    return nil
+	return nil
 }

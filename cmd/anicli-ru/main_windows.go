@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/app"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/app"
 	"os"
 
 	"golang.org/x/sys/windows"

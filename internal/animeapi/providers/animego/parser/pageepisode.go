@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"encoding/json"
 	"errors"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"io"
 	"regexp"
 	"strings"
@@ -35,15 +35,15 @@ func parseIdToLinks(content string) (map[string]map[string]string, error) {
 	for _, match := range matches {
 		id := strings.TrimSpace(match[2])
 
-        _, exists := idToLinks[id]
-        if !exists{
-            idToLinks[id] = make(map[string]string)
-        }
+		_, exists := idToLinks[id]
+		if !exists {
+			idToLinks[id] = make(map[string]string)
+		}
 
-        dubLink := strings.TrimSpace(match[1])
-        dubLink = strings.ReplaceAll(dubLink, "&amp;", "&")
+		dubLink := strings.TrimSpace(match[1])
+		dubLink = strings.ReplaceAll(dubLink, "&amp;", "&")
 		playerName := netloc(dubLink)
-        idToLinks[id][playerName] = dubLink
+		idToLinks[id][playerName] = dubLink
 	}
 
 	if len(idToLinks) == 0 {
@@ -80,7 +80,7 @@ func ParseEmbedLinks(r io.Reader) (models.EmbedLinks, error) {
 		if !exists {
 			continue
 		}
-        embedLinks[dubName] = dubLinks
+		embedLinks[dubName] = dubLinks
 	}
 
 	return embedLinks, nil

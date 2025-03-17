@@ -1,8 +1,8 @@
 package httpkit
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"io"
 	"net/http"
 	"time"

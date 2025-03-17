@@ -1,12 +1,14 @@
 package video
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animefmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/app/config"
 )
 
 type AnimePlayer struct {
@@ -77,7 +79,7 @@ func (ap *AnimePlayer) updateLink() error {
 }
 
 func (ap *AnimePlayer) startMpvWrapped(ctx context.Context) error {
-	videoTitle := fmt.Sprintf("Серия %d. %s.", ap.anime.EpCtx.Cur, ap.anime.Title)
+	videoTitle := animefmt.VideoTitle(ap.anime.EpCtx.Cur, ap.player.ResolvedDub, ap.anime.Title)
 	err := ap.player.StartMpv(videoTitle, ctx)
 	return err
 }
@@ -118,7 +120,7 @@ func (ap *AnimePlayer) showMpvAndMenu(ctx context.Context, cancel context.Cancel
 			}
 		}
 	}()
-	promptMessage := fmt.Sprintf("Серия %d из %d. %s.", ap.anime.EpCtx.Cur, ap.anime.EpCtx.AiredEpCount, ap.anime.Title)
+	promptMessage := animefmt.PlayerMenuHeader(ap.anime)
 	menuOption, isExitOnQuit, err := ap.selector.selectMenuOption(promptMessage)
 	if err != nil {
 		cancel(err)

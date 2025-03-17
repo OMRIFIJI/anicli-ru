@@ -1,12 +1,12 @@
 package animego
 
 import (
+	"errors"
+	"fmt"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers/animego/parser"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,10 +48,10 @@ func (a *AnimeGoClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
 		logger.ErrorLog.Printf("Ошибка парсинга HTML. %s\n", err)
 		return nil, err
 	}
-    
-    if len(animes) == 0 {
-        return nil, nil
-    }
+
+	if len(animes) == 0 {
+		return nil, nil
+	}
 
 	var wg sync.WaitGroup
 
@@ -174,7 +174,7 @@ func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 }
 
 func (a *AnimeGoClient) SetAllEmbedLinks(anime *models.Anime) error {
-    return nil
+	return nil
 }
 
 func (a *AnimeGoClient) SetEmbedLinks(anime *models.Anime, ep *models.Episode) error {

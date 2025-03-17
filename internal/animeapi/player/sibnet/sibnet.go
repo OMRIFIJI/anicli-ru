@@ -1,11 +1,11 @@
 package sibnet
 
 import (
+	"errors"
+	"fmt"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
-	"errors"
-	"fmt"
 	"io"
 	"regexp"
 )

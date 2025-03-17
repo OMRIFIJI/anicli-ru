@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"fmt"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"io"
 	"strconv"
 	"strings"

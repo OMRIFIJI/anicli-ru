@@ -1,13 +1,13 @@
 package animeapi
 
 import (
+	"errors"
+	"fmt"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player"
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
-	"errors"
-	"fmt"
 	"strings"
 	"sync"
 )

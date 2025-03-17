@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"encoding/json"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"io"
 	"net/url"
 	"strconv"
@@ -33,21 +33,21 @@ func ParseEpCount(r io.Reader) (airedEpCount int, totalEpCount int, err error) {
 		return -1, -1, err
 	}
 
-    airedEpCount = result.Response.Episodes.AiredCount
-    totalEpCount = result.Response.Episodes.TotalCount
-    statusValue := result.Response.Status.Value
+	airedEpCount = result.Response.Episodes.AiredCount
+	totalEpCount = result.Response.Episodes.TotalCount
+	statusValue := result.Response.Status.Value
 
-    // Если статус аниме "вышел" (statusValue == 0), то сайт говорит, что вышло 0 эпизодов.
-    // В противном случае - сайт возвращает правильное число.
-    if statusValue == 0 {
-        return totalEpCount, totalEpCount, nil
-    }
+	// Если статус аниме "вышел" (statusValue == 0), то сайт говорит, что вышло 0 эпизодов.
+	// В противном случае - сайт возвращает правильное число.
+	if statusValue == 0 {
+		return totalEpCount, totalEpCount, nil
+	}
 
-    if (totalEpCount < airedEpCount) {
-        totalEpCount = -1
-    }
+	if totalEpCount < airedEpCount {
+		totalEpCount = -1
+	}
 
-    return airedEpCount, totalEpCount, nil
+	return airedEpCount, totalEpCount, nil
 }
 
 func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
@@ -61,32 +61,32 @@ func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
 		return nil, err
 	}
 
-    eps := make(map[int]*models.Episode)
+	eps := make(map[int]*models.Episode)
 	for _, res := range result.Response {
-        epNumber, err := strconv.Atoi(res.Number)
-        if err != nil {
-            continue
-        }
+		epNumber, err := strconv.Atoi(res.Number)
+		if err != nil {
+			continue
+		}
 
-        _, exists := eps[epNumber]
-        if !exists {
-            eps[epNumber] = &models.Episode{}
-            eps[epNumber].EmbedLinks = make(models.EmbedLinks)
-        }
+		_, exists := eps[epNumber]
+		if !exists {
+			eps[epNumber] = &models.Episode{}
+			eps[epNumber].EmbedLinks = make(models.EmbedLinks)
+		}
 
-        dubName := res.Data.Dubbing
-        u, err := url.Parse(res.IframeUrl)
-        if err != nil {
-            continue
-        }
-        playerName := u.Hostname()
+		dubName := res.Data.Dubbing
+		u, err := url.Parse(res.IframeUrl)
+		if err != nil {
+			continue
+		}
+		playerName := u.Hostname()
 
-        _, exists = eps[epNumber].EmbedLinks[dubName]
-        if !exists {
-            eps[epNumber].EmbedLinks[dubName] = make(map[string]string)
-        }
+		_, exists = eps[epNumber].EmbedLinks[dubName]
+		if !exists {
+			eps[epNumber].EmbedLinks[dubName] = make(map[string]string)
+		}
 
-        eps[epNumber].EmbedLinks[dubName][playerName] = res.IframeUrl
+		eps[epNumber].EmbedLinks[dubName][playerName] = res.IframeUrl
 	}
 
 	return eps, nil

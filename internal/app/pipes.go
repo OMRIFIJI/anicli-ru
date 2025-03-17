@@ -1,13 +1,14 @@
 package app
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi"
-	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
+	"github.com/OMRIFIJI/anicli-ru/internal/app/config"
 	promptselect "github.com/OMRIFIJI/anicli-ru/internal/cli/prompt/select"
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	"github.com/OMRIFIJI/anicli-ru/internal/video"
-	"errors"
-	"fmt"
 )
 
 func defaultPipe(dbh *db.DBHandler) error {

@@ -1,14 +1,15 @@
 package video
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	config "github.com/OMRIFIJI/anicli-ru/internal/app/cfg"
-	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"context"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/app/config"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 type videoPlayer struct {
 	Videos      map[string]map[int]models.Video
 	cfg         *config.VideoCfg
-	resolvedDub string
+	ResolvedDub string
 }
 
 type noDubError struct {
@@ -44,7 +45,7 @@ func (vp *videoPlayer) SetVideos(newVideos map[string]map[int]models.Video) erro
 	vp.Videos = newVideos
 
 	// Если озвучку уже расшифровывали и не нашлась
-	if _, ok := vp.Videos[vp.resolvedDub]; vp.resolvedDub != "" && !ok {
+	if _, ok := vp.Videos[vp.ResolvedDub]; vp.ResolvedDub != "" && !ok {
 		err := &noDubError{
 			Msg: "выбранная озвучка больше не доступна или нашлось несколько подходящих",
 		}
@@ -52,7 +53,7 @@ func (vp *videoPlayer) SetVideos(newVideos map[string]map[int]models.Video) erro
 	}
 
 	// Если не расшифровывали -> расшфируем
-	if vp.resolvedDub == "" {
+	if vp.ResolvedDub == "" {
 		key, ok := vp.findDubKey()
 		if !ok {
 			err := &noDubError{
@@ -61,10 +62,10 @@ func (vp *videoPlayer) SetVideos(newVideos map[string]map[int]models.Video) erro
 			return err
 		}
 
-		vp.resolvedDub = key
+		vp.ResolvedDub = key
 	}
 
-	qualities, _ := vp.GetQualities(vp.resolvedDub)
+	qualities, _ := vp.GetQualities(vp.ResolvedDub)
 	vp.cfg.Quality = vp.getClosestQuality(vp.cfg.Quality, qualities)
 
 	return nil
@@ -117,25 +118,25 @@ func (vp *videoPlayer) GetQualities(dub string) ([]int, error) {
 }
 
 func (vp *videoPlayer) GetVideo() (*models.Video, error) {
-	if vp.resolvedDub == "" {
+	if vp.ResolvedDub == "" {
 		return nil, errors.New("озвучка не выбрана")
 	}
 
-	if qualities, exists := vp.Videos[vp.resolvedDub]; exists {
+	if qualities, exists := vp.Videos[vp.ResolvedDub]; exists {
 		if video, exists := qualities[vp.cfg.Quality]; exists {
 			return &video, nil
 		}
-		return nil, fmt.Errorf("качество %d не существует для озвучки '%s'", vp.cfg.Quality, vp.resolvedDub)
+		return nil, fmt.Errorf("качество %d не существует для озвучки '%s'", vp.cfg.Quality, vp.ResolvedDub)
 	}
 
-	return nil, fmt.Errorf("озвучка '%s' не найдена", vp.resolvedDub)
+	return nil, fmt.Errorf("озвучка '%s' не найдена", vp.ResolvedDub)
 }
 
 func (vp *videoPlayer) SelectDub(dub string) error {
 	if _, exists := vp.Videos[dub]; !exists {
 		return &noDubError{Msg: fmt.Sprintf("озвучка '%s' не найдена", dub)}
 	}
-	vp.resolvedDub = dub
+	vp.ResolvedDub = dub
 
 	qualities, err := vp.GetQualities(dub)
 	if err != nil {
@@ -153,10 +154,10 @@ func (vp *videoPlayer) SelectDub(dub string) error {
 }
 
 func (vp *videoPlayer) SelectQuality(quality int) error {
-	if vp.resolvedDub == "" {
+	if vp.ResolvedDub == "" {
 		return fmt.Errorf("озвучка не выбрана")
 	}
-	qualities, _ := vp.GetQualities(vp.resolvedDub)
+	qualities, _ := vp.GetQualities(vp.ResolvedDub)
 	vp.cfg.Quality = vp.getClosestQuality(quality, qualities)
 	return nil
 }
