@@ -160,14 +160,9 @@ func NewDialer() *Dialer {
 }
 
 func (d *Dialer) Dial(url string) (int, error) {
-	req, err := http.NewRequest("HEAD", url, nil)
+	res, err := d.client.Get(url)
 	if err != nil {
 		return 0, err
 	}
-	resp, err := d.client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	resp.Body.Close()
-	return resp.StatusCode, nil
+	return res.StatusCode, nil
 }

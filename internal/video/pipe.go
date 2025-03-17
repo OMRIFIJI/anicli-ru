@@ -183,7 +183,7 @@ func (ap *AnimePlayer) handleEpisodeSwitch(menuOption string) (replayVideo bool,
 }
 
 func (ap *AnimePlayer) handleChangeDub() (replayVideo bool, err error) {
-	promptMessage := fmt.Sprintf("Выберите новую озвучку. Сейчас выбрана %s. %s.", ap.player.cfg.Dub, ap.anime.Title)
+	promptMessage := fmt.Sprintf("Выберите новую озвучку. Сейчас выбрана %s. %s.", ap.player.ResolvedDub, ap.anime.Title)
 	isExitOnQuit, err := ap.selector.selectDub(promptMessage, ap.player)
 	if err != nil {
 		return false, err

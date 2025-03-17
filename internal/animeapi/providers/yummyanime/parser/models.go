@@ -1,7 +1,7 @@
 package parser
 
 // Облегченная структура json'a, возвращаемого в результате поиска аниме.
-type SearchJson struct {
+type searchJson struct {
 	Response []FoundAnime `json:"response"`
 }
 
@@ -38,7 +38,7 @@ type episodeInfo struct {
 }
 
 // Структура для получения информации об embed на видео
-type EpJson struct {
+type epJson struct {
 	Response []foundEpisode `json:"response"`
 }
 

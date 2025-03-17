@@ -29,15 +29,15 @@ func NewYummyAnimeClient(fullDomain string) *YummyAnimeClient {
 }
 
 func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error) {
-	searchJson, err := y.getSearchJson(title)
+	foundAnime, err := y.getFoundAnime(title)
 	if err != nil {
 		return nil, err
 	}
 
 	var wg sync.WaitGroup
-	animes := make([]models.Anime, len(searchJson.Response))
+	animes := make([]models.Anime, len(foundAnime))
 
-	for i, res := range searchJson.Response {
+	for i, res := range foundAnime {
 		wg.Add(1)
 		go func(i int, res parser.FoundAnime) {
 			defer wg.Done()
@@ -81,7 +81,7 @@ func (y *YummyAnimeClient) GetAnimesByTitle(title string) ([]models.Anime, error
 	return animes, nil
 }
 
-func (y *YummyAnimeClient) getSearchJson(title string) (*parser.SearchJson, error) {
+func (y *YummyAnimeClient) getFoundAnime(title string) ([]parser.FoundAnime, error) {
 	title = strings.TrimSpace(title)
 	url := y.urlBuild.searchByTitle(title)
 
@@ -91,13 +91,13 @@ func (y *YummyAnimeClient) getSearchJson(title string) (*parser.SearchJson, erro
 	}
 	defer res.Body.Close()
 
-	searchJson, err := parser.ParseAnimes(res.Body)
+	foundAnime, err := parser.ParseAnimes(res.Body)
 	if err != nil {
-		logger.ErrorLog.Printf("Ошибка парсинга HTML. %s\n", err)
+		logger.ErrorLog.Printf("Ошибка парсинга. %s\n", err)
 		return nil, err
 	}
 
-	return searchJson, nil
+	return foundAnime, nil
 }
 
 func (y *YummyAnimeClient) getEpCount(animeId int) (airedEpCount int, totalEpCount int, err error) {

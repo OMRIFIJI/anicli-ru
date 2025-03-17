@@ -1,8 +1,9 @@
 package common
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"strings"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 )
 
 const DefaultReferer = "https://animego.org"
@@ -15,6 +16,7 @@ const (
 	SibnetDomain  = "video.sibnet.ru"
 	SovromDomain  = "sovetromantica.com"
 	VKDomain      = "vk.com"
+	AnilibDomain  = "video1.anilib.me"
 )
 
 // ENUM
@@ -28,6 +30,7 @@ const (
 	Sibnet
 	Sovrom
 	VK
+	Anilib
 )
 
 func GetPlayerDomains() []string {
@@ -39,6 +42,7 @@ func GetPlayerDomains() []string {
 		SibnetDomain,
 		SovromDomain,
 		VKDomain,
+		AnilibDomain,
 	}
 }
 
@@ -51,6 +55,7 @@ func NewPlayerOriginMap() map[string]PlayerOrigin {
 		SibnetDomain:  Sibnet,
 		SovromDomain:  Sovrom,
 		VKDomain:      VK,
+		AnilibDomain:  Anilib,
 	}
 }
 
@@ -63,6 +68,7 @@ func NewPlayerDomainMap() map[PlayerOrigin]string {
 		Sibnet:  SibnetDomain,
 		Sovrom:  SovromDomain,
 		VK:      VKDomain,
+		Anilib:  AnilibDomain,
 	}
 }
 

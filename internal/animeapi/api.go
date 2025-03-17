@@ -3,13 +3,15 @@ package animeapi
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/providers"
 	"github.com/OMRIFIJI/anicli-ru/internal/db"
 	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
 	"github.com/OMRIFIJI/anicli-ru/internal/logger"
-	"strings"
-	"sync"
 )
 
 type API struct {
@@ -17,12 +19,24 @@ type API struct {
 	Converter    *player.PlayerLinkConverter
 }
 
-// TODO: исправить логику с embed'ами.
+// Интерфейс, который должны реализовывать парсеры аниме-сайтов.
+//
+// GetAnimesByTitle - на вход принимает название или часть названия аниме title.
+// По этому значению находит несколько аниме с сайта и возвращает []models.Anime,
+// в которых обязательно заполнeны поля Title, EpCtx.AiredEpCount и EpCtx.TotalEpCount.
+//
+// SetAllEmbedLinks - подставляет все embed для аниме, если это возможно сделать не перегружая сервер.
+// В противном случае получает дополнительные данные для заполнения embed ссылок поштучно.
+// Если дополнительные данные не нужны, то не делает ничего. (TODO: придумать что-то красивее)
+//
+// SetEmbedLinks - устанавливает embed ссылки на эпизод ep из структуры anime.
+// Если ссылки были установлены с помощью SetAllEmbedLinks, то не делает ничего.
+//
+// PrepareSavedAnime - дозаполняет структуру аниме из БД необходимыми данными для SetAllEmbedLinks и SetEmbedLinks.
 type animeParser interface {
-	GetAnimesByTitle(string) ([]models.Anime, error)
-	SetEmbedLinks(*models.Anime, *models.Episode) error
-	SetAllEmbedLinks(*models.Anime) error
-	// Дозаполняет структуру аниме из сохраненных перед вычислением embed'ов
+	GetAnimesByTitle(title string) ([]models.Anime, error)
+	SetAllEmbedLinks(anime *models.Anime) error
+	SetEmbedLinks(anime *models.Anime, ep *models.Episode) error
 	PrepareSavedAnime(anime *models.Anime) error
 }
 
@@ -113,8 +127,8 @@ func (a *API) GetAnimesByTitle(title string) ([]models.Anime, error) {
 		return nil, errors.New("по вашему запросу ничего не найдено")
 	}
 
-    // Отбрасывание дубликатов
-    dupRem := newDuplicateRemover()
+	// Отбрасывание дубликатов
+	dupRem := providers.NewDuplicateRemover()
 	animes, err := dupRem.Remove(animes)
 	if err != nil {
 		return nil, err

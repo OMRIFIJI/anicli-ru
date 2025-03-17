@@ -8,18 +8,18 @@ import (
 	"strconv"
 )
 
-func ParseAnimes(r io.Reader) (*SearchJson, error) {
+func ParseAnimes(r io.Reader) ([]FoundAnime, error) {
 	in, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var result SearchJson
+	var result searchJson
 	if err := json.Unmarshal(in, &result); err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	return result.Response, nil
 }
 
 func ParseEpCount(r io.Reader) (airedEpCount int, totalEpCount int, err error) {
@@ -56,7 +56,7 @@ func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
 		return nil, err
 	}
 
-	var result EpJson
+	var result epJson
 	if err := json.Unmarshal(in, &result); err != nil {
 		return nil, err
 	}

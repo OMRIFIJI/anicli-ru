@@ -8,6 +8,7 @@ import (
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/aksor"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/alloha"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/aniboom"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/anilib"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/kodik"
 	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/sibnet"
@@ -44,6 +45,7 @@ func NewPlayerLinkConverter(playerDomains []string) (*PlayerLinkConverter, error
 		common.AllohaDomain:  func() embedHandler { return alloha.NewAlloha() },
 		common.AksorDomain:   func() embedHandler { return aksor.NewAksor() },
 		common.SovromDomain:  func() embedHandler { return sovrom.NewSovrom() },
+		common.AnilibDomain:  func() embedHandler { return anilib.NewAnilib() },
 	}
 
 	handlers := make(map[common.PlayerOrigin]embedHandler)
@@ -73,6 +75,7 @@ func SyncedDomains() []string {
 
 			url := "https://" + domain
 			if _, err := dialer.Dial(url); err != nil {
+                logger.ErrorLog.Println(err)
 				return
 			}
 
@@ -90,11 +93,12 @@ func SyncedDomains() []string {
 // При удалении дубликатов остаются видео плеера высшего приоритета.
 func getPriorityMap() map[common.PlayerOrigin]int {
 	return map[common.PlayerOrigin]int{
-		aniboom.Origin: 6, // Высокий приоритет
-		kodik.Origin:   5,
-		vk.Origin:      4,
-		alloha.Origin:  3,
-		aksor.Origin:   2,
+		aniboom.Origin: 7, // Высокий приоритет
+		kodik.Origin:   6,
+		vk.Origin:      5,
+		alloha.Origin:  4,
+		aksor.Origin:   3,
+        anilib.Origin:  2,
 		sovrom.Origin:  1,
 		sibnet.Origin:  0, // Низкий приоритет
 	}
@@ -143,17 +147,17 @@ func (plc *PlayerLinkConverter) convertDub(dubName string, playerLinks map[strin
 		playerOrigin, ok := plc.playerOriginMap[playerName]
 		if !ok {
 			logger.WarnLog.Printf("Нет реализации обработки плеера %s %s\n", playerName, link)
-			return nil
+            continue
 		}
 		handler, ok := plc.Handlers[playerOrigin]
 		if !ok {
-			return nil
+            continue
 		}
 
 		qualityToVideo, err := handler.GetVideos(link)
 		if err != nil {
 			logger.ErrorLog.Printf("Ошибка обработки плеера %s, %s\n", playerName, err)
-			continue
+            continue
 		}
 
 		for quality := range qualityToVideo {
