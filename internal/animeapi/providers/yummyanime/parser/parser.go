@@ -50,7 +50,7 @@ func ParseEpCount(r io.Reader) (airedEpCount int, totalEpCount int, err error) {
 	return airedEpCount, totalEpCount, nil
 }
 
-func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
+func ParseEpisodes(r io.Reader) (map[int]models.Episode, error) {
 	in, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
 		return nil, err
 	}
 
-	eps := make(map[int]*models.Episode)
+	eps := make(map[int]models.Episode)
 	for _, res := range result.Response {
 		epNumber, err := strconv.Atoi(res.Number)
 		if err != nil {
@@ -70,8 +70,9 @@ func ParseEpisodes(r io.Reader) (map[int]*models.Episode, error) {
 
 		_, exists := eps[epNumber]
 		if !exists {
-			eps[epNumber] = &models.Episode{}
-			eps[epNumber].EmbedLinks = make(models.EmbedLinks)
+            ep := models.Episode{}
+            ep.EmbedLinks = make(models.EmbedLinks)
+			eps[epNumber] = ep
 		}
 
 		dubName := res.Data.Dubbing
