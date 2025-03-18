@@ -30,7 +30,7 @@ https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 Так как домены плееров и аниме сайтов часто банят, я реализовал автоматическое отбрасывание недоступных доменов. 
 По этой причине первый запуск приложения может занять около 2-3 секунд.
 Подробнее о том, какие домены используются для парсинга и, как настроить их самостоятельно, в разделе 
-[конфиг](https://github.com/OMRIFIJI/anicli-ru?tab=readme-ov-file#%D0%BA%D0%BE%D0%BD%D1%84%D0%B8%D0%B3).
+[конфиг](#конфиг).
 
 Дополнительный функционал anicli-ru:
 ```
@@ -45,7 +45,7 @@ https://github.com/user-attachments/assets/e498ea62-478f-4bc0-b496-847f985f3220
 ```
 
 ## Установка
-Скачайте готовый бинарник из последнего [релиза](https://github.com/OMRIFIJI/anicli-ru/releases) или установите с помощью go.
+Универсальный способ - это скачать бинарник из [релиза](https://github.com/OMRIFIJI/anicli-ru/releases) или установить с помощью go.
 ```
 go install github.com/OMRIFIJI/anicli-ru/cmd/anicli-ru@latest
 ```
