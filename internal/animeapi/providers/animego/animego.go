@@ -134,8 +134,8 @@ func (a *AnimeGoClient) getMediaStatus(anime *models.Anime) error {
 
 		anime.EpCtx.TotalEpCount = 1
 		// Сайт не всегда возвращает Id фильмов. В любом случае он не обязателен для работы с ними.
-		filmEp := &models.Episode{Id: -1}
-		anime.EpCtx.Eps = map[int]*models.Episode{1: filmEp}
+		filmEp := models.Episode{Id: -1}
+		anime.EpCtx.Eps = map[int]models.Episode{1: filmEp}
 		return nil
 	}
 
@@ -163,9 +163,9 @@ func (a *AnimeGoClient) getEpIds(anime *models.Anime) error {
 		return err
 	}
 
-	anime.EpCtx.Eps = make(map[int]*models.Episode, len(epIdMap))
+	anime.EpCtx.Eps = make(map[int]models.Episode, len(epIdMap))
 	for key, val := range epIdMap {
-		anime.EpCtx.Eps[key] = &models.Episode{
+		anime.EpCtx.Eps[key] = models.Episode{
 			Id: val,
 		}
 	}

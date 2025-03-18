@@ -17,10 +17,10 @@ type Video struct {
 }
 
 type EpisodesContext struct {
-	Cur          int              `json:"cur"`
-	Eps          map[int]*Episode `json:"-"`
-	TotalEpCount int              `json:"-"`
-	AiredEpCount int              `json:"-"`
+	Cur          int             `json:"cur"`
+	Eps          map[int]Episode `json:"-"`
+	TotalEpCount int             `json:"-"`
+	AiredEpCount int             `json:"-"`
 }
 
 type Episode struct {
@@ -44,7 +44,7 @@ func (e *EpisodesContext) GetSelectedEp() (*Episode, error) {
 	if !exists {
 		return nil, errors.New("выбранный эпизод не существует")
 	}
-	return ep, nil
+	return &ep, nil
 }
 
 func (e *EpisodesContext) SetCur(cur int) error {

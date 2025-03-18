@@ -138,7 +138,7 @@ func (a *AniLibClient) getEpCount(slugUrl string) (airedEpCount int, totalEpCoun
 	return airedEpCount, totalEpCount, nil
 }
 
-func (a *AniLibClient) getEpsWithId(slugUrl string) (eps map[int]*models.Episode, err error) {
+func (a *AniLibClient) getEpsWithId(slugUrl string) (eps map[int]models.Episode, err error) {
 	url := a.urlBuild.epsIdBySlugUrl(slugUrl)
 
 	res, err := a.http.Get(url)
@@ -152,9 +152,9 @@ func (a *AniLibClient) getEpsWithId(slugUrl string) (eps map[int]*models.Episode
 		return nil, err
 	}
 
-	eps = make(map[int]*models.Episode)
+	eps = make(map[int]models.Episode)
 	for epNum, epId := range epIdsMap {
-		eps[epNum] = &models.Episode{Id: epId}
+		eps[epNum] = models.Episode{Id: epId}
 	}
 
 	return eps, nil
