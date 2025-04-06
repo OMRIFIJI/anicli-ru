@@ -203,9 +203,8 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 	// Несколько раз пытаюсь достучаться до видео, особенно актуально для sibnet
 	for i := range mpvRetries {
 		cmd := execCommand(mpvCmd)
-		stdout, err := cmd.StdoutPipe()
-		logger.ErrorLog.Printf("Комманда mpv: %s\n", mpvCmd)
 
+		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			logger.ErrorLog.Printf("Ошибка получения StdoutPipe mpv на %d попытке %s\n", i+1, err)
 		}
@@ -213,6 +212,7 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 		if err != nil {
 			logger.ErrorLog.Printf("Ошибка получения StderrPipe mpv на %d попытке %s\n", i+1, err)
 		}
+
 		if err := cmd.Start(); err != nil {
 			stderrSlurp, _ := io.ReadAll(stderr)
 			stdoutSlurp, _ := io.ReadAll(stdout)
@@ -236,10 +236,6 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 			logger.ErrorLog.Printf("не удача mpv на %d попытке %s. Stderr: %s. Stdout: %s\n", i+1, err, stderrSlurp, stdoutSlurp)
 			continue
 		}
-		stderrSlurp, _ := io.ReadAll(stderr)
-		stdoutSlurp, _ := io.ReadAll(stdout)
-
-		logger.ErrorLog.Printf("удалось запустить mpv на %d попытке. %s. Stderr: %s. Stdout: %s\n", i+1, err, stderrSlurp, stdoutSlurp)
 
 		return nil
 	}
