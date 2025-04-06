@@ -6,22 +6,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
-	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
-	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
-	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/models"
+	"github.com/OMRIFIJI/anicli-ru/internal/animeapi/player/common"
+	httpkit "github.com/OMRIFIJI/anicli-ru/internal/httpkit"
+	"github.com/OMRIFIJI/anicli-ru/internal/logger"
 )
 
 const (
 	Origin       = common.Kodik
 	baseUrl      = "https://kodik.info"
 	headerFields = `--http-header-fields="Referer: https://animego.org","Accept-Language: ru-RU"`
+	caesarShift  = 18
 )
 
 type Kodik struct {
@@ -191,14 +193,15 @@ func (k *Kodik) getApiPayload(resBody []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func decodeRot13(input string) string {
+// Шифр Цезаря со сдвигом
+func decodeCaesar(input string) string {
 	var result strings.Builder
 	for _, char := range input {
 		switch {
 		case 'a' <= char && char <= 'z':
-			result.WriteRune((char-'a'+13)%26 + 'a')
+			result.WriteRune((char-'a'+caesarShift)%26 + 'a')
 		case 'A' <= char && char <= 'Z':
-			result.WriteRune((char-'A'+13)%26 + 'A')
+			result.WriteRune((char-'A'+caesarShift)%26 + 'A')
 		default:
 			result.WriteRune(char)
 		}
@@ -219,7 +222,7 @@ func decodeUrl(urlEncoded string) (string, error) {
 		return common.AppendHttp(urlEncoded), nil
 	}
 
-	base64URL := decodeRot13(urlEncoded)
+	base64URL := decodeCaesar(urlEncoded)
 
 	base64URL = padBase64(base64URL)
 	decodedBytes, err := base64.StdEncoding.DecodeString(base64URL)

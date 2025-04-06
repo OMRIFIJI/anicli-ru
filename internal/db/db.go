@@ -117,7 +117,7 @@ func (dbh *DBHandler) DeleteAnime(title string) error {
 
 // Вызывается в конце работы программы. Сохраняет информацию об аниме,
 // если пользователь его не досмотрел. Если же пользователь досмотрел аниме,
-// то функция удалит это аниме из бд.
+// то функция удалит это аниме из БД.
 func (dbh *DBHandler) UpdateAnime(anime *models.Anime) error {
 	// Если просмотрено
 	if anime.EpCtx.Cur == anime.EpCtx.TotalEpCount {
@@ -151,6 +151,7 @@ func (dbh *DBHandler) UpdateAnime(anime *models.Anime) error {
 	return nil
 }
 
+// Возвращает все аниме из БД.
 func (dbh *DBHandler) GetAnimeSlice() ([]models.Anime, error) {
 	var animeSlice []models.Anime
 	if err := dbh.db.View(func(tx *bolt.Tx) error {
