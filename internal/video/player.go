@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 
@@ -204,36 +203,18 @@ func (vp *videoPlayer) StartMpv(title string, ctx context.Context) error {
 	for i := range mpvRetries {
 		cmd := execCommand(mpvCmd)
 
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			logger.ErrorLog.Printf("Ошибка получения StdoutPipe mpv на %d попытке %s\n", i+1, err)
-		}
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			logger.ErrorLog.Printf("Ошибка получения StderrPipe mpv на %d попытке %s\n", i+1, err)
-		}
-
 		if err := cmd.Start(); err != nil {
-			stderrSlurp, _ := io.ReadAll(stderr)
-			stdoutSlurp, _ := io.ReadAll(stdout)
-
-			logger.ErrorLog.Printf("не удалось запустить mpv на %d попытке. %s. Stderr: %s. Stdout: %s\n", i+1, err, stderrSlurp, stdoutSlurp)
+			logger.ErrorLog.Printf("не удалось запустить mpv на %d попытке. %s\n", i+1, err)
 			continue
 		}
 
 		if cmd.Process == nil {
-			stderrSlurp, _ := io.ReadAll(stderr)
-			stdoutSlurp, _ := io.ReadAll(stdout)
-
-			logger.ErrorLog.Printf("не удача mpv на %d попытке: process == nil. Stderr: %s. Stdout: %s\n", i+1, stderrSlurp, stdoutSlurp)
+			logger.ErrorLog.Printf("не удача mpv на %d попытке: process == nil.\n", i+1)
 			continue
 		}
 
 		if err := cmd.Wait(); err != nil {
-			stderrSlurp, _ := io.ReadAll(stderr)
-			stdoutSlurp, _ := io.ReadAll(stdout)
-
-			logger.ErrorLog.Printf("не удача mpv на %d попытке %s. Stderr: %s. Stdout: %s\n", i+1, err, stderrSlurp, stdoutSlurp)
+			logger.ErrorLog.Printf("не удача mpv на %d попытке %s.\n", i+1, err)
 			continue
 		}
 
