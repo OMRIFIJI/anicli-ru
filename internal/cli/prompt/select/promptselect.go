@@ -42,7 +42,7 @@ func NewPrompt(entries []string, promptMessage string, showIndex bool) (*PromptS
 }
 
 func PrepareTerminal() (*term.State, error) {
-	enterAltScreenBuf()
+	ansi.EnterAltScreenBuf()
 	ansi.HideCursor()
 
 	fd := int(os.Stdin.Fd())
@@ -60,52 +60,42 @@ func RestoreTerminal(oldTermState *term.State) {
 	term.Restore(fd, oldTermState)
 
 	ansi.ShowCursor()
-	exitAltScreenBuf()
+	ansi.ExitAltScreenBuf()
 }
 
-func (p *PromptSelect) SpinPrompt() (bool, int, error) {
+func (p *PromptSelect) SpinPrompt() (isExitOnQuit bool, cur int, err error) {
 	exitCodeValue, err := p.promptUserChoice()
 	return exitCodeValue == onQuitExitCode, p.promptCtx.cur, err
 }
 
 func (p *PromptSelect) promptUserChoice() (exitPromptCode, error) {
-	backgroundCtx := context.Background()
-	ctx, cancel := context.WithCancelCause(backgroundCtx)
+	ctx, cancel := context.WithCancelCause(context.Background())
+	var wg sync.WaitGroup
 
-	wg := sync.WaitGroup{}
-
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		p.spinHandleInput(ctx)
 	}()
-
-	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		p.drawer.spinDrawInterface(p.ch.keyCode, ctx, cancel)
 	}()
-	defer wg.Wait()
 
-	// Дочитать из канала после выхода в случае ошибки
 	defer func() {
-		for range p.ch.keyCode {
-		}
+		cancel(nil)
+		wg.Wait()
 	}()
 
-	defer cancel(nil)
-
-	for {
-		select {
-		case exitCode := <-p.ch.exitCode:
-			return exitCode, nil
-		case <-ctx.Done():
-			err := context.Cause(ctx)
-			if err == context.Canceled {
-				return onQuitExitCode, nil
-			}
-			return onErrorExitCode, err
+	select {
+	case exitCode := <-p.ch.exitCode:
+		return exitCode, nil
+	case <-ctx.Done():
+		err := context.Cause(ctx)
+		if err == context.Canceled {
+			return onQuitExitCode, nil
 		}
+		return onErrorExitCode, err
 	}
 }
 

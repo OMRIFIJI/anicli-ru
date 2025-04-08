@@ -5,24 +5,23 @@ import (
 	"strings"
 )
 
+const (
+	borderStart = "│ " + highlightBg + " " + highlightBgReset
+	borderEnd   = " │"
+)
+
 type indexOptions struct {
 	index     int
 	showIndex bool
 }
 
-func fitEntryLines(entry string, termWidth int, indOpt indexOptions) fittedEntry {
+func fitEntryLines(entry string, termWidth int, indOpts indexOptions) fittedEntry {
 	// Сколько текста вмещается в табличку после декорации
 	entryLineWidth := termWidth - 7
 	entryRune := []rune(entry)
 	entryRuneLen := len(entryRune)
 
-	var indexPadding int
-	if indOpt.showIndex {
-		indexCharSize := charLenOfInt(indOpt.index + 1)
-		indexPadding = indexCharSize + 1
-	} else {
-		indexPadding = 0
-	}
+	indexPadding := calculatePadding(indOpts)
 
 	var entryStrings []string
 
@@ -46,8 +45,9 @@ func fitEntryLines(entry string, termWidth int, indOpt indexOptions) fittedEntry
 	formatAndAppend(string(entryRune[:entryLineWidth]), 2, 0)
 
 	// Остальные строки entry кроме последней
+	step := entryLineWidth - indexPadding
 	left := entryLineWidth
-	for right := left + entryLineWidth - indexPadding; right < entryRuneLen; left, right = left+entryLineWidth-indexPadding, right+entryLineWidth-indexPadding {
+	for right := entryLineWidth + step; right < entryRuneLen; left, right = left+step, right+step {
 		formatAndAppend(string(entryRune[left:right]), 2+indexPadding, 0)
 	}
 
@@ -58,23 +58,29 @@ func fitEntryLines(entry string, termWidth int, indOpt indexOptions) fittedEntry
 	return entryStrings
 }
 
+func calculatePadding(opts indexOptions) int {
+	if !opts.showIndex {
+		return 0
+	}
+	return charLenOfInt(opts.index+1) + 1
+}
+
 func fitEntryLine(entryLine string, opts fmtOpts) string {
-	var b strings.Builder
-	b.WriteString("│ ")
-
-	fmt.Fprintf(&b, "%s %s", highlightBg, highlightBgReset)
-	b.WriteString(strings.Repeat(" ", opts.LeftPadding))
-
 	// Перенос пробелов с начала строки в конец
 	trimmedLine := strings.TrimLeft(entryLine, " ")
 	movedSpaces := len(entryLine) - len(trimmedLine)
-	b.WriteString(trimmedLine)
-	b.WriteString(strings.Repeat(" ", movedSpaces))
 
-	if opts.extraSpaces > 0 {
-		b.WriteString(strings.Repeat(" ", opts.extraSpaces))
-	}
-	b.WriteString(" │")
+	var b strings.Builder
+	// Длина всей строки, которая будет построена strings.Builder
+	growLen := len(trimmedLine) + len(borderStart) + opts.LeftPadding + movedSpaces + opts.extraSpaces + len(borderEnd)
+	b.Grow(growLen)
+
+	b.WriteString(borderStart)
+	b.WriteString(strings.Repeat(" ", opts.LeftPadding))
+	b.WriteString(trimmedLine)
+	b.WriteString(strings.Repeat(" ", movedSpaces+opts.extraSpaces))
+	b.WriteString(borderEnd)
+
 	return b.String()
 }
 

@@ -1,9 +1,8 @@
 //go:build windows
 
-package promptselect
+package ansi
 
 import (
-	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"os"
 
 	"github.com/shirou/gopsutil/v3/process"
@@ -11,19 +10,19 @@ import (
 
 var isPwsh = isPowershell()
 
-func enterAltScreenBuf() {
+func EnterAltScreenBuf() {
 	if isPwsh {
-		ansi.EnterAltScreenBuf()
+		enterAltScreenBufCommon()
 	}
 }
 
-func exitAltScreenBuf() {
+func ExitAltScreenBuf() {
 	if isPwsh {
-		ansi.ExitAltScreenBuf()
+		exitAltScreenBufCommon()
 	}
 }
 
-// Сделать поаккуратнее
+// TODO: сделать аккуратнее
 func isPowershell() bool {
 	currentProcess, err := process.NewProcess(int32(os.Getpid()))
 	if err != nil {

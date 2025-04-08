@@ -4,14 +4,6 @@ import (
 	"fmt"
 )
 
-func EnterAltScreenBuf() {
-	fmt.Print("\033[?1049h")
-}
-
-func ExitAltScreenBuf() {
-	fmt.Print("\033[?1049l")
-}
-
 func HideCursor() {
 	fmt.Print("\033[?25l")
 }
@@ -30,3 +22,11 @@ const (
 	ColorPrompt = "\033[34m"
 	ColorErr    = "\033[31m"
 )
+
+func enterAltScreenBufCommon() {
+	fmt.Print("\033[?1049h")
+}
+
+func exitAltScreenBufCommon() {
+	fmt.Print("\033[?1049l")
+}
