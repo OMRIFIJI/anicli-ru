@@ -1,13 +1,12 @@
 package promptselect
 
 import (
-	"fmt"
 	"strings"
 )
 
 const (
-	borderStart = "│ " + highlightBg + " " + highlightBgReset
-	borderEnd   = " │"
+	borderStartInactive string = "│ " + highlightBg + " " + highlightBgReset
+	borderEndInactive   string = " │"
 )
 
 type indexOptions struct {
@@ -72,31 +71,38 @@ func fitEntryLine(entryLine string, opts fmtOpts) string {
 
 	var b strings.Builder
 	// Длина всей строки, которая будет построена strings.Builder
-	growLen := len(trimmedLine) + len(borderStart) + opts.LeftPadding + movedSpaces + opts.extraSpaces + len(borderEnd)
-	b.Grow(growLen)
+	totalLen := len(trimmedLine) + len(borderStartInactive) + opts.LeftPadding + movedSpaces + opts.extraSpaces + len(borderEndInactive)
+	b.Grow(totalLen)
 
-	b.WriteString(borderStart)
+	b.WriteString(borderStartInactive)
 	b.WriteString(strings.Repeat(" ", opts.LeftPadding))
 	b.WriteString(trimmedLine)
 	b.WriteString(strings.Repeat(" ", movedSpaces+opts.extraSpaces))
-	b.WriteString(borderEnd)
+	b.WriteString(borderEndInactive)
 
 	return b.String()
 }
 
 func makeEntryActive(entry fittedEntry) fittedEntry {
-	entryLinesActive := make([]string, 0, len(entry))
+	entryLinesActive := make(fittedEntry, 0, len(entry))
 
+	const borderStartActive = "│ " + highlightBg + highlightCursor + "▌" + highlightFg
+	const borderEndActive = highlightBgReset + " │"
+
+	var b strings.Builder
 	for _, entryStr := range entry {
-		var b strings.Builder
-		entryRune := []rune(entryStr)
-		b.WriteString("│ ")
-		fmt.Fprintf(&b, "%s%s▌ %s", highlightBg, highlightCursor, highlightFg)
-		// Фокус с подсчётом рун
-		b.WriteString(string(entryRune[19 : len(entryRune)-2]))
-		b.WriteString(highlightBgReset)
-		b.WriteString(" │")
+		// Вырезаем старые borderStartInactive и borderEndInactive
+		entryStrWithoutBorder := entryStr[len(borderStartInactive) : len(entryStr)-(len(borderEndInactive))]
+
+		totalLen := len(borderStartActive) + len(entryStrWithoutBorder) + len(borderEndActive)
+		b.Grow(totalLen)
+
+		b.WriteString(borderStartActive)
+		b.WriteString(entryStrWithoutBorder)
+		b.WriteString(borderEndActive)
+
 		entryLinesActive = append(entryLinesActive, b.String())
+		b.Reset()
 	}
 
 	return entryLinesActive
