@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
-
 	"golang.org/x/term"
 )
 
@@ -207,8 +206,6 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 		d.bigWindowKeyHandle(keyCodeValue)
 	}
 
-	d.correctDrawHigh()
-
 	return nil
 }
 
@@ -230,23 +227,27 @@ func (d *drawer) correctOnRedraw() {
 	}
 }
 
-// Корректирует параметры отрисовки, исключая ситуацию,
-// когда при переключении между маленьким и большим окном курсор улетает вниз.
-func (d *drawer) correctDrawHigh() {
-	newDrawLow := d.drawCtx.drawHigh
+// Рассчитывает drawHigh, гарантируя, что entry с индексом low поместится на экран.
+func (d *drawer) correctDrawHigh(low int) {
+	linesLeft := d.drawCtx.termSize.height - 3
+
+	// Проверка на граничный случай - помещается только последний entry
+	lastEntryLinesCount := len(d.drawCtx.fittedEntries[low])
+	if linesLeft <= lastEntryLinesCount {
+		d.drawCtx.drawHigh = low
+	}
+
+	// Двигает drawHigh с конца вверх пока не захватит все возможное пространство
 	lineCount := 0
-	for _, line := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:] {
+	for i := low; i >= 0; i-- {
+		line := d.drawCtx.fittedEntries[i]
 		lineCount += len(line)
-		if lineCount >= d.drawCtx.termSize.height-3 {
-			// Если курсор за пределами экрана
-			if newDrawLow-d.drawCtx.drawHigh < d.drawCtx.virtCur {
-				// Сдвигаем вниз, чтобы компенсировать прыжок курсора
-				d.drawCtx.drawHigh += d.drawCtx.virtCur - (newDrawLow - d.drawCtx.drawHigh)
-			}
+		if lineCount > linesLeft {
+			d.drawCtx.drawHigh = i + 1
 			return
 		}
-		newDrawLow++
 	}
+	d.drawCtx.drawHigh = 0
 }
 
 func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {
@@ -263,12 +264,13 @@ func (d *drawer) smallWindowKeyHandle(keyCodeValue keyCode) {
 
 	if keyCodeValue == downKeyCode {
 		if d.promptCtx.cur == len(d.drawCtx.fittedEntries)-1 {
-			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
 			if d.drawCtx.drawLow < len(d.drawCtx.fittedEntries)-1 {
-				d.drawCtx.drawHigh++
+				d.correctDrawHigh(d.promptCtx.cur)
 			}
+			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
 		} else if d.drawCtx.virtCur == d.drawCtx.drawLow-d.drawCtx.drawHigh {
-			d.drawCtx.drawHigh++
+			d.correctDrawHigh(d.promptCtx.cur)
+			d.drawCtx.virtCur = d.drawCtx.drawHigh - d.promptCtx.cur
 		} else {
 			d.drawCtx.virtCur++
 		}
@@ -287,9 +289,13 @@ func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
 			d.drawCtx.virtCur--
 		}
 	}
-	// Клавиша вниз - сложнее, но полная аналогия с клавишей вверх
+	// Клавиша вниз - выглядит сложнее, но полная аналогия с клавишей вверх
+	// кроме дополнительного условия correctDrawHighAtLowest.
 	if keyCodeValue == downKeyCode {
 		if d.promptCtx.cur == len(d.drawCtx.fittedEntries)-1 {
+			if d.drawCtx.virtCur == d.drawCtx.drawLow-d.drawCtx.drawHigh && d.drawCtx.drawLow != len(d.drawCtx.fittedEntries)-1 {
+				d.correctDrawHigh(d.promptCtx.cur)
+			}
 			d.drawCtx.virtCur = d.drawCtx.drawLow - d.drawCtx.drawHigh
 		} else if d.promptCtx.cur > len(d.drawCtx.fittedEntries)-1-cursorScrollOffset {
 			d.drawCtx.virtCur++
@@ -304,36 +310,40 @@ func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
 }
 
 func (d *drawer) buildEntriesBody(b *strings.Builder) {
-	lineCount := 0
-	// Максимальное число строк для entries = высота - (декоративные строки)
-	maxLineCount := d.drawCtx.termSize.height - 3
+	linesLeft := d.drawCtx.termSize.height - 3
 
-	// Строки до курсора
-	for _, entry := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur] {
+	// Отрисовка элементов до курсора
+	for i := d.drawCtx.drawHigh; i < d.promptCtx.cur; i++ {
+		entry := d.drawCtx.fittedEntries[i]
 		for _, line := range entry {
 			b.WriteString(line)
-			lineCount++
+			linesLeft--
+			if linesLeft <= 0 {
+				d.drawCtx.drawLow = i
+				return
+			}
 		}
 	}
 
-	// Строки с курсором
+	// Отрисовка выделенного элемента
 	selectedEntry := makeEntryActive(d.drawCtx.fittedEntries[d.promptCtx.cur])
 	for _, line := range selectedEntry {
 		b.WriteString(line)
-		lineCount++
-		if lineCount >= maxLineCount {
+		linesLeft--
+		if linesLeft <= 0 {
 			d.drawCtx.drawLow = d.promptCtx.cur
 			return
 		}
 	}
 
-	// Строки после курсора
-	for i, entry := range d.drawCtx.fittedEntries[d.promptCtx.cur+1:] {
+	// Отрисовка элементов после курсора
+	for i := d.promptCtx.cur + 1; i < len(d.drawCtx.fittedEntries); i++ {
+		entry := d.drawCtx.fittedEntries[i]
 		for _, line := range entry {
 			b.WriteString(line)
-			lineCount++
-			if lineCount >= maxLineCount {
-				d.drawCtx.drawLow = d.promptCtx.cur + 1 + i
+			linesLeft--
+			if linesLeft <= 0 {
+				d.drawCtx.drawLow = i
 				return
 			}
 		}
@@ -341,7 +351,6 @@ func (d *drawer) buildEntriesBody(b *strings.Builder) {
 
 	d.drawCtx.drawLow = len(d.drawCtx.fittedEntries) - 1
 }
-
 func (d *drawer) recoverWithCancel(cancel context.CancelCauseFunc) {
 	if r := recover(); r != nil {
 		var err error

@@ -45,8 +45,8 @@ type drawingContext struct {
 	showIndex     bool
 	fittedEntries []fittedEntry
 	fittedPrompt  string
-	drawHigh      int // Индекс самого первого entry видимого на экране
-	drawLow       int // Аналогично
+	drawHigh      int // Индекс первого entry, видимого на экране
+	drawLow       int // Индекс последнего entry, видимого на экране	
 	virtCur       int
 	termSize      terminalSize
 }
