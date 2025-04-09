@@ -4,29 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
+
 	"golang.org/x/term"
 )
 
 func newDrawer(promptCtx promptContext, showIndex bool) (*drawer, error) {
-	d := &drawer{}
-	d.promptCtx = promptCtx
-
-	if showIndex {
-		for i := range len(d.promptCtx.entries) {
-			d.promptCtx.entries[i] = fmt.Sprintf("%d %s", i+1, d.promptCtx.entries[i])
-		}
+	d := &drawer{
+		promptCtx: promptCtx,
+		drawCtx: drawingContext{
+			drawHigh:  0,
+			virtCur:   0,
+			showIndex: showIndex,
+		},
 	}
 
-	d.drawCtx = drawingContext{
-		drawHigh:  0,
-		virtCur:   0,
-		showIndex: showIndex,
+	if showIndex {
+		for i := range d.promptCtx.entries {
+			d.promptCtx.entries[i] = fmt.Sprintf("%d %s", i+1, d.promptCtx.entries[i])
+		}
 	}
 
 	if err := d.updateTerminalSize(); err != nil {
@@ -39,22 +40,24 @@ func newDrawer(promptCtx promptContext, showIndex bool) (*drawer, error) {
 }
 
 func (d *drawer) fitEntries() {
-	d.drawCtx.fittedEntries = nil
+	d.drawCtx.fittedEntries = make([]fittedEntry, 0, len(d.promptCtx.entries))
 	indOpt := indexOptions{showIndex: d.drawCtx.showIndex}
 
 	for i, entry := range d.promptCtx.entries {
 		indOpt.index = i
-		fitEntry := fitEntryLines(entry, d.drawCtx.termSize.width, indOpt)
-		d.drawCtx.fittedEntries = append(d.drawCtx.fittedEntries, fitEntry)
+		d.drawCtx.fittedEntries = append(d.drawCtx.fittedEntries,
+			fitEntryLines(entry, d.drawCtx.termSize.width, indOpt))
 	}
 }
 
 func (d *drawer) fitPrompt() {
 	runePrompt := []rune(d.promptCtx.promptMessage)
-	promptLen := len(runePrompt)
-	decorateBoxWidth := d.drawCtx.termSize.width - 2*borderSize
-	if promptLen > decorateBoxWidth {
-		d.drawCtx.fittedPrompt = string(runePrompt[:decorateBoxWidth-3]) + "..."
+	maxWidth := d.drawCtx.termSize.width - 2*borderSize
+
+	const ellipsis string = "..."
+
+	if len(runePrompt) > maxWidth {
+		d.drawCtx.fittedPrompt = string(runePrompt[:maxWidth-len(ellipsis)]) + ellipsis
 	} else {
 		d.drawCtx.fittedPrompt = d.promptCtx.promptMessage
 	}
@@ -72,16 +75,18 @@ func (d *drawer) spinDrawInterface(keyCodeChan chan keyCode, ctx context.Context
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		d.spinRedrawOnResize(ctx, cancel)
+		d.handleResizeEvents(ctx, cancel)
 	}()
-	defer wg.Wait()
-	defer d.recoverWithCancel(cancel)
+
+	defer func() {
+		d.recoverWithCancel(cancel)
+		wg.Wait()
+	}()
 
 	for {
 		select {
 		case keyCodeValue := <-keyCodeChan:
-			err := d.handleKeyInput(keyCodeValue)
-			if err != nil {
+			if err := d.handleKeyInput(keyCodeValue); err != nil {
 				cancel(err)
 				return
 			}
@@ -121,35 +126,37 @@ func (d *drawer) drawInterface(keyCodeValue keyCode, onResize bool) error {
 		return err
 	}
 
-	entryCount := len(d.drawCtx.fittedEntries)
-	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
-
-	var drawBuilder strings.Builder
-
-	drawBuilder.WriteString(ansi.ClearScreen)
-	fmt.Fprintf(&drawBuilder, "%s%s%s\r\n", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
-	fmt.Fprintf(&drawBuilder, "┌───── Всего: %d %s┐\r\n", entryCount, repeatLineStr)
-
-	d.drawEntriesBody(&drawBuilder)
-	fmt.Fprintf(&drawBuilder, "└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
-
-	fmt.Print(drawBuilder.String())
+	fmt.Print(d.buildInterfaceStr())
 
 	return nil
 }
 
-func (d *drawer) spinRedrawOnResize(ctx context.Context, cancel context.CancelCauseFunc) {
-	defer d.recoverWithCancel(cancel)
+// Возвращает строку, в которой хранится весь интерфейс prompt select.
+func (d *drawer) buildInterfaceStr() string {
+	var b strings.Builder
 
+	entryCount := len(d.drawCtx.fittedEntries)
+	repeatLineStr := strings.Repeat("─", d.drawCtx.termSize.width-decorateTextWidth-charLenOfInt(entryCount))
+
+	b.WriteString(ansi.ClearScreen)
+	fmt.Fprintf(&b, "%s%s%s\r\n", ansi.ColorPrompt, d.drawCtx.fittedPrompt, ansi.ColorReset)
+	fmt.Fprintf(&b, "┌───── Всего: %d %s┐\r\n", entryCount, repeatLineStr)
+
+	d.buildEntriesBody(&b)
+	fmt.Fprintf(&b, "└%s┘", strings.Repeat("─", d.drawCtx.termSize.width-2))
+	return b.String()
+}
+
+func (d *drawer) handleResizeEvents(ctx context.Context, cancel context.CancelCauseFunc) {
+	defer d.recoverWithCancel(cancel)
 	signalChan := newResizeChan(ctx)
 
 	for {
-		d.debounce()
-
 		select {
 		case <-ctx.Done():
 			return
 		case <-signalChan:
+			d.debounce()
 			if err := d.drawInterface(noActionKeyCode, true); err != nil {
 				cancel(err)
 				return
@@ -172,10 +179,9 @@ func (d *drawer) updateTerminalSize() error {
 	entryCount := len(d.drawCtx.fittedEntries)
 	minimalTermWidth := decorateTextWidth + charLenOfInt(entryCount)
 	if termWidth < minimalTermWidth || termHeight < minimalTermHeight {
-		errorStr := "Терминал слишком маленький!\n"
-		errorStr += fmt.Sprintf("Минимальный размер: (%dx%d).", minimalTermWidth, minimalTermHeight)
-		return errors.New(errorStr)
+		return fmt.Errorf("терминал слишком маленький! Минимальный размер: (%dx%d)", minimalTermWidth, minimalTermHeight)
 	}
+
 	d.drawCtx.termSize = terminalSize{
 		width:  termWidth,
 		height: termHeight,
@@ -191,7 +197,6 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 		}
 		d.fitPrompt()
 		d.fitEntries()
-		// Если выбран нижний вариант, и высота уменьшена
 		d.correctOnRedraw()
 		return nil
 	}
@@ -202,12 +207,12 @@ func (d *drawer) updateDrawContext(keyCodeValue keyCode, onResize bool) error {
 		d.bigWindowKeyHandle(keyCodeValue)
 	}
 
-	// При переключении между маленьким и большим окном курсор может улететь вниз
 	d.correctDrawHigh()
 
 	return nil
 }
 
+// Корректирует параметры отрисовки, если выбран entry внизу экрана, и высота уменьшена.
 func (d *drawer) correctOnRedraw() {
 	newDrawLow := d.drawCtx.drawHigh
 	lineCount := 0
@@ -225,6 +230,8 @@ func (d *drawer) correctOnRedraw() {
 	}
 }
 
+// Корректирует параметры отрисовки, исключая ситуацию,
+// когда при переключении между маленьким и большим окном курсор улетает вниз.
 func (d *drawer) correctDrawHigh() {
 	newDrawLow := d.drawCtx.drawHigh
 	lineCount := 0
@@ -296,31 +303,36 @@ func (d *drawer) bigWindowKeyHandle(keyCodeValue keyCode) {
 
 }
 
-func (d *drawer) drawEntriesBody(drawBuilder *strings.Builder) {
+func (d *drawer) buildEntriesBody(b *strings.Builder) {
 	lineCount := 0
+	// Максимальное число строк для entries = высота - (декоративные строки)
+	maxLineCount := d.drawCtx.termSize.height - 3
 
+	// Строки до курсора
 	for _, entry := range d.drawCtx.fittedEntries[d.drawCtx.drawHigh:d.promptCtx.cur] {
 		for _, line := range entry {
-			drawBuilder.WriteString(line)
+			b.WriteString(line)
 			lineCount++
 		}
 	}
 
+	// Строки с курсором
 	selectedEntry := makeEntryActive(d.drawCtx.fittedEntries[d.promptCtx.cur])
 	for _, line := range selectedEntry {
-		drawBuilder.WriteString(line)
+		b.WriteString(line)
 		lineCount++
-		if lineCount >= d.drawCtx.termSize.height-3 {
+		if lineCount >= maxLineCount {
 			d.drawCtx.drawLow = d.promptCtx.cur
 			return
 		}
 	}
 
+	// Строки после курсора
 	for i, entry := range d.drawCtx.fittedEntries[d.promptCtx.cur+1:] {
 		for _, line := range entry {
-			drawBuilder.WriteString(line)
+			b.WriteString(line)
 			lineCount++
-			if lineCount >= d.drawCtx.termSize.height-3 {
+			if lineCount >= maxLineCount {
 				d.drawCtx.drawLow = d.promptCtx.cur + 1 + i
 				return
 			}

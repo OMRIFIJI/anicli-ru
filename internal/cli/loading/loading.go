@@ -2,8 +2,9 @@ package loading
 
 import (
 	"fmt"
-	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 	"time"
+
+	"github.com/OMRIFIJI/anicli-ru/internal/cli/ansi"
 )
 
 func RestoreTerminal() {
@@ -34,7 +35,7 @@ func DisplayLoading(quitChan chan struct{}) {
 		}
 
 		// Рост
-		for i := 0; i < flowersMax; i++ {
+		for range flowersMax {
 			for j := 1; j < len(flowerPhases); j++ {
 				if !printSuccess(j) {
 					return
@@ -50,7 +51,7 @@ func DisplayLoading(quitChan chan struct{}) {
 				return
 			}
 		}
-		for i := 0; i < flowersMax-1; i++ {
+		for range flowersMax - 1 {
 			loadingStr = loadingStr[:len(loadingStr)-bloomLen]
 			for j := len(flowerPhases) - 1; j > 0; j-- {
 				if !printSuccess(j) {

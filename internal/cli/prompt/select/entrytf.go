@@ -86,8 +86,8 @@ func fitEntryLine(entryLine string, opts fmtOpts) string {
 func makeEntryActive(entry fittedEntry) fittedEntry {
 	entryLinesActive := make(fittedEntry, 0, len(entry))
 
-	const borderStartActive = "│ " + highlightBg + highlightCursor + "▌" + highlightFg
-	const borderEndActive = highlightBgReset + " │"
+	const borderStartActive string = "│ " + highlightBg + highlightCursor + "▌" + highlightFg
+	const borderEndActive string = highlightBgReset + " │"
 
 	var b strings.Builder
 	for _, entryStr := range entry {
