@@ -53,7 +53,7 @@ go install github.com/OMRIFIJI/anicli-ru/cmd/anicli-ru@latest
 Для воспроизведения видео используется плеер `mpv` и `ffmpeg`.
 
 ## Конфиг
-Программа создаст стандартный конфиг по одному из следующих путей:
+При первом запуске программа создаст стандартный конфиг по одному из следующих путей:
 1. `$XDG_CONFIG_HOME/anicli-ru/config.toml`
 2. `$HOME/anicli-ru/config.toml`
 
