@@ -55,7 +55,7 @@ go install github.com/OMRIFIJI/anicli-ru/cmd/anicli-ru@latest
 ## Конфиг
 При первом запуске программа создаст стандартный конфиг по одному из следующих путей:
 1. `$XDG_CONFIG_HOME/anicli-ru/config.toml`
-2. `$HOME/anicli-ru/config.toml`
+2. `$HOME/.config/anicli-ru/config.toml`
 
 Стандартный конфиг будет иметь примерно следующий вид:
 ```
